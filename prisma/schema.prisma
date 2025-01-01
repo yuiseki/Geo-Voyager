@@ -1,0 +1,35 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Hypothesis {
+  id          Int      @id @default(autoincrement())
+  description String   // 仮説の説明
+  status      String   @default("PENDING") // 仮説の状態: PENDING, VERIFIED, REJECTED, UNVERIFIABLE_FETCH, UNVERIFIABLE_ANALYZE
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model FetchSkill {
+  id          Int      @id @default(autoincrement())
+  name        String   // スキル名
+  description String   // スキルの説明
+  code        String   // スキルの内容（コード）
+  createdAt   DateTime @default(now())
+}
+
+model AnalyzeSkill {
+  id          Int      @id @default(autoincrement())
+  name        String   // スキル名
+  description String   // スキルの説明
+  code        String   // スキルの内容（コード）
+  createdAt   DateTime @default(now())
+}
