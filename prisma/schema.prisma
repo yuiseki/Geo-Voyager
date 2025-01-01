@@ -20,7 +20,6 @@ model Hypothesis {
 
 model FetchSkill {
   id          Int      @id @default(autoincrement())
-  name        String   // スキル名
   description String   // スキルの説明
   code        String   // スキルの内容（コード）
   createdAt   DateTime @default(now())
@@ -28,7 +27,6 @@ model FetchSkill {
 
 model AnalyzeSkill {
   id          Int      @id @default(autoincrement())
-  name        String   // スキル名
   description String   // スキルの説明
   code        String   // スキルの内容（コード）
   createdAt   DateTime @default(now())
