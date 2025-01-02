@@ -10,12 +10,49 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Question {
+  id          Int          @id @default(autoincrement())
+  description String       // 疑問の説明
+  status      String       @default("OPEN") // ステータス: OPEN, SOLVED, UNRESOLVABLE
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  hypotheses  Hypothesis[] // 疑問に関連する仮説（1対多のリレーション）
+}
+
 model Hypothesis {
   id          Int      @id @default(autoincrement())
   description String   // 仮説の説明
   status      String   @default("PENDING") // 仮説の状態: PENDING, VERIFIED, REJECTED, UNVERIFIABLE_FETCH, UNVERIFIABLE_ANALYZE
+  details     String?  // 検証の結果や付随情報
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  tasks       HypothesisTask[] // 仮説を検証するためのタスク（1対多のリレーション）
+  question    Question?        @relation(fields: [questionId], references: [id])
+  questionId  Int?             // 疑問との外部キー（オプション）
+}
+
+model Task {
+  id          Int       @id @default(autoincrement())
+  description String    // タスクの内容
+  status      String    // タスクの状態: PENDING, IN_PROGRESS, COMPLETED, FAILED
+  result      String?   // タスクの結果
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  hypotheses  HypothesisTask[] // タスクによって検証される仮説（1対多のリレーション）
+}
+
+model HypothesisTask {
+  id           Int        @id @default(autoincrement())
+  hypothesisId Int
+  taskId       Int
+
+  hypothesis   Hypothesis @relation(fields: [hypothesisId], references: [id])
+  task         Task       @relation(fields: [taskId], references: [id])
+
+  createdAt    DateTime   @default(now())
 }
 
 model FetchSkill {

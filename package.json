@@ -14,6 +14,7 @@
   "description": "",
   "dependencies": {
     "@prisma/client": "^6.1.0",
+    "@turf/turf": "^7.2.0",
     "@types/node": "^22.10.3",
     "fastest-levenshtein": "^1.0.16",
     "prisma": "^6.1.0",

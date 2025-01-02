@@ -1,4 +1,4 @@
-import { calculateHypothesisScore } from "./hypothesisScore";
+import { calculateHypothesisScore } from "./calculateHypothesisScore";
 import { getHypothesesByStatus, HypothesisStatus } from "../db/hypothesis";
 
 // Jestのモックを作成
