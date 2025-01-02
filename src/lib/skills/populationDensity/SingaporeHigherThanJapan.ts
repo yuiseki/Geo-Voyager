@@ -1,11 +1,11 @@
-// description: モナコの人口密度がシンガポールよりも高いことを確認する。
+// description: シンガポールの人口密度が日本よりも高いことを確認する。
 import * as turf from "@turf/turf";
 import osmtogeojson from "osmtogeojson";
 
 /**
  * @return boolean
  */
-const isPopulationDensityOfMonacoHigherThanSingapore = async () => {
+const isPopulationDensityOfSingaporeHigherThanJapan = async () => {
   const fetchOverpassData = async (query: string): Promise<any> => {
     const endpoint = "https://overpass-api.de/api/interpreter";
     const res = await fetch(endpoint, {
@@ -23,17 +23,6 @@ const isPopulationDensityOfMonacoHigherThanSingapore = async () => {
     return await res.json();
   };
 
-  // モナコの面積と人口を取得
-  const queryMonaco = `[out:json];
-relation["name"="Monaco"]["admin_level"=2];
-out geom;`;
-  const resultMonaco = await fetchOverpassData(queryMonaco);
-  const geoJsonMonaco = osmtogeojson(resultMonaco);
-  const areaMonaco = turf.area(geoJsonMonaco);
-  const populationMonaco = geoJsonMonaco.features[0].properties?.population;
-  // モナコの人口密度を計算
-  const populationDensityMonaco = populationMonaco / areaMonaco;
-
   // シンガポールの面積と人口を取得
   const querySingapore = `[out:json];
 relation["name"="Singapore"]["admin_level"=2];
@@ -46,10 +35,27 @@ out geom;`;
     const result = await fetchWorldBank("sg");
     populationSingapore = result[1][0].value;
   }
+
   // シンガポールの人口密度を計算
   const populationDensitySingapore = populationSingapore / areaSingapore;
 
-  return populationDensityMonaco > populationDensitySingapore;
+  // 日本の面積と人口を取得
+  const queryJapan = `[out:json];
+relation["name:en"="Japan"]["admin_level"=2];
+out geom;`;
+  const resultJapan = await fetchOverpassData(queryJapan);
+  const geoJsonJapan = osmtogeojson(resultJapan);
+  const areaJapan = turf.area(geoJsonJapan);
+  let populationJapan = geoJsonJapan.features[0].properties?.population;
+  if (isNaN(populationJapan)) {
+    const result = await fetchWorldBank("jp");
+    populationJapan = result[1][0].value;
+  }
+
+  // 日本の人口密度を計算
+  const populationDensityJapan = populationJapan / areaJapan;
+
+  return populationDensitySingapore > populationDensityJapan;
 };
 
-export default isPopulationDensityOfMonacoHigherThanSingapore;
+export default isPopulationDensityOfSingaporeHigherThanJapan;

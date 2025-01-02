@@ -33,7 +33,7 @@ export const findAndExecuteTasksByHypothesis = async (
       console.log(
         `  - ❌ Task: ${task.description} failed with result: ${task.result}`
       );
-      continue;
+      break;
     }
     if (task.status === "ERROR") {
       console.log(
@@ -67,24 +67,25 @@ export const findAndExecuteTasksByHypothesis = async (
             // trueなら仮説は引き続き支持される
             // falseなら仮説は棄却される
             if (result) {
-              console.log(`    - ✅ Result: ${result}`);
+              console.log(`      - ✅ Result: ${result}`);
               status = TaskStatus.COMPLETED;
             } else {
-              console.log(`    - ❌ Result: ${result}`);
+              console.log(`      - ❌ Result: ${result}, hypothesis rejected.`);
               status = TaskStatus.FAILED;
               // hypothesisのstatusをREJECTEDに更新
               await updateHypothesisStatus(
                 hypothesis.id,
                 HypothesisStatus.REJECTED
               );
+              break;
             }
           } else {
-            console.error("    - 🚫 No default export found in skill.");
+            console.error("      - 🚫 No default export found in skill.");
             status = TaskStatus.ERROR;
             result = "No default export found in skill.";
           }
         } catch (error) {
-          console.error("    - 🚫 Error executing skill:", error);
+          console.error("      - 🚫 Error executing skill:", error);
           status = TaskStatus.ERROR;
           result = (error as Error).message;
         } finally {

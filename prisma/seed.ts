@@ -28,38 +28,95 @@ async function main() {
     },
   });
 
-  // Hypothesisの作成
-  const hypothesis = await prisma.hypothesis.create({
+  // Hypothesis1の作成
+  const hypothesis1 = await prisma.hypothesis.create({
     data: {
       description: "世界で最も人口密度が高い国はモナコである。",
       status: "PENDING",
       questionId: question.id, // Questionとの関連付け
     },
   });
-
-  // Tasksの作成
-  await prisma.task.createMany({
-    data: [
-      {
-        description: "モナコの人口密度がシンガポールよりも高いことを確認する。",
-        status: "PENDING",
-      },
-    ],
+  // Taskの作成
+  const task1ForHypothesis1 = await prisma.task.create({
+    data: {
+      description: "モナコの人口密度がシンガポールよりも高いことを確認する。",
+      status: "PENDING",
+    },
+  });
+  // Hypothesis1とTasksの関連付け
+  await prisma.hypothesisTask.create({
+    data: {
+      hypothesisId: hypothesis1.id,
+      taskId: task1ForHypothesis1.id,
+    },
   });
 
-  // HypothesisとTasksの関連付け
-  const tasksData = await prisma.task.findMany({
-    where: { status: "PENDING" },
+  // Hypothesis2の作成
+  const hypothesis2 = await prisma.hypothesis.create({
+    data: {
+      description: "世界で最も人口密度が高い国はシンガポールである。",
+      status: "PENDING",
+      questionId: question.id, // Questionとの関連付け
+    },
   });
-
-  for (const task of tasksData) {
-    await prisma.hypothesisTask.create({
-      data: {
-        hypothesisId: hypothesis.id,
-        taskId: task.id,
-      },
-    });
-  }
+  // Taskの作成
+  const task1ForHypothesis2 = await prisma.task.create({
+    data: {
+      description: "シンガポールの人口密度がモナコよりも高いことを確認する。",
+      status: "PENDING",
+    },
+  });
+  // Hypothesis2とTasksの関連付け
+  await prisma.hypothesisTask.create({
+    data: {
+      hypothesisId: hypothesis2.id,
+      taskId: task1ForHypothesis2.id,
+    },
+  });
+  // Taskの作成
+  const task2ForHypothesis2 = await prisma.task.create({
+    data: {
+      description: "シンガポールの人口密度が日本よりも高いことを確認する。",
+      status: "PENDING",
+    },
+  });
+  // Hypothesis2とTasksの関連付け
+  await prisma.hypothesisTask.create({
+    data: {
+      hypothesisId: hypothesis2.id,
+      taskId: task2ForHypothesis2.id,
+    },
+  });
+  // Taskの作成
+  const task3ForHypothesis2 = await prisma.task.create({
+    data: {
+      description:
+        "シンガポールの人口密度がバーレーンよりも高いことを確認する。",
+      status: "PENDING",
+    },
+  });
+  // Hypothesis2とTasksの関連付け
+  await prisma.hypothesisTask.create({
+    data: {
+      hypothesisId: hypothesis2.id,
+      taskId: task3ForHypothesis2.id,
+    },
+  });
+  // Taskの作成
+  const task4ForHypothesis2 = await prisma.task.create({
+    data: {
+      description:
+        "シンガポールの人口密度がモルディブよりも高いことを確認する。",
+      status: "PENDING",
+    },
+  });
+  // Hypothesis2とTasksの関連付け
+  await prisma.hypothesisTask.create({
+    data: {
+      hypothesisId: hypothesis2.id,
+      taskId: task4ForHypothesis2.id,
+    },
+  });
 
   // src/lib/skills/**/*.ts ファイルをすべて取得
   const skillFiles = await glob(

@@ -1,11 +1,11 @@
-// description: モナコの人口密度がシンガポールよりも高いことを確認する。
+// description: シンガポールの人口密度がバーレーンよりも高いことを確認する。
 import * as turf from "@turf/turf";
 import osmtogeojson from "osmtogeojson";
 
 /**
- * @return boolean
+ * @returns boolean
  */
-const isPopulationDensityOfMonacoHigherThanSingapore = async () => {
+const isPopulationDensityOfSingaporeHigherThanBahrain = async () => {
   const fetchOverpassData = async (query: string): Promise<any> => {
     const endpoint = "https://overpass-api.de/api/interpreter";
     const res = await fetch(endpoint, {
@@ -23,17 +23,6 @@ const isPopulationDensityOfMonacoHigherThanSingapore = async () => {
     return await res.json();
   };
 
-  // モナコの面積と人口を取得
-  const queryMonaco = `[out:json];
-relation["name"="Monaco"]["admin_level"=2];
-out geom;`;
-  const resultMonaco = await fetchOverpassData(queryMonaco);
-  const geoJsonMonaco = osmtogeojson(resultMonaco);
-  const areaMonaco = turf.area(geoJsonMonaco);
-  const populationMonaco = geoJsonMonaco.features[0].properties?.population;
-  // モナコの人口密度を計算
-  const populationDensityMonaco = populationMonaco / areaMonaco;
-
   // シンガポールの面積と人口を取得
   const querySingapore = `[out:json];
 relation["name"="Singapore"]["admin_level"=2];
@@ -46,10 +35,27 @@ out geom;`;
     const result = await fetchWorldBank("sg");
     populationSingapore = result[1][0].value;
   }
+
   // シンガポールの人口密度を計算
   const populationDensitySingapore = populationSingapore / areaSingapore;
 
-  return populationDensityMonaco > populationDensitySingapore;
+  // バーレーンの面積と人口を取得
+  const queryBahrain = `[out:json];
+relation["name:en"="Bahrain"]["admin_level"=2];
+out geom;`;
+  const resultBahrain = await fetchOverpassData(queryBahrain);
+  const geoJsonBahrain = osmtogeojson(resultBahrain);
+  const areaBahrain = turf.area(geoJsonBahrain);
+  let populationBahrain = geoJsonBahrain.features[0].properties?.population;
+  if (isNaN(populationBahrain)) {
+    const result = await fetchWorldBank("bh");
+    populationBahrain = result[1][0].value;
+  }
+
+  // バーレーンの人口密度を計算
+  const populationDensityBahrain = populationBahrain / areaBahrain;
+
+  return populationDensitySingapore > populationDensityBahrain;
 };
 
-export default isPopulationDensityOfMonacoHigherThanSingapore;
+export default isPopulationDensityOfSingaporeHigherThanBahrain;

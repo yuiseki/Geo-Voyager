@@ -1,5 +1,6 @@
 import { Hypothesis } from "@prisma/client";
-import { createTaskByHypothesisId } from "../db/task";
+import { createTaskByHypothesisId, getAllExecutedTasks } from "../db/task";
+import { ChatOllama } from "@langchain/ollama";
 
 /**
  * 仮説に関連付けられた新しいタスクを計画・作成
@@ -8,28 +9,41 @@ import { createTaskByHypothesisId } from "../db/task";
 export const planNewTasksForHypothesis = async (hypothesis: Hypothesis) => {
   console.log("🛠️ Planning new tasks for the hypothesis...");
 
-  // 仮説に基づいて計画するタスク
-  const taskList = [];
+  // 仮説を検証するためのタスク
+  const taskList: string[] = [];
 
-  if (hypothesis.description.includes("シンガポール")) {
-    taskList.push(
-      "シンガポールの人口と面積を取得し、人口密度を計算する",
-      "モナコの人口と面積を取得し、人口密度を計算する",
-      "シンガポールとモナコの人口密度を比較する"
-    );
-  } else if (hypothesis.description.includes("バーレーン")) {
-    taskList.push(
-      "バーレーンの人口と面積を取得し、人口密度を計算する",
-      "モナコの人口と面積を取得し、人口密度を計算する",
-      "バーレーンとモナコの人口密度を比較する"
-    );
-  } else {
-    taskList.push("新しい国の人口と面積を取得し、モナコとの比較を行う");
+  const executedTasks = await getAllExecutedTasks();
+  const prompt = `Given the hypothesis: "${
+    hypothesis.description
+  }", plan new tasks to test the hypothesis in Japanese.
+
+Executable tasks for example:
+${executedTasks.map((t) => `- ${t.description}`).join("\n")}
+
+Reply with only a list of possible executable tasks, separated by newlines.`;
+
+  console.log("🤖 Tasks generation prompt:");
+  console.log(prompt);
+
+  // AIのレスポンスとして新しいタスクを生成
+  const model = new ChatOllama({
+    model: "qwen2.5:7b",
+    temperature: 0,
+  });
+  const response = await model.invoke(prompt);
+  const content = response.content as string;
+  const lines = content.split("\n");
+  for (const line of lines) {
+    const task = line.trim();
+    if (task.length > 0) {
+      taskList.push(task);
+    }
   }
 
   const tasks = [];
   // タスクをデータベースに作成
   for (const taskDescription of taskList) {
+    console.log(`💾 Saving new task: ${taskDescription}`);
     const newTask = await createTaskByHypothesisId(
       hypothesis.id,
       taskDescription
@@ -37,6 +51,6 @@ export const planNewTasksForHypothesis = async (hypothesis: Hypothesis) => {
     tasks.push(newTask);
   }
 
-  console.log(`📋️ Planed new ${tasks.length} tasks.`);
+  console.log(`📋️ Planed total ${tasks.length} new tasks.`);
   return tasks;
 };

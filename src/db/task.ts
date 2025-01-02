@@ -20,6 +20,16 @@ export const getAllTasksByHypothesisId = async (hypothesisId: number) => {
   });
 };
 
+export const getAllExecutedTasks = async () => {
+  return await prisma.task.findMany({
+    where: {
+      status: {
+        in: [TaskStatus.COMPLETED, TaskStatus.FAILED],
+      },
+    },
+  });
+};
+
 export const updateTaskStatusAndResult = async (
   id: number,
   status: TaskStatus,
