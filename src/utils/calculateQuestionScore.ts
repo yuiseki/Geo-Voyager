@@ -1,4 +1,4 @@
-import { getQuestionsByStatus } from "../db/question";
+import { getQuestionsByStatus, QuestionStatus } from "../db/question";
 import { distance } from "fastest-levenshtein";
 
 // 疑問スコアを計算する関数
@@ -13,8 +13,8 @@ export const calculateQuestionScore = async (
   };
 
   // 陳腐さスコア
-  const openQuestions = await getQuestionsByStatus("OPEN");
-  const solvedQuestions = await getQuestionsByStatus("SOLVED");
+  const openQuestions = await getQuestionsByStatus(QuestionStatus.OPEN);
+  const solvedQuestions = await getQuestionsByStatus(QuestionStatus.SOLVED);
   const openAndSolvedQuestions = [...openQuestions, ...solvedQuestions];
 
   const redundancyScores = openAndSolvedQuestions.map((q) =>
@@ -24,7 +24,9 @@ export const calculateQuestionScore = async (
     redundancyScores.length > 0 ? Math.max(...redundancyScores) : 0;
 
   // 荒唐無稽さスコア
-  const unresolvableQuestions = await getQuestionsByStatus("UNRESOLVABLE");
+  const unresolvableQuestions = await getQuestionsByStatus(
+    QuestionStatus.UNRESOLVABLE
+  );
   const unresolvableScores = unresolvableQuestions.map((q) =>
     calculateSimilarity(newQuestion, q.description)
   );
