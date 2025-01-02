@@ -5,7 +5,7 @@ import { findAndExecuteTasksByHypothesis } from "./utils/findAndExecuteTasksByHy
 import { formulateNewHypothesis } from "./utils/formulateNewHypothesis";
 
 (async () => {
-  console.log("🗺️  Geo-Voyager Starting...");
+  console.log("🗺️  Initializing Geo-Voyager...");
 
   // OPENなQuestionを1件取得
   const question = await getFirstOpenQuestion();
@@ -31,4 +31,6 @@ import { formulateNewHypothesis } from "./utils/formulateNewHypothesis";
 
   // Hypothesisに関連するTaskを探して実行
   await findAndExecuteTasksByHypothesis(hypothesis);
+
+  console.log("🗺️  Geo-Voyager has finished his journey.");
 })();

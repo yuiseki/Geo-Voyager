@@ -44,7 +44,7 @@ export const findAndExecuteTasksByHypothesis = async (
     if (task.status === "PENDING") {
       console.log(`  - 🔨 Starting task: ${task.description}`);
 
-      // スキルを取得
+      // 仮説検証タスクを実行するためのスキルを取得
       const skill = await getFirstSkillByDescription(task.description);
 
       if (skill) {
