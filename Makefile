@@ -1,6 +1,7 @@
 
 all: main
 
+.SILENT: main
 main:
 	npx tsx --network-family-autoselection-attempt-timeout=500 ./src/main.ts
 

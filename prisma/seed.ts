@@ -15,37 +15,64 @@ const prisma = new PrismaClient();
 */
 
 async function main() {
-  const task1 = await prisma.task.create({
+  // Questionの作成
+  const question = await prisma.question.create({
     data: {
-      description: "東京都のすべての行政区の面積を取得する",
-      status: "PENDING",
+      description: "世界で最も人口密度が高い国はどこだろう？",
+      status: "OPEN",
     },
   });
 
-  const task2 = await prisma.task.create({
-    data: {
-      description: "東京都の各行政区の学校の数を取得する",
-      status: "PENDING",
-    },
-  });
-
-  console.log("Bootstrap tasks seeded.");
-
+  // Hypothesisの作成
   const hypothesis = await prisma.hypothesis.create({
     data: {
-      description: "東京都においては、行政区の面積が広いほど、学校の数が多い。",
+      description: "世界で最も人口密度が高い国はモナコである。",
       status: "PENDING",
+      questionId: question.id, // Questionとの関連付け
     },
   });
-  console.log("Bootstrap hypotheses seeded.");
 
-  await prisma.hypothesisTask.createMany({
+  // Tasksの作成
+  await prisma.task.createMany({
     data: [
-      { hypothesisId: hypothesis.id, taskId: task1.id },
-      { hypothesisId: hypothesis.id, taskId: task2.id },
+      {
+        description: "モナコの面積と人口を得て、人口密度を計算する",
+        status: "PENDING",
+      },
+      {
+        description: "シンガポールの面積と人口を得て、人口密度を計算する",
+        status: "PENDING",
+      },
+      {
+        description: "モナコの人口密度とシンガポールの人口密度を比較する",
+        status: "PENDING",
+      },
+      {
+        description: "マカオの面積と人口を得て、人口密度を計算する",
+        status: "PENDING",
+      },
+      {
+        description: "モナコの人口密度とマカオの人口密度を比較する",
+        status: "PENDING",
+      },
     ],
   });
-  console.log("Bootstrap hypothesis tasks seeded.");
+
+  // HypothesisとTasksの関連付け
+  const tasksData = await prisma.task.findMany({
+    where: { status: "PENDING" },
+  });
+
+  for (const task of tasksData) {
+    await prisma.hypothesisTask.create({
+      data: {
+        hypothesisId: hypothesis.id,
+        taskId: task.id,
+      },
+    });
+  }
+
+  console.log("Seed data has been added successfully.");
 }
 
 main()
