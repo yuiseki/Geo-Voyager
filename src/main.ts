@@ -3,8 +3,16 @@ import { prisma } from "./db";
 import { promises as fs } from "fs";
 import path from "path";
 import { getFirstOpenQuestion } from "./db/question";
-import { getFirstPendingHypothesisByQuestionId } from "./db/hypothesis";
-import { getAllTasksByHypothesisId } from "./db/task";
+import {
+  getFirstPendingHypothesisByQuestionId,
+  HypothesisStatus,
+  updateHypothesisStatus,
+} from "./db/hypothesis";
+import {
+  getAllTasksByHypothesisId,
+  TaskStatus,
+  updateTaskStatusAndResult,
+} from "./db/task";
 import { getFirstSkillByDescription } from "./db/skill";
 
 (async () => {
@@ -77,38 +85,35 @@ import { getFirstSkillByDescription } from "./db/skill";
             // falseなら仮説は棄却される
             if (result) {
               console.log(`    - ✅ Result: ${result}`);
-              status = "COMPLETED";
+              status = TaskStatus.COMPLETED;
             } else {
               console.log(`    - ❌ Result: ${result}`);
-              status = "FAILED";
+              status = TaskStatus.FAILED;
               // hypothesisのstatusをREJECTEDに更新
-              await prisma.hypothesis.update({
-                where: { id: hypothesis.id },
-                data: { status: "REJECTED" },
-              });
+              await updateHypothesisStatus(
+                hypothesis.id,
+                HypothesisStatus.REJECTED
+              );
             }
           } else {
-            console.error("    - ⚠️  No default export found in skill.");
-            status = "FAILED";
+            console.error("    - ⚠️ No default export found in skill.");
+            status = TaskStatus.ERROR;
             result = "No default export found in skill.";
           }
         } catch (error) {
-          console.error("    - ⚠️  Error executing skill:", error);
-          status = "FAILED";
+          console.error("    - ⚠️ Error executing skill:", error);
+          status = TaskStatus.ERROR;
           result = (error as Error).message;
         } finally {
-          await prisma.task.update({
-            where: { id: task.id },
-            data: {
-              status,
-              result: result.toString(),
-            },
-          });
+          // taskのstatusとresultを更新
+          if (status) {
+            await updateTaskStatusAndResult(task.id, status, result.toString());
+          }
           // 一時ファイルを削除
           await fs.unlink(tempFilePath);
         }
       } else {
-        console.error("    - ⚠️  Skill not found for task.");
+        console.error("    - ⚠️ Skill not found for task.");
       }
     }
   }

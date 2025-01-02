@@ -36,7 +36,7 @@ model Hypothesis {
 model Task {
   id          Int       @id @default(autoincrement())
   description String    // タスクの内容
-  status      String    // タスクの状態: PENDING, IN_PROGRESS, COMPLETED, FAILED
+  status      String    // タスクの状態: PENDING, IN_PROGRESS, COMPLETED, FAILED, ERROR
   result      String?   // タスクの結果
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
