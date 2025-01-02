@@ -29,4 +29,22 @@ export const updateTaskStatusAndResult = async (
     where: { id },
     data: { status, result },
   });
-}
+};
+
+export const createTaskByHypothesisId = async (
+  hypothesisId: number,
+  description: string
+) => {
+  const task = await prisma.task.create({
+    data: {
+      description,
+      status: TaskStatus.PENDING,
+      hypotheses: {
+        create: {
+          hypothesisId,
+        },
+      },
+    },
+  });
+  return task;
+};

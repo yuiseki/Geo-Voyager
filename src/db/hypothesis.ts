@@ -71,3 +71,14 @@ export const getFirstPendingHypothesisByQuestionId = async (
     },
   });
 };
+
+export const getAllRejectedHypothesesByQuestionId = async (
+  questionId: number
+) => {
+  return await prisma.hypothesis.findMany({
+    where: {
+      status: HypothesisStatus.REJECTED,
+      questionId,
+    },
+  });
+};

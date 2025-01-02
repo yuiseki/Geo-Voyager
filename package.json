@@ -13,6 +13,8 @@
   "license": "WTFPL",
   "description": "",
   "dependencies": {
+    "@langchain/core": "^0.3.27",
+    "@langchain/ollama": "^0.1.4",
     "@prisma/client": "^6.1.0",
     "@turf/turf": "^7.2.0",
     "@types/node": "^22.10.3",
