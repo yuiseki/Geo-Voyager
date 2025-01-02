@@ -17,6 +17,7 @@
     "@turf/turf": "^7.2.0",
     "@types/node": "^22.10.3",
     "fastest-levenshtein": "^1.0.16",
+    "glob": "^11.0.0",
     "osmtogeojson": "^3.0.0-beta.5",
     "prisma": "^6.1.0",
     "tsx": "^4.19.2",

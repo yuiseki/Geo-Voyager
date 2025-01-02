@@ -1,4 +1,7 @@
 import { PrismaClient } from "@prisma/client";
+import fs from "fs";
+import path from "path";
+import { glob } from "glob";
 
 const prisma = new PrismaClient();
 
@@ -15,6 +18,8 @@ const prisma = new PrismaClient();
 */
 
 async function main() {
+  console.log("Seeding...");
+
   // Questionの作成
   const question = await prisma.question.create({
     data: {
@@ -36,23 +41,7 @@ async function main() {
   await prisma.task.createMany({
     data: [
       {
-        description: "モナコの面積と人口を得て、人口密度を計算する",
-        status: "PENDING",
-      },
-      {
-        description: "シンガポールの面積と人口を得て、人口密度を計算する",
-        status: "PENDING",
-      },
-      {
-        description: "モナコの人口密度とシンガポールの人口密度を比較する",
-        status: "PENDING",
-      },
-      {
-        description: "マカオの面積と人口を得て、人口密度を計算する",
-        status: "PENDING",
-      },
-      {
-        description: "モナコの人口密度とマカオの人口密度を比較する",
+        description: "モナコの人口密度がシンガポールよりも高いことを確認する。",
         status: "PENDING",
       },
     ],
@@ -72,7 +61,36 @@ async function main() {
     });
   }
 
-  console.log("Seed data has been added successfully.");
+  // src/lib/skills/**/*.ts ファイルをすべて取得
+  const skillFiles = await glob(
+    path.join(__dirname, "../src/lib/skills/**/*.ts")
+  );
+
+  for (const file of skillFiles) {
+    const fileContent = fs.readFileSync(file, "utf-8");
+    const lines = fileContent.split("\n");
+
+    // 一行目からdescriptionを抽出
+    const descriptionMatch = lines[0].match(/\/\/ description: (.+)/);
+    if (!descriptionMatch) {
+      console.warn(`No description found in ${file}`);
+      continue;
+    }
+    const description = descriptionMatch[1].trim();
+
+    // ファイル全体をコードとしてセット
+    const code = fileContent;
+
+    // Skillをデータベースに保存
+    await prisma.skill.create({
+      data: {
+        description,
+        code,
+      },
+    });
+
+    console.log(`Seeded skill: ${description}`);
+  }
 }
 
 main()

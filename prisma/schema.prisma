@@ -55,14 +55,7 @@ model HypothesisTask {
   createdAt    DateTime   @default(now())
 }
 
-model FetchSkill {
-  id          Int      @id @default(autoincrement())
-  description String   // スキルの説明
-  code        String   // スキルの内容（コード）
-  createdAt   DateTime @default(now())
-}
-
-model AnalyzeSkill {
+model Skill {
   id          Int      @id @default(autoincrement())
   description String   // スキルの説明
   code        String   // スキルの内容（コード）
