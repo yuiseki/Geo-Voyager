@@ -6,3 +6,9 @@ export const createSkill = async (description: string, code: string) => {
     data: { description, code },
   });
 };
+
+export const getFirstSkillByDescription = async (description: string) => {
+  return await prisma.skill.findFirst({
+    where: { description },
+  });
+}
