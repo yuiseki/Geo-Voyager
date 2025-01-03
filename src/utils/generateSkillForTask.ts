@@ -29,21 +29,29 @@ export const generateSkillForTask = async (
     );
 
     // プロンプトを生成
-    const prompt = `
-      Task: ${taskDescription}
+    const prompt = `Task: ${taskDescription}
 
-      Using the following existing skills as reference:
-      ${referenceSkills.join("\n")}
+Using the following existing skills as reference:
+${referenceSkills.join("\n")}
 
-      Create a new skill in TypeScript that performs the task described above.
-      Make sure it is reusable and follows best practices. Include comments for clarity.
+Create a new skill in TypeScript that performs the task described above.
 
-      ${
-        lastError
-          ? `Fix the following error from the last attempt: ${lastError}`
-          : ""
-      }
-    `;
+Ensure the code must be surrounded by three backtick to indicate that it is a code block.
+
+Ensure the first line of the script includes a description in the following format:
+// description: ${taskDescription}
+
+Ensure the second line of the script includes the file_path in the following format:
+// file_path: src/lib/skills/path/to/your/file.ts
+
+Make sure the code is reusable and follows best practices. Include comments in English for clarity.
+
+
+${
+  lastError
+    ? `Fix the following error from the last attempt: ${lastError}`
+    : ""
+}`;
 
     // スキルを生成
     const res = await qwenModel.invoke(prompt);
