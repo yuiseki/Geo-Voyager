@@ -41,7 +41,7 @@ export const generateNewSkillForTask = async (
     // プロンプトを生成
     const exampleSelector = new SemanticSimilarityExampleSelector({
       vectorStore: vectorStore,
-      k: 3,
+      k: 4,
       inputKeys: ["input"],
     });
     const examplePrompt = PromptTemplate.fromTemplate(
@@ -132,6 +132,9 @@ ${lastHint ? `Hint to fix the code: ${lastHint}` : ""}
       const saveFilePath = skillCode.match(/file_path: (.+)/)?.[1];
       if (!saveFilePath) {
         console.error("❌ Failed to save new skill: no file_path found.");
+        lastCode = skillCode.replaceAll("{", "{{").replaceAll("}", "}}");
+        lastError = "No file_path found in the generated skill code.";
+        lastHint = "Include the file_path in the second line of the script.";
         continue;
       }
       console.log(`⏳️ Saving new skill to file: ${saveFilePath}`);
