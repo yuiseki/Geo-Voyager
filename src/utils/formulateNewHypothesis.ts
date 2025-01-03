@@ -7,6 +7,7 @@ import {
   getAllOtherHypothesesByQuestionId,
 } from "../db/hypothesis";
 import { ChatOllama } from "@langchain/ollama";
+import { getAllExecutedTasksByHypothesisId } from "../db/task";
 
 /**
  * 新しい仮説を生成してデータベースに保存
@@ -54,6 +55,19 @@ const formulateNewHypothesisFromQuestion = async (
     question.id
   );
 
+  // RejectedHypothesesに結びつくタスクを取得
+  const rejectedHypothesesWithTasks = await Promise.all(
+    rejectedHypotheses.map(async (hypothesis) => {
+      const tasks = await getAllExecutedTasksByHypothesisId(hypothesis.id);
+      return {
+        description: hypothesis.description,
+        tasks: tasks.map(
+          (task) => `  - Task: ${task.description} [${task.status}]`
+        ),
+      };
+    })
+  );
+
   // 仮説生成プロンプト
   const prompt = `Given the question: "${
     question.description
@@ -62,8 +76,15 @@ const formulateNewHypothesisFromQuestion = async (
 Examples of testable hypotheses for other questions:
 ${exampleHypotheses.map((h) => `- ${h.description}`).join("\n")}
 
-Already rejected hypotheses for this question:
-${rejectedHypotheses.map((h) => `- ${h.description}`).join("\n")}
+Already rejected hypotheses for this question and their associated tasks:
+${rejectedHypothesesWithTasks
+  .map(
+    (hypothesisWithTasks) =>
+      `- Hypothesis: ${
+        hypothesisWithTasks.description
+      }\n${hypothesisWithTasks.tasks.join("\n")}`
+  )
+  .join("\n")}
 
 Reply only with the hypothesis description.`;
 

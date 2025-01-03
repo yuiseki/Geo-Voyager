@@ -30,7 +30,7 @@ export const getAllQuestionsByStatus = async (status: QuestionStatus) => {
 export const getFirstQuestionByStatus = async (status: QuestionStatus) => {
   return await prisma.question.findFirst({
     where: { status },
-    orderBy: { createdAt: "desc" },
+    orderBy: { createdAt: "asc" },
   });
 };
 

@@ -28,7 +28,7 @@ export const generateNewSkillForTask = async (
     temperature: 0,
   });
   const embeddings = new OllamaEmbeddings({
-    model: "snowflake-arctic-embed:22m",
+    model: "snowflake-arctic-embed:335m",
   });
   const vectorStore = new MemoryVectorStore(embeddings);
 
@@ -78,6 +78,9 @@ Include comments in English for clarity.
 
 大田区は英語でOtaです。
 世田谷区は英語でSetagayaです。
+台東区は英語でTaitoです。
+豊島区は英語でToshimaです。
+品川区は英語でShinagawaです。
 
 ${
   lastCode

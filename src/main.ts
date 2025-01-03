@@ -1,9 +1,14 @@
 // src/main.ts
 import { getFirstOpenQuestion } from "./db/question";
-import { getFirstPendingHypothesisByQuestionId } from "./db/hypothesis";
+import {
+  getAllOtherHypothesesByQuestionId,
+  getAllRejectedHypothesesByQuestionId,
+  getFirstPendingHypothesisByQuestionId,
+} from "./db/hypothesis";
 import { findAndExecuteTasksByHypothesis } from "./utils/findAndExecuteTasksByHypothesis";
 import { formulateNewHypothesis } from "./utils/formulateNewHypothesis";
 import { listUpAllSolvedQuestions } from "./utils/listUpAllSolvedQuestions";
+import { getAllExecutedTasksByHypothesisId } from "./db/task";
 
 (async () => {
   console.log("🗺️  Initializing Geo-Voyager...");
@@ -17,6 +22,30 @@ import { listUpAllSolvedQuestions } from "./utils/listUpAllSolvedQuestions";
     return;
   } else {
     console.log(`❓️ Question: ${question.description}`);
+  }
+
+  const rejectedHypotheses = await getAllRejectedHypothesesByQuestionId(
+    question.id
+  );
+  if (rejectedHypotheses.length > 0) {
+    const rejectedHypothesesWithTasks = await Promise.all(
+      rejectedHypotheses.map(async (hypothesis) => {
+        const tasks = await getAllExecutedTasksByHypothesisId(hypothesis.id);
+        return {
+          description: hypothesis.description,
+          tasks: tasks.map(
+            (task) => `    - ❌️ Task: ${task.description} [${task.status}]`
+          ),
+        };
+      })
+    );
+    console.log("🚫 Rejected hypotheses:");
+    for (const rejectedHypothesis of rejectedHypothesesWithTasks) {
+      console.log(`  - 🚫 ${rejectedHypothesis.description}`);
+      for (const task of rejectedHypothesis.tasks) {
+        console.log(task);
+      }
+    }
   }
 
   // OPENなQuestionに関連し、PENDINGなHypothesisを1件取得
