@@ -11,6 +11,7 @@ export const planNewTasksForHypothesis = async (hypothesis: Hypothesis) => {
   const model = new ChatOllama({
     model: "qwen2.5:7b",
     temperature: 0,
+    repeatPenalty: 1.1,
   });
 
   // 仮説を検証するためのタスク
@@ -26,7 +27,9 @@ The task must reject the hypothesis if the result is false.
 Must not plan leapfrog inexecutable tasks.
 
 Examples of executable tasks:
-${executedTasks.map((t) => `- ${t.description}`).join("\n")}
+${executedTasks.map((t) => `- ${t.description}, ${t.status}`).join("\n")}
+
+Must not plan tasks that are already executed or failed.
 
 == Case study ==
 Hypothesis: 世界で最も人口密度が高い国はシンガポールである。
