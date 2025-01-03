@@ -9,9 +9,8 @@ import { ChatOllama } from "@langchain/ollama";
 export const planNewTasksForHypothesis = async (hypothesis: Hypothesis) => {
   console.log("🧠 Planning new tasks for the hypothesis...");
   const model = new ChatOllama({
-    model: "qwen2.5:14b",
+    model: "qwen2.5:7b",
     temperature: 0,
-    repeatPenalty: 1.1,
   });
 
   // 仮説を検証するためのタスク
@@ -19,7 +18,16 @@ export const planNewTasksForHypothesis = async (hypothesis: Hypothesis) => {
 
   const executedTasks = await getAllExecutedTasks();
 
-  /**
+  const prompt = `Given the hypothesis: "${
+    hypothesis.description
+  }", plan new executable tasks to test the hypothesis in Japanese.
+
+The task must be answerable with a "true" or "false" response.
+The task must reject the hypothesis if the result is false.
+Must not plan leapfrog inexecutable tasks.
+
+Must not plan tasks that are already executed or failed.
+
 == Case study ==
 Hypothesis: 世界で最も人口密度が高い国はシンガポールである。
 Wrong task: シンガポールの人口密度がモナコよりも低いことを確認する。
@@ -38,17 +46,6 @@ Wrong task: 板橋区の学校の数が他のすべての行政区の学校数�
 Reason: The task is leapfrog. The task should be most detailed possible and executable step-by-step.
 Wrong task: 東京都文京区の学校の数が他のすべての行政区の学校数よりも多いことを確認する。
 Reason: The task is leapfrog. The task should be most detailed possible and executable step-by-step.
- */
-
-  const prompt = `Given the hypothesis: "${
-    hypothesis.description
-  }", plan new executable tasks to test the hypothesis in Japanese.
-
-The task must be answerable with a "true" or "false" response.
-The task must reject the hypothesis if the result is false.
-Must not plan leapfrog inexecutable tasks.
-
-Must not plan tasks that are already executed or failed.
 
 Examples of executable tasks:
 ${executedTasks.map((t) => `- ${t.description} [${t.status}]`).join("\n")}
@@ -90,5 +87,8 @@ Reply with only a list of possible new executable tasks, separated by newlines.`
   }
 
   console.log(`📋️ Planned total ${tasks.length} new tasks.`);
+  if (tasks.length > 0) {
+    process.exit(0);
+  }
   return tasks;
 };

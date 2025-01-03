@@ -17,7 +17,7 @@ import { getAllExecutedTasksByHypothesisId } from "../db/task";
 export const formulateNewHypothesis = async (question: Question) => {
   console.log("🧠 Formulating a new hypothesis...");
   const model = new ChatOllama({
-    model: "qwen2.5:14b",
+    model: "qwen2.5:7b",
     temperature: 0,
   });
 
@@ -25,6 +25,12 @@ export const formulateNewHypothesis = async (question: Question) => {
   const exampleHypotheses = await getAllOtherHypothesesByQuestionId(
     question.id
   );
+  /**
+Examples of testable hypotheses for other questions:
+${exampleHypotheses.map((h) => `- ${h.description}`).join("\n")}
+
+   * 
+   */
   const rejectedHypotheses = await getAllRejectedHypothesesByQuestionId(
     question.id
   );
@@ -44,9 +50,6 @@ export const formulateNewHypothesis = async (question: Question) => {
   const prompt = `Given the question: "${
     question.description
   }", formulate a new testable hypothesis in Japanese.
-
-Examples of testable hypotheses for other questions:
-${exampleHypotheses.map((h) => `- ${h.description}`).join("\n")}
 
 Already rejected hypotheses for this question and their associated tasks:
 ${rejectedHypothesesWithTasks

@@ -28,7 +28,7 @@ export const generateNewSkillForTask = async (
     temperature: 0,
   });
   const embeddings = new OllamaEmbeddings({
-    model: "snowflake-arctic-embed:335m",
+    model: "snowflake-arctic-embed:33m",
   });
   const vectorStore = new MemoryVectorStore(embeddings);
 
@@ -41,7 +41,7 @@ export const generateNewSkillForTask = async (
     // プロンプトを生成
     const exampleSelector = new SemanticSimilarityExampleSelector({
       vectorStore: vectorStore,
-      k: 4,
+      k: 3,
       inputKeys: ["input"],
     });
     const examplePrompt = PromptTemplate.fromTemplate(
@@ -76,11 +76,15 @@ Make sure the code you replay must be executable and follows best practices.
 Do not forget to import necessary libraries.
 Include comments in English for clarity.
 
+${
+  taskDescription.includes("東京都") &&
+  `
 大田区は英語でOtaです。
 世田谷区は英語でSetagayaです。
 台東区は英語でTaitoです。
 豊島区は英語でToshimaです。
-品川区は英語でShinagawaです。
+品川区は英語でShinagawaです。`
+}
 
 ${
   lastCode
