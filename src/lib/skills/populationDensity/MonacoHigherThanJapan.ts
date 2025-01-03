@@ -1,12 +1,12 @@
-// description: シンガポールの人口密度がモナコよりも高いことを確認する。
-// file_path: src/lib/skills/populationDensity/SingaporeHigherThanMonaco.ts
+// description: モナコの人口密度が日本よりも高いことを確認する。
+// file_path: src/lib/skills/populationDensity/MonacoHigherThanJapan.ts
 import * as turf from "@turf/turf";
 import osmtogeojson from "osmtogeojson";
 
 /**
  * @return boolean
  */
-const isPopulationDensityOfSingaporeHigherThanMonaco = async () => {
+const isPopulationDensityOfMonacoHigherThanJapan = async () => {
   /**
    *
    * @param query Overpass QL
@@ -35,22 +35,6 @@ const isPopulationDensityOfSingaporeHigherThanMonaco = async () => {
     return await res.json();
   };
 
-  // シンガポールの面積を取得
-  const querySingapore = `[out:json];
-relation["name"="Singapore"]["admin_level"=2];
-out geom;`;
-  const resultSingapore = await fetchOverpassData(querySingapore);
-  const geoJsonSingapore = osmtogeojson(resultSingapore);
-  const areaSingapore = turf.area(geoJsonSingapore);
-  // シンガポールの人口を取得
-  let populationSingapore = geoJsonSingapore.features[0].properties?.population;
-  if (isNaN(populationSingapore)) {
-    const result = await fetchWorldBank("sg");
-    populationSingapore = result[1][0].value;
-  }
-  // シンガポールの人口密度を計算
-  const populationDensitySingapore = populationSingapore / areaSingapore;
-
   // モナコの面積を取得
   const queryMonaco = `[out:json];
 relation["name"="Monaco"]["admin_level"=2];
@@ -67,7 +51,23 @@ out geom;`;
   // モナコの人口密度を計算
   const populationDensityMonaco = populationMonaco / areaMonaco;
 
-  return populationDensitySingapore > populationDensityMonaco;
+  // 日本の面積を取得
+  const queryJapan = `[out:json];
+relation["name:en"="Japan"]["admin_level"=2];
+out geom;`;
+  const resultJapan = await fetchOverpassData(queryJapan);
+  const geoJsonJapan = osmtogeojson(resultJapan);
+  const areaJapan = turf.area(geoJsonJapan);
+  // 日本の人口を取得
+  let populationJapan = geoJsonJapan.features[0].properties?.population;
+  if (isNaN(populationJapan)) {
+    const result = await fetchWorldBank("jp");
+    populationJapan = result[1][0].value;
+  }
+  // 日本の人口密度を計算
+  const populationDensityJapan = populationJapan / areaJapan;
+
+  return populationDensityMonaco > populationDensityJapan;
 };
 
-export default isPopulationDensityOfSingaporeHigherThanMonaco;
+export default isPopulationDensityOfMonacoHigherThanJapan;

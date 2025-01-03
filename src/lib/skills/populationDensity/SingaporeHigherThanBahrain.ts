@@ -1,4 +1,5 @@
 // description: シンガポールの人口密度がバーレーンよりも高いことを確認する。
+// file_path: src/lib/skills/populationDensity/SingaporeHigherThanBahrain.ts
 import * as turf from "@turf/turf";
 import osmtogeojson from "osmtogeojson";
 
