@@ -1,4 +1,4 @@
-import { getHypothesesByStatus, HypothesisStatus } from "../db/hypothesis";
+import { getAllHypothesesByStatus, HypothesisStatus } from "../db/hypothesis";
 import { distance } from "fastest-levenshtein";
 
 // 仮説スコアを計算する関数
@@ -13,10 +13,10 @@ export const calculateHypothesisScore = async (
   };
 
   // 陳腐さスコア
-  const verifiedHypotheses = await getHypothesesByStatus(
+  const verifiedHypotheses = await getAllHypothesesByStatus(
     HypothesisStatus.VERIFIED
   );
-  const rejectedHypotheses = await getHypothesesByStatus(
+  const rejectedHypotheses = await getAllHypothesesByStatus(
     HypothesisStatus.REJECTED
   );
   const verifiedAndRejectedHypotheses = [
@@ -30,10 +30,10 @@ export const calculateHypothesisScore = async (
     redundancyScores.length > 0 ? Math.max(...redundancyScores) : 0;
 
   // 荒唐無稽さスコア
-  const unverifiedFetchHypotheses = await getHypothesesByStatus(
+  const unverifiedFetchHypotheses = await getAllHypothesesByStatus(
     HypothesisStatus.UNVERIFIABLE_FETCH
   );
-  const unverifiedAnalyzeHypotheses = await getHypothesesByStatus(
+  const unverifiedAnalyzeHypotheses = await getAllHypothesesByStatus(
     HypothesisStatus.UNVERIFIABLE_ANALYZE
   );
   const unverifiedHypotheses = [

@@ -1,4 +1,4 @@
-// description: 東京都千代田区の病院の数が東京都港区よりも多いことを確認する。
+// description: 東京都千代田区の病院の数が東京都港区の病院の数より多いことを確認する。
 // file_path: src/lib/skills/numberOfHospitals/Japan/Tokyo/ChiyodaHigherThanMinato.ts
 
 /**

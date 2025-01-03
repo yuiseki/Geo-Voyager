@@ -41,7 +41,7 @@ export const getHypotheses = async () => {
 };
 
 // 特定のステータスの仮説を取得する関数
-export const getHypothesesByStatus = async (status: HypothesisStatus) => {
+export const getAllHypothesesByStatus = async (status: HypothesisStatus) => {
   return await prisma.hypothesis.findMany({
     where: {
       status,
@@ -57,6 +57,16 @@ export const getLatestHypothesisByStatus = async (status: HypothesisStatus) => {
     },
     orderBy: {
       createdAt: "desc",
+    },
+  });
+};
+
+export const getAllOtherHypothesesByQuestionId = async (questionId: number) => {
+  return await prisma.hypothesis.findMany({
+    where: {
+      NOT: {
+        questionId,
+      },
     },
   });
 };

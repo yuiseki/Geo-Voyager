@@ -31,7 +31,7 @@ export const findAndExecuteTasksByHypothesis = async (
   // すべてのタスクがCOMPLETEDの場合
   if (tasks.every((task) => task.status === "COMPLETED")) {
     console.log("🎉 All tasks for this hypothesis has completed.");
-    if (tasks.length < 10) {
+    if (tasks.length < 20) {
       // タスクの計画を再度行う
       tasks = await planNewTasksForHypothesis(hypothesis);
     } else {

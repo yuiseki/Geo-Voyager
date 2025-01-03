@@ -2,7 +2,9 @@ import { Question } from "@prisma/client";
 import { prisma } from "../db";
 import {
   getAllRejectedHypothesesByQuestionId,
+  getAllHypothesesByStatus,
   HypothesisStatus,
+  getAllOtherHypothesesByQuestionId,
 } from "../db/hypothesis";
 import { ChatOllama } from "@langchain/ollama";
 
@@ -45,6 +47,9 @@ export const formulateNewHypothesis = async (question: Question) => {
 const formulateNewHypothesisFromQuestion = async (
   question: Question
 ): Promise<string> => {
+  const exampleHypotheses = await getAllOtherHypothesesByQuestionId(
+    question.id
+  );
   const rejectedHypotheses = await getAllRejectedHypothesesByQuestionId(
     question.id
   );
@@ -54,7 +59,10 @@ const formulateNewHypothesisFromQuestion = async (
     question.description
   }", formulate a new testable hypothesis in Japanese.
 
-Already Rejected hypotheses:
+Examples of testable hypotheses for other questions:
+${exampleHypotheses.map((h) => `- ${h.description}`).join("\n")}
+
+Already rejected hypotheses for this question:
 ${rejectedHypotheses.map((h) => `- ${h.description}`).join("\n")}
 
 Reply only with the hypothesis description.`;
