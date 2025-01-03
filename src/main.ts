@@ -3,13 +3,14 @@ import { getFirstOpenQuestion } from "./db/question";
 import { getFirstPendingHypothesisByQuestionId } from "./db/hypothesis";
 import { findAndExecuteTasksByHypothesis } from "./utils/findAndExecuteTasksByHypothesis";
 import { formulateNewHypothesis } from "./utils/formulateNewHypothesis";
-import { generateSkillForTask } from "./utils/generateSkillForTask";
+import { generateNewSkillForTask } from "./utils/generateSkillForTask";
+import isPopulationDensityOfSingaporeHigherThanChina from "./lib/skills/populationDensity/SingaporeHigherThanChina";
 
 (async () => {
   console.log("🗺️  Initializing Geo-Voyager...");
 
-  await generateSkillForTask(
-    "シンガポールの人口密度が中国よりも高いことを確認する。"
+  await generateNewSkillForTask(
+    "日本の人口密度が中国よりも高いことを確認する。"
   );
 
   return;

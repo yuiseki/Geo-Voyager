@@ -13,7 +13,7 @@ import { RunnableSequence } from "@langchain/core/runnables";
  * @param referenceSkills 参考スキル（存在する場合）
  * @returns 成功したかどうか
  */
-export const generateSkillForTask = async (
+export const generateNewSkillForTask = async (
   taskDescription: string
 ): Promise<boolean> => {
   let attempts = 0;
@@ -23,7 +23,7 @@ export const generateSkillForTask = async (
   let lastHint = null;
 
   const model = new ChatOllama({
-    model: "qwen2.5:14b",
+    model: "qwen2.5-coder:7b",
     temperature: 0,
   });
   const embeddings = new OllamaEmbeddings({
@@ -34,13 +34,13 @@ export const generateSkillForTask = async (
   while (attempts < maxAttempts) {
     attempts++;
     console.log(
-      `🛠️  Generating skill for task: "${taskDescription}" (Attempt ${attempts})`
+      `🛠️  Generating new skill for task: "${taskDescription}" (Attempt ${attempts})`
     );
 
     // プロンプトを生成
     const exampleSelector = new SemanticSimilarityExampleSelector({
       vectorStore: vectorStore,
-      k: 4,
+      k: 2,
       inputKeys: ["input"],
     });
     const examplePrompt = PromptTemplate.fromTemplate(
@@ -71,7 +71,9 @@ Ensure the first line of the script includes a description in the following form
 Ensure the second line of the script includes the file_path in the following format:
 // file_path: src/lib/skills/path/to/your/file.ts
 
-Make sure the code is reusable and follows best practices. Include comments in English for clarity.
+Make sure the code you replay must be executable and follows best practices.
+Do not forget to import necessary libraries.
+Include comments in English for clarity.
 
 ${
   lastCode
@@ -92,16 +94,16 @@ ${lastHint ? `Hint to fix the code: ${lastHint}` : ""}
     // スキルを生成
     const res = await chain.invoke({ input: taskDescription });
     const content = res.content as string;
-    // ...\n```typescript\n{code}\n```\.... となっている
+    // ...\n```typescript\n{code}\n```\n.... となっている
     const skillCode = content.match(/```typescript\n([\s\S]+)\n```/)?.[1];
     if (!skillCode) {
-      console.error("❌ Failed to generate a skill code: no code found.");
+      console.error("❌ Failed to generate new skill: no code found.");
       continue;
     }
 
-    console.log(`🧠 Generated skill code:\n${skillCode}`);
+    // console.log(`🧠 Generated new skill code:\n${skillCode}`);
 
-    // 一時ファイルにスキルを保存
+    // 動作確認のために、一時ファイルにスキルを保存
     const tempFilePath = path.join(
       __dirname,
       `../../tmp/skills/generated_skill_${Date.now()}.ts`
@@ -109,10 +111,38 @@ ${lastHint ? `Hint to fix the code: ${lastHint}` : ""}
     await fs.writeFile(tempFilePath, skillCode);
 
     try {
-      // スキルをインポートして実行テスト
+      // 一時ファイルからスキルをインポートして動作確認
       const skillModule = await import(`file://${path.resolve(tempFilePath)}`);
       const result = await skillModule.default();
-      console.log(`✅ Skill executed successfully with result: ${result}`);
+      console.log(`🎉🎉🎉 New skill executed successfully 🎉🎉🎉`);
+
+      // スキルをファイルとして保存
+      const saveFilePath = skillCode.match(/file_path: (.+)/)?.[1];
+      if (!saveFilePath) {
+        console.error("❌ Failed to save new skill: no file_path found.");
+        continue;
+      }
+      console.log(`⏳️ Saving new skill to file: ${saveFilePath}`);
+      // まず、 saveFilePath までのディレクトリが存在することを確認
+      // src/lib/skills/populationDensity/JapanHigherThanChina.ts みたいなファイルパスのはず
+      // ディレクトリが存在しなかったらメチャクチャなことをやろうとしているので、エラーを出す
+      const saveDir = path.join(
+        __dirname,
+        `../../${path.dirname(saveFilePath)}`
+      );
+      try {
+        await fs.access(saveDir);
+      } catch (error) {
+        console.error(
+          `❌ Failed to save new skill: directory not found: ${saveDir}`
+        );
+        continue;
+      }
+      await fs.writeFile(
+        path.join(__dirname, `../../${saveFilePath}`),
+        skillCode
+      );
+      console.log(`💾 New skill saved to file: ${saveFilePath}`);
 
       // スキルをデータベースに保存
       await saveSkillToDatabase(taskDescription, skillCode);
