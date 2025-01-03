@@ -20,6 +20,7 @@ export const generateSkillForTask = async (
   const maxAttempts = 20;
   let lastError = null;
   let lastCode = null;
+  let lastHint = null;
 
   const model = new ChatOllama({
     model: "qwen2.5:14b",
@@ -79,9 +80,11 @@ ${
 }
 ${
   lastError
-    ? `Fix the following error from the last attempt:\n${lastError}`
+    ? `Fix the following error from the last attempt code:\n${lastError}`
     : ""
-}`,
+}
+${lastHint ? `Hint to fix the code: ${lastHint}` : ""}
+`,
       inputVariables: ["input"],
     });
     const chain = RunnableSequence.from([dynamicPrompt, model]);
@@ -118,6 +121,7 @@ ${
     } catch (error) {
       if (error instanceof Error) {
         console.error(`❌ Skill execution failed:`);
+        lastCode = skillCode.replaceAll("{", "{{").replaceAll("}", "}}");
         const replaceErrors = (_key: any, value: any) => {
           if (value instanceof Error) {
             const error: any = {};
@@ -126,14 +130,22 @@ ${
             });
             return error;
           }
-
           return value;
         };
         console.error(JSON.stringify(error, replaceErrors, 2));
         lastError = JSON.stringify(error, replaceErrors, 2)
           .replaceAll("{", "{{")
           .replaceAll("}", "}}");
-        lastCode = skillCode.replaceAll("{", "{{").replaceAll("}", "}}");
+        if (error instanceof Error) {
+          if (error.message.includes("Overpass")) {
+            lastHint = `Try to fix Overpass QL.
+For example:
+- Change name to name:en only failed Overpass QL.
+`;
+          } else {
+            lastHint = null;
+          }
+        }
       }
     }
   }

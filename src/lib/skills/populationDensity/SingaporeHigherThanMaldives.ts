@@ -44,13 +44,13 @@ out geom;`;
   const resultSingapore = await fetchOverpassData(querySingapore);
   if (resultSingapore.elements.length === 0) {
     throw new Error(
-      `Overpass API returned no data without errors. Please fix this query:\n${querySingapore}`
+      `Overpass API returned no data without errors. Please try to fix this query:\n${querySingapore}`
     );
   }
   const geoJsonSingapore = osmtogeojson(resultSingapore);
   if (geoJsonSingapore.features.length === 0) {
     throw new Error(
-      `osmtogeojson returned no GeoJSON data. Please fix this query:\n${querySingapore}`
+      `osmtogeojson returned no GeoJSON data. Please try to fix this query:\n${querySingapore}`
     );
   }
   const areaSingapore = turf.area(geoJsonSingapore);
@@ -67,13 +67,13 @@ out geom;`;
   const resultMaldives = await fetchOverpassData(queryMaldives);
   if (resultMaldives.elements.length === 0) {
     throw new Error(
-      `Overpass API returned no data without errors. Please fix this query:\n${queryMaldives}`
+      `Overpass API returned no data without errors. Please try to fix this query:\n${queryMaldives}`
     );
   }
   const geoJsonMaldives = osmtogeojson(resultMaldives);
   if (geoJsonMaldives.features.length === 0) {
     throw new Error(
-      `osmtogeojson returned no GeoJSON data. Please fix this query:\n${queryMaldives}`
+      `osmtogeojson returned no GeoJSON data. Please try to fix this query:\n${queryMaldives}`
     );
   }
   const areaMaldives = turf.area(geoJsonMaldives);
