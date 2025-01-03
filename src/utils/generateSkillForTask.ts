@@ -22,7 +22,7 @@ export const generateSkillForTask = async (
   let lastCode = null;
 
   const model = new ChatOllama({
-    model: "qwen2.5-coder:14b",
+    model: "qwen2.5:14b",
     temperature: 0,
   });
   const embeddings = new OllamaEmbeddings({
@@ -39,10 +39,12 @@ export const generateSkillForTask = async (
     // プロンプトを生成
     const exampleSelector = new SemanticSimilarityExampleSelector({
       vectorStore: vectorStore,
-      k: 3,
+      k: 4,
       inputKeys: ["input"],
     });
-    const examplePrompt = PromptTemplate.fromTemplate(`{output}`);
+    const examplePrompt = PromptTemplate.fromTemplate(
+      `\`\`\`typescript\n{output}\`\`\``
+    );
 
     const currentAllSkills = await getAllSkills();
     for (const example of currentAllSkills) {
