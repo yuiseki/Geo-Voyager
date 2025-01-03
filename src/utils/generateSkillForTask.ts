@@ -24,7 +24,7 @@ export const generateNewSkillForTask = async (
   let lastHint = null;
 
   const model = new ChatOllama({
-    model: "qwen2.5-coder:7b",
+    model: "qwen2.5-coder:14b",
     temperature: 0,
   });
   const embeddings = new OllamaEmbeddings({
@@ -102,7 +102,7 @@ ${lastHint ? `Hint to fix the code: ${lastHint}` : ""}
       continue;
     }
 
-    // console.log(`🧠 Generated new skill code:\n${skillCode}`);
+    console.log(`🧠 Generated new skill code:\n${skillCode}`);
 
     // 動作確認のために、一時ファイルにスキルを保存
     const tempFilePath = path.join(

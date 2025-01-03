@@ -17,11 +17,9 @@ const prisma = new PrismaClient();
 東京都においては、駅の密度が高い行政区ほど、商業施設が多い。
 */
 
-async function main() {
-  console.log("Seeding...");
-
-  // Questionの作成
-  const question = await prisma.question.create({
+const seedQuestionWhichCountryIsMostHighestPopulationDensity = async () => {
+  // Question1の作成
+  const question1 = await prisma.question.create({
     data: {
       description: "世界で最も人口密度が高い国はどこだろう？",
       status: "OPEN",
@@ -33,7 +31,7 @@ async function main() {
     data: {
       description: "世界で最も人口密度が高い国はモナコである。",
       status: "PENDING",
-      questionId: question.id, // Questionとの関連付け
+      questionId: question1.id, // Questionとの関連付け
     },
   });
   // Taskの作成
@@ -56,7 +54,7 @@ async function main() {
     data: {
       description: "世界で最も人口密度が高い国はシンガポールである。",
       status: "PENDING",
-      questionId: question.id, // Questionとの関連付け
+      questionId: question1.id, // Questionとの関連付け
     },
   });
   // Taskの作成
@@ -117,7 +115,97 @@ async function main() {
       taskId: task4ForHypothesis2.id,
     },
   });
+};
 
+const seedQuestionWhichWardInTokyoHasMostNumberOfSchools = async () => {
+  // Question1の作成
+  const question1 = await prisma.question.create({
+    data: {
+      description: "東京都において、学校の数が最も多い行政区はどこだろう？",
+      status: "OPEN",
+    },
+  });
+
+  // Hypothesis1の作成
+  const hypothesis1 = await prisma.hypothesis.create({
+    data: {
+      description: "東京都において、学校の数が最も多い行政区は千代田区である。",
+      status: "PENDING",
+      questionId: question1.id, // Questionとの関連付け
+    },
+  });
+  // Taskの作成
+  const task1ForHypothesis1 = await prisma.task.create({
+    data: {
+      description:
+        "東京都千代田区の学校の数が東京都港区よりも多いことを確認する。",
+      status: "PENDING",
+    },
+  });
+  // Hypothesis1とTasksの関連付け
+  await prisma.hypothesisTask.create({
+    data: {
+      hypothesisId: hypothesis1.id,
+      taskId: task1ForHypothesis1.id,
+    },
+  });
+
+  // Hypothesis2の作成
+  const hypothesis2 = await prisma.hypothesis.create({
+    data: {
+      description: "東京都において、学校の数が最も多い行政区は港区である。",
+      status: "PENDING",
+      questionId: question1.id, // Questionとの関連付け
+    },
+  });
+  // Taskの作成
+  const task1ForHypothesis2 = await prisma.task.create({
+    data: {
+      description:
+        "東京都港区の学校の数が東京都千代田区よりも多いことを確認する。",
+      status: "PENDING",
+    },
+  });
+  // Hypothesis2とTasksの関連付け
+  await prisma.hypothesisTask.create({
+    data: {
+      hypothesisId: hypothesis2.id,
+      taskId: task1ForHypothesis2.id,
+    },
+  });
+  // Taskの作成
+  const task2ForHypothesis2 = await prisma.task.create({
+    data: {
+      description:
+        "東京都港区の学校の数が東京都新宿区よりも多いことを確認する。",
+      status: "PENDING",
+    },
+  });
+  // Hypothesis2とTasksの関連付け
+  await prisma.hypothesisTask.create({
+    data: {
+      hypothesisId: hypothesis2.id,
+      taskId: task2ForHypothesis2.id,
+    },
+  });
+  // Taskの作成
+  const task3ForHypothesis2 = await prisma.task.create({
+    data: {
+      description:
+        "東京都港区の学校の数が東京都文京区よりも多いことを確認する。",
+      status: "PENDING",
+    },
+  });
+  // Hypothesis2とTasksの関連付け
+  await prisma.hypothesisTask.create({
+    data: {
+      hypothesisId: hypothesis2.id,
+      taskId: task3ForHypothesis2.id,
+    },
+  });
+};
+
+const seedSkills = async () => {
   // src/lib/skills/**/*.ts ファイルをすべて取得
   const skillFiles = await glob(
     path.join(__dirname, "../src/lib/skills/**/*.ts")
@@ -145,9 +233,15 @@ async function main() {
         code,
       },
     });
-
-    console.log(`Seeded skill: ${description}`);
   }
+};
+
+async function main() {
+  console.log("Seeding...");
+
+  await seedQuestionWhichCountryIsMostHighestPopulationDensity();
+  await seedQuestionWhichWardInTokyoHasMostNumberOfSchools();
+  await seedSkills();
 }
 
 main()
