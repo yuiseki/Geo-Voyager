@@ -64,6 +64,9 @@ Reply with only a list of possible new executable tasks, separated by newlines.`
     if (taskDescription.endsWith(", COMPLETED")) {
       taskDescription = taskDescription.replace(", COMPLETED", "");
     }
+    if (taskDescription.endsWith(", FAILED")) {
+      taskDescription = taskDescription.replace(", FAILED", "");
+    }
     // 。で終わっていない場合は無視する
     if (!taskDescription.endsWith("。")) {
       console.error(`⚠️  Ignoring task: ${taskDescription}`);

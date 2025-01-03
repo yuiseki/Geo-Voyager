@@ -76,6 +76,9 @@ Make sure the code you replay must be executable and follows best practices.
 Do not forget to import necessary libraries.
 Include comments in English for clarity.
 
+大田区は英語でOtaです。
+世田谷区は英語でSetagayaです。
+
 ${
   lastCode
     ? `Your previous code of last attempt: \n\`\`\`typescript\n${lastCode}\n\`\`\``
@@ -183,7 +186,7 @@ For example:
   }
 
   console.error(
-    "⚠️ Failed to generate a working skill after multiple attempts."
+    "⚠️  Failed to generate a working skill after multiple attempts."
   );
   throw new Error(
     "Failed to generate a working skill after multiple attempts."
