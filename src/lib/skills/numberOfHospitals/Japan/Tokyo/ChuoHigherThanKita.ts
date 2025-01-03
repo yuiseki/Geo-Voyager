@@ -22,7 +22,7 @@ const isNumberOfHospitalsInChuoHigherThanKita = async () => {
     return await res.json();
   };
 
-  // 東京都中央区の学校の数を取得
+  // 東京都中央区の病院の数を取得
   const queryChuoHospitals = `[out:json];
 area["name"="東京都"]->.outer;
 area["name"="中央区"]->.inner;
@@ -36,7 +36,7 @@ out count;`;
   }
   const numberOfChuoHospitals = resultChuoHospitals.elements[0].tags.total;
 
-  // 東京都北区の学校の面積を取得
+  // 東京都北区の病院の数を取得
   const queryKitaHospitals = `[out:json];
 area["name"="東京都"]->.outer;
 area["name"="北区"]->.inner;

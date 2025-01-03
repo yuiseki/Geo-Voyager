@@ -9,11 +9,10 @@
 async function getSchoolCount(wardName: string): Promise<number> {
   const overpassQuery = `
     [out:json];
+    area["name"="東京都"]->.tokyo;
     area["name"="${wardName}"]->.ward;
     (
-      node(area.ward)["amenity"="school"];
-      way(area.ward)["amenity"="school"];
-      relation(area.ward)["amenity"="school"];
+      nwr["amenity"="school"](area.ward)(area.tokyo);
     );
     out count;
   `;
