@@ -61,6 +61,17 @@ export const getLatestHypothesisByStatus = async (status: HypothesisStatus) => {
   });
 };
 
+export const getFirstVerifiedHypothesisByQuestionId = async (
+  questionId: number
+) => {
+  return await prisma.hypothesis.findFirst({
+    where: {
+      status: HypothesisStatus.VERIFIED,
+      questionId,
+    },
+  });
+};
+
 export const getFirstPendingHypothesisByQuestionId = async (
   questionId: number
 ) => {

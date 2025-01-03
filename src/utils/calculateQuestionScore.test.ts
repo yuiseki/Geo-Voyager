@@ -1,5 +1,5 @@
 import { calculateQuestionScore } from "./calculateQuestionScore";
-import { getQuestionsByStatus } from "../db/question";
+import { getAllQuestionsByStatus } from "../db/question";
 
 jest.mock("../db/question", () => ({
   getQuestionsByStatus: jest.fn(),
@@ -7,7 +7,7 @@ jest.mock("../db/question", () => ({
 
 describe("calculateQuestionScore", () => {
   it("should return 1 when there are no existing questions", async () => {
-    (getQuestionsByStatus as jest.Mock).mockResolvedValue([]);
+    (getAllQuestionsByStatus as jest.Mock).mockResolvedValue([]);
 
     const score = await calculateQuestionScore(
       "What is the population of Tokyo?"
@@ -16,7 +16,7 @@ describe("calculateQuestionScore", () => {
   });
 
   it("should return a lower score for a question similar to an existing one", async () => {
-    (getQuestionsByStatus as jest.Mock).mockImplementation((status) => {
+    (getAllQuestionsByStatus as jest.Mock).mockImplementation((status) => {
       if (status === "OPEN" || status === "SOLVED") {
         return Promise.resolve([
           { description: "What is the population of Tokyo?" },
@@ -30,7 +30,7 @@ describe("calculateQuestionScore", () => {
   });
 
   it("should return a lower score for a question similar to an unresolvable one", async () => {
-    (getQuestionsByStatus as jest.Mock).mockImplementation((status) => {
+    (getAllQuestionsByStatus as jest.Mock).mockImplementation((status) => {
       if (status === "UNRESOLVABLE") {
         return Promise.resolve([
           { description: "What is the exact number of stars in the universe?" },
@@ -46,7 +46,7 @@ describe("calculateQuestionScore", () => {
   });
 
   it("should calculate the combined score correctly", async () => {
-    (getQuestionsByStatus as jest.Mock).mockImplementation((status) => {
+    (getAllQuestionsByStatus as jest.Mock).mockImplementation((status) => {
       if (status === "OPEN" || status === "SOLVED") {
         return Promise.resolve([
           { description: "What is the population of Tokyo?" },

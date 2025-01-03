@@ -11,6 +11,11 @@ import { getFirstSkillByDescription } from "../db/skill";
 import { HypothesisStatus, updateHypothesisStatus } from "../db/hypothesis";
 import { planNewTasksForHypothesis } from "./planNewTasksForHypothesis";
 import { generateNewSkillForTask } from "./generateSkillForTask";
+import {
+  getQuestionById,
+  QuestionStatus,
+  updateQuestionStatus,
+} from "../db/question";
 
 export const findAndExecuteTasksByHypothesis = async (
   hypothesis: Hypothesis
@@ -30,9 +35,17 @@ export const findAndExecuteTasksByHypothesis = async (
       // タスクの計画を再度行う
       tasks = await planNewTasksForHypothesis(hypothesis);
     } else {
+      console.log("🎉 Hypothesis has been verified.");
       // 仮説をACCEPTEDに更新
       await updateHypothesisStatus(hypothesis.id, HypothesisStatus.VERIFIED);
-      console.log("🎉 Hypothesis has been verified.");
+      // 疑問をSOLVEDに更新
+      if (hypothesis.questionId) {
+        const question = await getQuestionById(hypothesis.questionId);
+        if (question) {
+          await updateQuestionStatus(question.id, QuestionStatus.SOLVED);
+        }
+        console.log("🎉 Question has been solved.");
+      }
       return;
     }
   }

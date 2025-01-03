@@ -13,8 +13,14 @@ export const createQuestion = async (description: string) => {
   });
 };
 
+export const getQuestionById = async (id: number) => {
+  return await prisma.question.findUnique({
+    where: { id },
+  });
+};
+
 // 疑問をステータスごとに取得する関数
-export const getQuestionsByStatus = async (status: QuestionStatus) => {
+export const getAllQuestionsByStatus = async (status: QuestionStatus) => {
   return await prisma.question.findMany({
     where: { status },
   });

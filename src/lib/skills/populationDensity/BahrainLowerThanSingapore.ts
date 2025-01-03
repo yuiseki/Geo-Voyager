@@ -1,4 +1,4 @@
-// description: - バーレーンの人口密度がシンガポールより低いことを確認する。
+// description: バーレーンの人口密度がシンガポールより低いことを確認する。
 // file_path: src/lib/skills/populationDensity/BahrainLowerThanSingapore.ts
 
 import * as turf from "@turf/turf";

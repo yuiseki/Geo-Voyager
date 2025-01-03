@@ -1,5 +1,5 @@
-// description: モナコの人口密度がシンガポールよりも低いことを確認する。
-// file_path: src/lib/skills/populationDensity/MonacoLowerThanSingapore.ts
+// description: モルディブの人口密度がシンガポールより低いことを確認する。
+// file_path: src/lib/skills/populationDensity/MaldivesLowerThanSingapore.ts
 
 import * as turf from "@turf/turf";
 import osmtogeojson from "osmtogeojson";
@@ -7,7 +7,7 @@ import osmtogeojson from "osmtogeojson";
 /**
  * @return boolean
  */
-const isPopulationDensityOfMonacoLowerThanSingapore = async () => {
+const isPopulationDensityOfMaldivesLowerThanSingapore = async () => {
   /**
    *
    * @param query Overpass QL
@@ -38,30 +38,30 @@ const isPopulationDensityOfMonacoLowerThanSingapore = async () => {
     return await res.json();
   };
 
-  // モナコの面積を取得
-  const queryMonaco = `[out:json];
-relation["name"="Monaco"]["admin_level"=2];
+  // モルディブの面積を取得
+  const queryMaldives = `[out:json];
+relation["name:en"="Maldives"]["admin_level"=2];
 out geom;`;
-  const resultMonaco = await fetchOverpassData(queryMonaco);
-  if (resultMonaco.elements.length === 0) {
+  const resultMaldives = await fetchOverpassData(queryMaldives);
+  if (resultMaldives.elements.length === 0) {
     throw new Error(
-      `Overpass API returned no data without errors. Please try to fix this query:\n${queryMonaco}`
+      `Overpass API returned no data without errors. Please try to fix this query:\n${queryMaldives}`
     );
   }
-  const geoJsonMonaco = osmtogeojson(resultMonaco);
-  if (geoJsonMonaco.features.length === 0) {
+  const geoJsonMaldives = osmtogeojson(resultMaldives);
+  if (geoJsonMaldives.features.length === 0) {
     throw new Error(
-      `osmtogeojson returned no GeoJSON data. Please try to fix this query:\n${queryMonaco}`
+      `osmtogeojson returned no GeoJSON data. Please try to fix this query:\n${queryMaldives}`
     );
   }
-  const areaMonaco = turf.area(geoJsonMonaco);
-  // モナコの人口を取得
-  const resultMonacoPopulation = await fetchWorldBankTotalPopulation("mc");
-  const populationMonaco = resultMonacoPopulation[1][0].value;
-  // モナコの人口密度を計算
-  const populationDensityMonaco = populationMonaco / areaMonaco;
+  const areaMaldives = turf.area(geoJsonMaldives);
+  // モルディブの人口を取得
+  const resultPopulationMaldives = await fetchWorldBankTotalPopulation("mv");
+  const populationMaldives = resultPopulationMaldives[1][0].value;
+  // モルディブの人口密度を計算
+  const populationDensityMaldives = populationMaldives / areaMaldives;
 
-  //シンガポールの面積を取得
+  //シンガポールの面積と人口密度を取得（仮）
   const querySingapore = `[out:json];
 relation["name"="Singapore"]["admin_level"=2];
 out geom;`;
@@ -78,13 +78,13 @@ out geom;`;
     );
   }
   const areaSingapore = turf.area(geoJsonSingapore);
-  //シンガポールの人口を取得
-  const resultSingaporePopulation = await fetchWorldBankTotalPopulation("sg");
-  const populationSingapore = resultSingaporePopulation[1][0].value;
-  //シンガポールの人口密度を計算
+  //シンガポールの人口を取得（仮）
+  const resultPopulationSingapore = await fetchWorldBankTotalPopulation("sg");
+  const populationSingapore = resultPopulationSingapore[1][0].value;
+  //シンガポールの人口密度を計算（仮）
   const populationDensitySingapore = populationSingapore / areaSingapore;
 
-  return populationDensityMonaco < populationDensitySingapore;
+  return populationDensityMaldives < populationDensitySingapore;
 };
 
-export default isPopulationDensityOfMonacoLowerThanSingapore;
+export default isPopulationDensityOfMaldivesLowerThanSingapore;

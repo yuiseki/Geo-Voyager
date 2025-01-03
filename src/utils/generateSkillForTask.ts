@@ -41,7 +41,7 @@ export const generateNewSkillForTask = async (
     // プロンプトを生成
     const exampleSelector = new SemanticSimilarityExampleSelector({
       vectorStore: vectorStore,
-      k: 2,
+      k: 4,
       inputKeys: ["input"],
     });
     const examplePrompt = PromptTemplate.fromTemplate(
