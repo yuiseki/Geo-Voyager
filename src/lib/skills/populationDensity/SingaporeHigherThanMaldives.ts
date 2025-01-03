@@ -29,7 +29,9 @@ const isPopulationDensityOfSingaporeHigherThanMaldives = async () => {
    * @param countryCode ISO 3166-1 alpha-2 country code
    * @returns JSON
    */
-  const fetchWorldBank = async (countryCode: string): Promise<any> => {
+  const fetchWorldBankTotalPopulation = async (
+    countryCode: string
+  ): Promise<any> => {
     const endpoint = `https://api.worldbank.org/v2/country/${countryCode}/indicator/SP.POP.TOTL?&format=json`;
     const res = await fetch(endpoint);
     return await res.json();
@@ -40,14 +42,21 @@ const isPopulationDensityOfSingaporeHigherThanMaldives = async () => {
 relation["name"="Singapore"]["admin_level"=2];
 out geom;`;
   const resultSingapore = await fetchOverpassData(querySingapore);
+  if (resultSingapore.elements.length === 0) {
+    throw new Error(
+      `Overpass API returned no data. Invalid query:\n${querySingapore}`
+    );
+  }
   const geoJsonSingapore = osmtogeojson(resultSingapore);
+  if (geoJsonSingapore.features.length === 0) {
+    throw new Error(
+      `osmtogeojson returned no GeoJSON data. Invalid query:\n${querySingapore}`
+    );
+  }
   const areaSingapore = turf.area(geoJsonSingapore);
   // シンガポールの人口を取得
-  let populationSingapore = geoJsonSingapore.features[0].properties?.population;
-  if (isNaN(populationSingapore)) {
-    const result = await fetchWorldBank("sg");
-    populationSingapore = result[1][0].value;
-  }
+  const resultPopulationSingapore = await fetchWorldBankTotalPopulation("sg");
+  const populationSingapore = resultPopulationSingapore[1][0].value;
   // シンガポールの人口密度を計算
   const populationDensitySingapore = populationSingapore / areaSingapore;
 
@@ -56,14 +65,21 @@ out geom;`;
 relation["name:en"="Maldives"]["admin_level"=2];
 out geom;`;
   const resultMaldives = await fetchOverpassData(queryMaldives);
+  if (resultMaldives.elements.length === 0) {
+    throw new Error(
+      `Overpass API returned no data. Invalid query:\n${queryMaldives}`
+    );
+  }
   const geoJsonMaldives = osmtogeojson(resultMaldives);
+  if (geoJsonMaldives.features.length === 0) {
+    throw new Error(
+      `osmtogeojson returned no GeoJSON data. Invalid query:\n${queryMaldives}`
+    );
+  }
   const areaMaldives = turf.area(geoJsonMaldives);
   // モルディブの人口を取得
-  let populationMaldives = geoJsonMaldives.features[0].properties?.population;
-  if (isNaN(populationMaldives)) {
-    const result = await fetchWorldBank("mv");
-    populationMaldives = result[1][0].value;
-  }
+  const resultPopulationMaldives = await fetchWorldBankTotalPopulation("mv");
+  const populationMaldives = resultPopulationMaldives[1][0].value;
   // モルディブの人口密度を計算
   const populationDensityMaldives = populationMaldives / areaMaldives;
 

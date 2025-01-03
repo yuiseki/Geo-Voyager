@@ -53,6 +53,7 @@ model HypothesisTask {
   task         Task       @relation(fields: [taskId], references: [id])
 
   createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 }
 
 model Skill {
@@ -60,4 +61,5 @@ model Skill {
   description String   // スキルの説明
   code        String   // スキルの内容（コード）
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

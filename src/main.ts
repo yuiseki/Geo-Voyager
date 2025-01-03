@@ -3,9 +3,16 @@ import { getFirstOpenQuestion } from "./db/question";
 import { getFirstPendingHypothesisByQuestionId } from "./db/hypothesis";
 import { findAndExecuteTasksByHypothesis } from "./utils/findAndExecuteTasksByHypothesis";
 import { formulateNewHypothesis } from "./utils/formulateNewHypothesis";
+import { generateSkillForTask } from "./utils/generateSkillForTask";
 
 (async () => {
   console.log("🗺️  Initializing Geo-Voyager...");
+
+  await generateSkillForTask(
+    "シンガポールの人口密度が中国よりも高いことを確認する。"
+  );
+
+  return;
 
   // OPENなQuestionを1件取得
   const question = await getFirstOpenQuestion();

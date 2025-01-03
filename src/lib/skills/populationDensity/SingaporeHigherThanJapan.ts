@@ -29,7 +29,9 @@ const isPopulationDensityOfSingaporeHigherThanJapan = async () => {
    * @param countryCode ISO 3166-1 alpha-2 country code
    * @returns JSON
    */
-  const fetchWorldBank = async (countryCode: string): Promise<any> => {
+  const fetchWorldBankTotalPopulation = async (
+    countryCode: string
+  ): Promise<any> => {
     const endpoint = `https://api.worldbank.org/v2/country/${countryCode}/indicator/SP.POP.TOTL?&format=json`;
     const res = await fetch(endpoint);
     return await res.json();
@@ -40,14 +42,21 @@ const isPopulationDensityOfSingaporeHigherThanJapan = async () => {
 relation["name"="Singapore"]["admin_level"=2];
 out geom;`;
   const resultSingapore = await fetchOverpassData(querySingapore);
+  if (resultSingapore.elements.length === 0) {
+    throw new Error(
+      `Overpass API returned no data. Invalid query:\n${querySingapore}`
+    );
+  }
   const geoJsonSingapore = osmtogeojson(resultSingapore);
+  if (geoJsonSingapore.features.length === 0) {
+    throw new Error(
+      `osmtogeojson returned no GeoJSON data. Invalid query:\n${querySingapore}`
+    );
+  }
   const areaSingapore = turf.area(geoJsonSingapore);
   // シンガポールの人口を取得
-  let populationSingapore = geoJsonSingapore.features[0].properties?.population;
-  if (isNaN(populationSingapore)) {
-    const result = await fetchWorldBank("sg");
-    populationSingapore = result[1][0].value;
-  }
+  const resultPopulationSingapore = await fetchWorldBankTotalPopulation("sg");
+  const populationSingapore = resultPopulationSingapore[1][0].value;
   // シンガポールの人口密度を計算
   const populationDensitySingapore = populationSingapore / areaSingapore;
 
@@ -56,14 +65,21 @@ out geom;`;
 relation["name:en"="Japan"]["admin_level"=2];
 out geom;`;
   const resultJapan = await fetchOverpassData(queryJapan);
+  if (resultJapan.elements.length === 0) {
+    throw new Error(
+      `Overpass API returned no data. Invalid query:\n${queryJapan}`
+    );
+  }
   const geoJsonJapan = osmtogeojson(resultJapan);
+  if (geoJsonJapan.features.length === 0) {
+    throw new Error(
+      `osmtogeojson returned no GeoJSON data. Invalid query:\n${queryJapan}`
+    );
+  }
   const areaJapan = turf.area(geoJsonJapan);
   // 日本の人口を取得
-  let populationJapan = geoJsonJapan.features[0].properties?.population;
-  if (isNaN(populationJapan)) {
-    const result = await fetchWorldBank("jp");
-    populationJapan = result[1][0].value;
-  }
+  const resultPopulationJapan = await fetchWorldBankTotalPopulation("jp");
+  const populationJapan = resultPopulationJapan[1][0].value;
   // 日本の人口密度を計算
   const populationDensityJapan = populationJapan / areaJapan;
 

@@ -7,6 +7,11 @@ import osmtogeojson from "osmtogeojson";
  * @returns boolean
  */
 const isPopulationDensityOfSingaporeHigherThanBahrain = async () => {
+  /**
+   *
+   * @param query Overpass QL
+   * @returns Overpass API JSON
+   */
   const fetchOverpassData = async (query: string): Promise<any> => {
     const endpoint = "https://overpass-api.de/api/interpreter";
     const res = await fetch(endpoint, {
@@ -18,41 +23,63 @@ const isPopulationDensityOfSingaporeHigherThanBahrain = async () => {
     });
     return await res.json();
   };
-  const fetchWorldBank = async (countryCode: string): Promise<any> => {
+
+  /**
+   *
+   * @param countryCode ISO 3166-1 alpha-2 country code
+   * @returns JSON
+   */
+  const fetchWorldBankTotalPopulation = async (
+    countryCode: string
+  ): Promise<any> => {
     const endpoint = `https://api.worldbank.org/v2/country/${countryCode}/indicator/SP.POP.TOTL?&format=json`;
     const res = await fetch(endpoint);
     return await res.json();
   };
 
-  // シンガポールの面積と人口を取得
+  // シンガポールの面積を取得
   const querySingapore = `[out:json];
 relation["name"="Singapore"]["admin_level"=2];
 out geom;`;
   const resultSingapore = await fetchOverpassData(querySingapore);
-  const geoJsonSingapore = osmtogeojson(resultSingapore);
-  const areaSingapore = turf.area(geoJsonSingapore);
-  let populationSingapore = geoJsonSingapore.features[0].properties?.population;
-  if (isNaN(populationSingapore)) {
-    const result = await fetchWorldBank("sg");
-    populationSingapore = result[1][0].value;
+  if (resultSingapore.elements.length === 0) {
+    throw new Error(
+      `Overpass API returned no data. Invalid query:\n${querySingapore}`
+    );
   }
-
+  const geoJsonSingapore = osmtogeojson(resultSingapore);
+  if (geoJsonSingapore.features.length === 0) {
+    throw new Error(
+      `osmtogeojson returned no GeoJSON data. Invalid query:\n${querySingapore}`
+    );
+  }
+  const areaSingapore = turf.area(geoJsonSingapore);
+  // シンガポールの人口を取得
+  const resultPopulationSingapore = await fetchWorldBankTotalPopulation("sg");
+  const populationSingapore = resultPopulationSingapore[1][0].value;
   // シンガポールの人口密度を計算
   const populationDensitySingapore = populationSingapore / areaSingapore;
 
-  // バーレーンの面積と人口を取得
+  // バーレーンの面積を取得
   const queryBahrain = `[out:json];
 relation["name:en"="Bahrain"]["admin_level"=2];
 out geom;`;
   const resultBahrain = await fetchOverpassData(queryBahrain);
-  const geoJsonBahrain = osmtogeojson(resultBahrain);
-  const areaBahrain = turf.area(geoJsonBahrain);
-  let populationBahrain = geoJsonBahrain.features[0].properties?.population;
-  if (isNaN(populationBahrain)) {
-    const result = await fetchWorldBank("bh");
-    populationBahrain = result[1][0].value;
+  if (resultBahrain.elements.length === 0) {
+    throw new Error(
+      `Overpass API returned no data. Invalid query:\n${queryBahrain}`
+    );
   }
-
+  const geoJsonBahrain = osmtogeojson(resultBahrain);
+  if (geoJsonBahrain.features.length === 0) {
+    throw new Error(
+      `osmtogeojson returned no GeoJSON data. Invalid query:\n${queryBahrain}`
+    );
+  }
+  const areaBahrain = turf.area(geoJsonBahrain);
+  // バーレーンの人口を取得
+  const resultBahrainPopulation = await fetchWorldBankTotalPopulation("bh");
+  const populationBahrain = resultBahrainPopulation[1][0].value;
   // バーレーンの人口密度を計算
   const populationDensityBahrain = populationBahrain / areaBahrain;
 

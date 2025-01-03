@@ -29,7 +29,9 @@ const isPopulationDensityOfMonacoHigherThanBahrain = async () => {
    * @param countryCode ISO 3166-1 alpha-2 country code
    * @returns JSON
    */
-  const fetchWorldBank = async (countryCode: string): Promise<any> => {
+  const fetchWorldBankTotalPopulation = async (
+    countryCode: string
+  ): Promise<any> => {
     const endpoint = `https://api.worldbank.org/v2/country/${countryCode}/indicator/SP.POP.TOTL?&format=json`;
     const res = await fetch(endpoint);
     return await res.json();
@@ -40,14 +42,21 @@ const isPopulationDensityOfMonacoHigherThanBahrain = async () => {
 relation["name"="Monaco"]["admin_level"=2];
 out geom;`;
   const resultMonaco = await fetchOverpassData(queryMonaco);
+  if (resultMonaco.elements.length === 0) {
+    throw new Error(
+      `Overpass API returned no data. Invalid query:\n${queryMonaco}`
+    );
+  }
   const geoJsonMonaco = osmtogeojson(resultMonaco);
+  if (geoJsonMonaco.features.length === 0) {
+    throw new Error(
+      `osmtogeojson returned no GeoJSON data. Invalid query:\n${queryMonaco}`
+    );
+  }
   const areaMonaco = turf.area(geoJsonMonaco);
   // モナコの人口を取得
-  let populationMonaco = geoJsonMonaco.features[0].properties?.population;
-  if (isNaN(populationMonaco)) {
-    const result = await fetchWorldBank("mc");
-    populationMonaco = result[1][0].value;
-  }
+  const resultMonacoPopulation = await fetchWorldBankTotalPopulation("mc");
+  const populationMonaco = resultMonacoPopulation[1][0].value;
   // モナコの人口密度を計算
   const populationDensityMonaco = populationMonaco / areaMonaco;
 
@@ -56,14 +65,21 @@ out geom;`;
 relation["name:en"="Bahrain"]["admin_level"=2];
 out geom;`;
   const resultBahrain = await fetchOverpassData(queryBahrain);
+  if (resultBahrain.elements.length === 0) {
+    throw new Error(
+      `Overpass API returned no data. Invalid query:\n${queryBahrain}`
+    );
+  }
   const geoJsonBahrain = osmtogeojson(resultBahrain);
+  if (geoJsonBahrain.features.length === 0) {
+    throw new Error(
+      `osmtogeojson returned no GeoJSON data. Invalid query:\n${queryBahrain}`
+    );
+  }
   const areaBahrain = turf.area(geoJsonBahrain);
   // バーレーンの人口を取得
-  let populationBahrain = geoJsonBahrain.features[0].properties?.population;
-  if (isNaN(populationBahrain)) {
-    const result = await fetchWorldBank("bh");
-    populationBahrain = result[1][0].value;
-  }
+  const resultBahrainPopulation = await fetchWorldBankTotalPopulation("bh");
+  const populationBahrain = resultBahrainPopulation[1][0].value;
   // バーレーンの人口密度を計算
   const populationDensityBahrain = populationBahrain / areaBahrain;
 
