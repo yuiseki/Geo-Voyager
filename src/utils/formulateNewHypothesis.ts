@@ -16,45 +16,18 @@ import { getAllExecutedTasksByHypothesisId } from "../db/task";
  */
 export const formulateNewHypothesis = async (question: Question) => {
   console.log("🧠 Formulating a new hypothesis...");
-
-  // 新しい仮説を生成するロジック（仮説の立案プロンプト）
-  const hypothesisDescription = await formulateNewHypothesisFromQuestion(
-    question
-  );
-
-  if (!hypothesisDescription) {
-    console.error("⚠️  Failed to formulate a new hypothesis.");
-    return null;
-  }
-
-  // 新しい仮説をデータベースに保存
-  const newHypothesis = await prisma.hypothesis.create({
-    data: {
-      description: hypothesisDescription,
-      status: HypothesisStatus.PENDING,
-      questionId: question.id,
-    },
+  const model = new ChatOllama({
+    model: "qwen2.5:14b",
+    temperature: 0,
   });
 
-  console.log(`💡 New Hypothesis: ${newHypothesis.description}`);
-  return newHypothesis;
-};
-
-/**
- * 質問の説明を元に新しい仮説を生成
- * @param question Question
- * @returns 生成された新しい仮説
- */
-const formulateNewHypothesisFromQuestion = async (
-  question: Question
-): Promise<string> => {
+  // 新しい仮説を生成するロジック（仮説の立案プロンプト）
   const exampleHypotheses = await getAllOtherHypothesesByQuestionId(
     question.id
   );
   const rejectedHypotheses = await getAllRejectedHypothesesByQuestionId(
     question.id
   );
-
   // RejectedHypothesesに結びつくタスクを取得
   const rejectedHypothesesWithTasks = await Promise.all(
     rejectedHypotheses.map(async (hypothesis) => {
@@ -67,7 +40,6 @@ const formulateNewHypothesisFromQuestion = async (
       };
     })
   );
-
   // 仮説生成プロンプト
   const prompt = `Given the question: "${
     question.description
@@ -92,11 +64,24 @@ Reply only with the hypothesis description.`;
   // console.log(prompt);
 
   // AIのレスポンスとして新しい仮説を生成
-  const model = new ChatOllama({
-    model: "qwen2.5:7b",
-    temperature: 0,
-  });
-  const hypothesisDescription = await model.invoke(prompt);
+  const res = await model.invoke(prompt);
 
-  return hypothesisDescription.content as string;
+  const hypothesisDescription = res.content as string;
+
+  if (!hypothesisDescription) {
+    console.error("⚠️  Failed to formulate a new hypothesis.");
+    return null;
+  }
+
+  // 新しい仮説をデータベースに保存
+  const newHypothesis = await prisma.hypothesis.create({
+    data: {
+      description: hypothesisDescription,
+      status: HypothesisStatus.PENDING,
+      questionId: question.id,
+    },
+  });
+
+  console.log(`💡 New Hypothesis: ${newHypothesis.description}`);
+  return newHypothesis;
 };

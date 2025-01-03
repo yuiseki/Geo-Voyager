@@ -9,7 +9,7 @@ import { ChatOllama } from "@langchain/ollama";
 export const planNewTasksForHypothesis = async (hypothesis: Hypothesis) => {
   console.log("🧠 Planning new tasks for the hypothesis...");
   const model = new ChatOllama({
-    model: "qwen2.5:7b",
+    model: "qwen2.5:14b",
     temperature: 0,
     repeatPenalty: 1.1,
   });
