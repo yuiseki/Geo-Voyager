@@ -44,13 +44,13 @@ out geom;`;
   const resultSingapore = await fetchOverpassData(querySingapore);
   if (resultSingapore.elements.length === 0) {
     throw new Error(
-      `Overpass API returned no data. Invalid query:\n${querySingapore}`
+      `Overpass API returned no data without errors. Please fix this query:\n${querySingapore}`
     );
   }
   const geoJsonSingapore = osmtogeojson(resultSingapore);
   if (geoJsonSingapore.features.length === 0) {
     throw new Error(
-      `osmtogeojson returned no GeoJSON data. Invalid query:\n${querySingapore}`
+      `osmtogeojson returned no GeoJSON data. Please fix this query:\n${querySingapore}`
     );
   }
   const areaSingapore = turf.area(geoJsonSingapore);
@@ -67,13 +67,13 @@ out geom;`;
   const resultMonaco = await fetchOverpassData(queryMonaco);
   if (resultMonaco.elements.length === 0) {
     throw new Error(
-      `Overpass API returned no data. Invalid query:\n${queryMonaco}`
+      `Overpass API returned no data without errors. Please fix this query:\n${queryMonaco}`
     );
   }
   const geoJsonMonaco = osmtogeojson(resultMonaco);
   if (geoJsonMonaco.features.length === 0) {
     throw new Error(
-      `osmtogeojson returned no GeoJSON data. Invalid query:\n${queryMonaco}`
+      `osmtogeojson returned no GeoJSON data. Please fix this query:\n${queryMonaco}`
     );
   }
   const areaMonaco = turf.area(geoJsonMonaco);

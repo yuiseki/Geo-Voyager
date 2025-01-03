@@ -22,7 +22,7 @@ export const generateSkillForTask = async (
   let lastCode = null;
 
   const model = new ChatOllama({
-    model: "qwen2.5-coder:7b",
+    model: "qwen2.5-coder:14b",
     temperature: 0,
   });
   const embeddings = new OllamaEmbeddings({
