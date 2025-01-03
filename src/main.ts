@@ -9,12 +9,6 @@ import isPopulationDensityOfSingaporeHigherThanChina from "./lib/skills/populati
 (async () => {
   console.log("🗺️  Initializing Geo-Voyager...");
 
-  await generateNewSkillForTask(
-    "日本の人口密度が中国よりも高いことを確認する。"
-  );
-
-  return;
-
   // OPENなQuestionを1件取得
   const question = await getFirstOpenQuestion();
   if (!question) {

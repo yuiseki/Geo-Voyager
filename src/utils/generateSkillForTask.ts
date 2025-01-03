@@ -6,6 +6,7 @@ import { SemanticSimilarityExampleSelector } from "@langchain/core/example_selec
 import { FewShotPromptTemplate, PromptTemplate } from "@langchain/core/prompts";
 import { MemoryVectorStore } from "langchain/vectorstores/memory";
 import { RunnableSequence } from "@langchain/core/runnables";
+import { Skill } from "@prisma/client";
 
 /**
  * タスクに対応するスキルを生成
@@ -15,7 +16,7 @@ import { RunnableSequence } from "@langchain/core/runnables";
  */
 export const generateNewSkillForTask = async (
   taskDescription: string
-): Promise<boolean> => {
+): Promise<Skill> => {
   let attempts = 0;
   const maxAttempts = 20;
   let lastError = null;
@@ -145,9 +146,9 @@ ${lastHint ? `Hint to fix the code: ${lastHint}` : ""}
       console.log(`💾 New skill saved to file: ${saveFilePath}`);
 
       // スキルをデータベースに保存
-      await saveSkillToDatabase(taskDescription, skillCode);
+      const newSkill = await saveSkillToDatabase(taskDescription, skillCode);
       console.log(`💾 Skill saved to database for task: ${taskDescription}`);
-      return true; // 成功
+      return newSkill; // 成功
     } catch (error) {
       if (error instanceof Error) {
         console.error(`❌ Skill execution failed:`);
@@ -183,5 +184,7 @@ For example:
   console.error(
     "⚠️ Failed to generate a working skill after multiple attempts."
   );
-  return false;
+  throw new Error(
+    "Failed to generate a working skill after multiple attempts."
+  );
 };

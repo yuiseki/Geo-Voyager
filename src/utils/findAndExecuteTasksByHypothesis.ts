@@ -10,6 +10,7 @@ import {
 import { getFirstSkillByDescription } from "../db/skill";
 import { HypothesisStatus, updateHypothesisStatus } from "../db/hypothesis";
 import { planNewTasksForHypothesis } from "./planNewTasksForHypothesis";
+import { generateNewSkillForTask } from "./generateSkillForTask";
 
 export const findAndExecuteTasksByHypothesis = async (
   hypothesis: Hypothesis
@@ -18,6 +19,7 @@ export const findAndExecuteTasksByHypothesis = async (
   let tasks = await getAllTasksByHypothesisId(hypothesis.id);
   if (tasks.length === 0) {
     console.log("⚠️  No tasks associated with this hypothesis.");
+    // タスクが無かったら新しいタスクを計画する
     tasks = await planNewTasksForHypothesis(hypothesis);
   }
 
@@ -45,11 +47,26 @@ export const findAndExecuteTasksByHypothesis = async (
       console.log(`  - 🔨 Starting task: ${task.description}`);
 
       // 仮説検証タスクを実行するためのスキルを取得
-      const skill = await getFirstSkillByDescription(task.description);
+      let skill = await getFirstSkillByDescription(task.description);
+      if (!skill) {
+        // スキルがなかったら新しいスキルの生成を試みる
+        try {
+          skill = await generateNewSkillForTask(task.description);
+        } catch (error) {
+          console.error("    - 🚫 Error generating skill:", error);
+          await updateTaskStatusAndResult(
+            task.id,
+            TaskStatus.ERROR,
+            (error as Error).message
+          );
+          continue;
+        }
+      }
 
       if (skill) {
+        // スキルがあったら実行する
         console.log(`    - 🎁 Skill found: ${skill.description}`);
-        // 保存先ディレクトリとファイルパスを設定
+        // 一時保存先ディレクトリとファイルパスを設定
         const tempDir = path.join(__dirname, "tmp", "skills");
         const tempFilePath = path.join(tempDir, `${skill.id}.ts`);
         // 一時ディレクトリを作成（存在しない場合のみ）
@@ -89,15 +106,13 @@ export const findAndExecuteTasksByHypothesis = async (
           status = TaskStatus.ERROR;
           result = (error as Error).message;
         } finally {
+          // 一時ファイルを削除
+          await fs.unlink(tempFilePath);
           // taskのstatusとresultを更新
           if (status) {
             await updateTaskStatusAndResult(task.id, status, result.toString());
           }
-          // 一時ファイルを削除
-          await fs.unlink(tempFilePath);
         }
-      } else {
-        console.error("    - 🚫 Skill not found for task.");
       }
     }
   }
