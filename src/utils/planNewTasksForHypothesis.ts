@@ -61,6 +61,14 @@ Reply with only a list of possible new executable tasks, separated by newlines.`
     if (taskDescription.startsWith("- ")) {
       taskDescription = taskDescription.slice(2);
     }
+    if (taskDescription.endsWith(", COMPLETED")) {
+      taskDescription = taskDescription.replace(", COMPLETED", "");
+    }
+    // 。で終わっていない場合は無視する
+    if (!taskDescription.endsWith("。")) {
+      console.error(`⚠️  Ignoring task: ${taskDescription}`);
+      continue;
+    }
     console.log(`💾 Saving new task: ${taskDescription}`);
     const newTask = await createTaskByHypothesisId(
       hypothesis.id,

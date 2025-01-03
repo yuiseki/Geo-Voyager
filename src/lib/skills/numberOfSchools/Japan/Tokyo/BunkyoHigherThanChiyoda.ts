@@ -12,7 +12,7 @@
  * @returns Promise<number> - The count of schools in the ward.
  */
 async function getSchoolCount(wardName: string): Promise<number> {
-  const query = `
+  const overpassQuery = `
     [out:json];
     area["name"="東京都"]->.tokyo;
     area["name"="${wardName}"]->.ward;
@@ -25,7 +25,7 @@ async function getSchoolCount(wardName: string): Promise<number> {
   const response = await fetch("https://overpass-api.de/api/interpreter", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: `data=${encodeURIComponent(query)}`,
+    body: `data=${encodeURIComponent(overpassQuery)}`,
   });
 
   if (!response.ok) {
@@ -34,8 +34,15 @@ async function getSchoolCount(wardName: string): Promise<number> {
     );
   }
 
-  const data = await response.json();
-  return data.elements[0].tags.total;
+  const result = await response.json();
+
+  if (result.elements.length === 0) {
+    throw new Error(
+      `Overpass API returned no data without errors. Please try to fix this query:\n${overpassQuery}`
+    );
+  }
+
+  return result.elements[0].tags.total;
 }
 
 /**

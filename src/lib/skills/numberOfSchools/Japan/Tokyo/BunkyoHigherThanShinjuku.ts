@@ -30,6 +30,13 @@ async function getSchoolCount(wardName: string): Promise<number> {
   }
 
   const result = await response.json();
+
+  if (result.elements.length === 0) {
+    throw new Error(
+      `Overpass API returned no data without errors. Please try to fix this query:\n${overpassQuery}`
+    );
+  }
+
   return result.elements[0].tags.total;
 }
 

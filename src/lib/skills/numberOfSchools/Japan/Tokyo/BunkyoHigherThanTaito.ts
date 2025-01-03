@@ -1,5 +1,5 @@
-// description: 東京都文京区の学校の数が東京都渋谷区よりも多いことを確認する。
-// file_path: src/lib/skills/numberOfSchools/Japan/Tokyo/BunkyoMoreThanShibuya.ts
+// description: 東京都文京区の学校の数が東京都台東区よりも多いことを確認する。
+// file_path: src/lib/skills/numberOfSchools/BunkyoHigherThanTaito.ts
 
 /**
  * Fetches the count of schools in a given ward using Overpass API.
@@ -41,22 +41,22 @@ async function getSchoolCount(wardName: string): Promise<number> {
 }
 
 /**
- * Compares the number of schools in Bunkyo Ward and Shibuya Ward.
- * @returns Promise<boolean> - True if Bunkyo has more schools than Shibuya, otherwise false.
+ * Compares the number of schools in Bunkyo Ward and Taito Ward.
+ * @returns Promise<boolean> - True if Bunkyo has more schools than Taito, otherwise false.
  */
-async function isNumberOfSchoolsInBunkyoMoreThanShibuya(): Promise<boolean> {
+async function isNumberOfSchoolsInBunkyoHigherThanTaito(): Promise<boolean> {
   try {
     const bunkyoCount = await getSchoolCount("文京区");
-    const shibuyaCount = await getSchoolCount("渋谷区");
+    const taitoCount = await getSchoolCount("台東区");
 
     console.log(`Number of schools in Bunkyo Ward: ${bunkyoCount}`);
-    console.log(`Number of schools in Shibuya Ward: ${shibuyaCount}`);
+    console.log(`Number of schools in Taito Ward: ${taitoCount}`);
 
-    return bunkyoCount > shibuyaCount;
+    return bunkyoCount > taitoCount;
   } catch (error) {
     console.error("Error comparing school counts:", error);
     throw error;
   }
 }
 
-export default isNumberOfSchoolsInBunkyoMoreThanShibuya;
+export default isNumberOfSchoolsInBunkyoHigherThanTaito;

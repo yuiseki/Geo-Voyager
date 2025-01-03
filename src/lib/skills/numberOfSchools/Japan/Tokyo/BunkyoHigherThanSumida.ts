@@ -1,5 +1,5 @@
-// description: 東京都文京区の学校の数が東京都渋谷区よりも多いことを確認する。
-// file_path: src/lib/skills/numberOfSchools/Japan/Tokyo/BunkyoMoreThanShibuya.ts
+// description: 東京都文京区の学校の数が東京都墨田区よりも多いことを確認する。
+// file_path: src/lib/skills/numberOfSchools/Japan/Tokyo/BunkyoHigherThanSumida.ts
 
 /**
  * Fetches the count of schools in a given ward using Overpass API.
@@ -29,34 +29,35 @@ async function getSchoolCount(wardName: string): Promise<number> {
     );
   }
 
-  const data = await response.json();
+  const result = await response.json();
 
-  if (data.elements.length === 0) {
+  if (result.elements.length === 0) {
     throw new Error(
       `Overpass API returned no data without errors. Please try to fix this query:\n${query}`
     );
   }
 
-  return data.elements[0].tags.total;
+  return result.elements[0].tags.total;
 }
 
 /**
- * Compares the number of schools in Bunkyo Ward and Shibuya Ward.
- * @returns Promise<boolean> - True if Bunkyo has more schools than Shibuya, otherwise false.
+ * Compares the number of schools in Bunkyo Ward and Sumida Ward.
+ * @returns Promise<boolean> - True if Bunkyo has more schools than Koto, otherwise false.
  */
-async function isNumberOfSchoolsInBunkyoMoreThanShibuya(): Promise<boolean> {
+async function isBunkyoHigherThanKoto(): Promise<boolean> {
   try {
-    const bunkyoCount = await getSchoolCount("文京区");
-    const shibuyaCount = await getSchoolCount("渋谷区");
+    const bunkyoSchoolCount = await getSchoolCount("文京区");
+    const kotoSchoolCount = await getSchoolCount("墨田区");
 
-    console.log(`Number of schools in Bunkyo Ward: ${bunkyoCount}`);
-    console.log(`Number of schools in Shibuya Ward: ${shibuyaCount}`);
+    console.log(`Number of schools in 文京区: ${bunkyoSchoolCount}`);
+    console.log(`Number of schools in 墨田区: ${kotoSchoolCount}`);
 
-    return bunkyoCount > shibuyaCount;
+    return bunkyoSchoolCount > kotoSchoolCount;
   } catch (error) {
     console.error("Error comparing school counts:", error);
     throw error;
   }
 }
 
-export default isNumberOfSchoolsInBunkyoMoreThanShibuya;
+// Export the function to be used as a skill
+export default isBunkyoHigherThanKoto;

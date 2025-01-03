@@ -1,8 +1,6 @@
 // description: 東京都渋谷区の病院の数が東京都港区よりも多いことを確認する。
 // file_path: src/lib/skills/numberOfHospitals/Japan/Tokyo/ShibuyaHigherThanMinato.ts
 
-import fetch from 'node-fetch';
-
 /**
  * Fetches the number of hospitals in a specified area using Overpass API.
  * @param areaName - The name of the area to query.
@@ -26,7 +24,9 @@ async function getHospitalCount(areaName: string): Promise<number> {
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch data from Overpass API: ${response.statusText}`);
+    throw new Error(
+      `Failed to fetch data from Overpass API: ${response.statusText}`
+    );
   }
 
   const result = await response.json();

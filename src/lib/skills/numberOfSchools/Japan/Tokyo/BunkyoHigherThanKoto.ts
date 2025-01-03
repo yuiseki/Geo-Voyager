@@ -1,7 +1,5 @@
 // description: 東京都文京区の学校の数が東京都江東区よりも多いことを確認する。
-// file_path: src/lib/skills/numberOfSchools/BunkyoHigherThanKoto.ts
-
-import fetch from 'node-fetch';
+// file_path: src/lib/skills/numberOfSchools/Japan/Tokyo/BunkyoHigherThanKoto.ts
 
 /**
  * Fetches the number of schools in a specified ward using Overpass API.
@@ -32,6 +30,13 @@ async function getSchoolCount(wardName: string): Promise<number> {
   }
 
   const result = await response.json();
+
+  if (result.elements.length === 0) {
+    throw new Error(
+      `Overpass API returned no data without errors. Please try to fix this query:\n${overpassQuery}`
+    );
+  }
+
   return result.elements[0].tags.total;
 }
 

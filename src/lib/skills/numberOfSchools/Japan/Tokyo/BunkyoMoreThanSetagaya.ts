@@ -1,8 +1,6 @@
 // description: 東京都文京区の学校の数が東京都世田谷区よりも多いことを確認する。
 // file_path: src/lib/skills/numberOfSchools/Japan/Tokyo/BunkyoMoreThanSetagaya.ts
 
-import fetch from 'node-fetch';
-
 /**
  * Fetches the count of schools in a given ward using Overpass API.
  * @param wardName - The name of the ward.
@@ -32,6 +30,13 @@ async function getSchoolCount(wardName: string): Promise<number> {
   }
 
   const data = await response.json();
+
+  if (data.elements.length === 0) {
+    throw new Error(
+      `Overpass API returned no data without errors. Please try to fix this query:\n${query}`
+    );
+  }
+
   return data.elements[0].tags.total;
 }
 

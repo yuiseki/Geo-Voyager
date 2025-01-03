@@ -1,8 +1,6 @@
 // description: 東京都渋谷区の病院の数が東京都文京区よりも多いことを確認する。
 // file_path: src/lib/skills/numberOfHospitals/Japan/Tokyo/ShibuyaHigherThanBunkyo.ts
 
-import fetch from 'node-fetch';
-
 /**
  * Fetches the number of hospitals in a specified ward using Overpass API.
  * @param wardName - The name of the ward to query.
@@ -21,17 +19,26 @@ async function getNumberOfHospitals(wardName: string): Promise<number> {
     out count;
   `;
 
-  const response = await fetch('https://overpass-api.de/api/interpreter', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  const response = await fetch("https://overpass-api.de/api/interpreter", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: `data=${encodeURIComponent(overpassQuery)}`,
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch data from Overpass API: ${response.statusText}`);
+    throw new Error(
+      `Failed to fetch data from Overpass API: ${response.statusText}`
+    );
   }
 
   const result = await response.json();
+
+  if (result.elements.length === 0) {
+    throw new Error(
+      `Overpass API returned no data without errors. Please try to fix this query:\n${overpassQuery}`
+    );
+  }
+
   return result.elements[0].tags.total;
 }
 
@@ -40,11 +47,15 @@ async function getNumberOfHospitals(wardName: string): Promise<number> {
  * @returns True if Shibuya Ward has more hospitals than Bunkyo Ward, otherwise false.
  */
 async function isNumberOfHospitalsInShibuyaHigherThanBunkyo(): Promise<boolean> {
-  const numberOfHospitalsInShibuya = await getNumberOfHospitals('渋谷区');
-  const numberOfHospitalsInBunkyo = await getNumberOfHospitals('文京区');
+  const numberOfHospitalsInShibuya = await getNumberOfHospitals("渋谷区");
+  const numberOfHospitalsInBunkyo = await getNumberOfHospitals("文京区");
 
-  console.log(`Number of hospitals in Shibuya Ward: ${numberOfHospitalsInShibuya}`);
-  console.log(`Number of hospitals in Bunkyo Ward: ${numberOfHospitalsInBunkyo}`);
+  console.log(
+    `Number of hospitals in Shibuya Ward: ${numberOfHospitalsInShibuya}`
+  );
+  console.log(
+    `Number of hospitals in Bunkyo Ward: ${numberOfHospitalsInBunkyo}`
+  );
 
   return numberOfHospitalsInShibuya > numberOfHospitalsInBunkyo;
 }
