@@ -1,8 +1,6 @@
 // description: 東京都文京区の学校の数が東京都港区よりも多いことを確認する。
 // file_path: src/lib/skills/numberOfSchools/Japan/Tokyo/BunkyoHigherThanMinato.ts
 
-import fetch from "node-fetch";
-
 /**
  * Fetches the number of schools in a specified area using Overpass API.
  * @param areaName - The name of the area to query.

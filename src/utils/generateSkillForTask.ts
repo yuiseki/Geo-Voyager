@@ -102,7 +102,8 @@ ${lastHint ? `Hint to fix the code: ${lastHint}` : ""}
       continue;
     }
 
-    console.log(`🧠 Generated new skill code:\n${skillCode}`);
+    // console.log(`🤖 Generated new skill code:`);
+    // console.log(skillCode)
 
     // 動作確認のために、一時ファイルにスキルを保存
     const tempFilePath = path.join(
