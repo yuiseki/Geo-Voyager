@@ -3,11 +3,12 @@ import { getFirstOpenQuestion } from "./db/question";
 import { getFirstPendingHypothesisByQuestionId } from "./db/hypothesis";
 import { findAndExecuteTasksByHypothesis } from "./utils/findAndExecuteTasksByHypothesis";
 import { formulateNewHypothesis } from "./utils/formulateNewHypothesis";
-import { generateNewSkillForTask } from "./utils/generateSkillForTask";
-import isPopulationDensityOfSingaporeHigherThanChina from "./lib/skills/populationDensity/SingaporeHigherThanChina";
+import { listUpAllSolvedQuestions } from "./utils/listUpAllSolvedQuestions";
 
 (async () => {
   console.log("🗺️  Initializing Geo-Voyager...");
+
+  await listUpAllSolvedQuestions();
 
   // OPENなQuestionを1件取得
   const question = await getFirstOpenQuestion();

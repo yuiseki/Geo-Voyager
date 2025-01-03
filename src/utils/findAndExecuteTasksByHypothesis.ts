@@ -23,6 +23,20 @@ export const findAndExecuteTasksByHypothesis = async (
     tasks = await planNewTasksForHypothesis(hypothesis);
   }
 
+  // すべてのタスクがCOMPLETEDの場合
+  if (tasks.every((task) => task.status === "COMPLETED")) {
+    console.log("🎉 All tasks for this hypothesis has completed.");
+    if (tasks.length < 10) {
+      // タスクの計画を再度行う
+      tasks = await planNewTasksForHypothesis(hypothesis);
+    } else {
+      // 仮説をACCEPTEDに更新
+      await updateHypothesisStatus(hypothesis.id, HypothesisStatus.VERIFIED);
+      console.log("🎉 Hypothesis has been verified.");
+      return;
+    }
+  }
+
   console.log("📋 Associated Tasks:");
   for (const task of tasks) {
     if (task.status === "COMPLETED") {

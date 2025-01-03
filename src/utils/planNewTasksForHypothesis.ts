@@ -22,8 +22,8 @@ ${executedTasks.map((t) => `- ${t.description}`).join("\n")}
 
 Reply with only a list of possible executable tasks, separated by newlines.`;
 
-  console.log("🤖 Tasks generation prompt:");
-  console.log(prompt);
+  // console.log("🤖 Tasks generation prompt:");
+  // console.log(prompt);
 
   // AIのレスポンスとして新しいタスクを生成
   const model = new ChatOllama({
@@ -42,7 +42,11 @@ Reply with only a list of possible executable tasks, separated by newlines.`;
 
   const tasks = [];
   // タスクをデータベースに作成
-  for (const taskDescription of taskList) {
+  for (let taskDescription of taskList) {
+    // 先頭に "- " がある場合には、除去する
+    if (taskDescription.startsWith("- ")) {
+      taskDescription = taskDescription.slice(2);
+    }
     console.log(`💾 Saving new task: ${taskDescription}`);
     const newTask = await createTaskByHypothesisId(
       hypothesis.id,
@@ -51,6 +55,6 @@ Reply with only a list of possible executable tasks, separated by newlines.`;
     tasks.push(newTask);
   }
 
-  console.log(`📋️ Planed total ${tasks.length} new tasks.`);
+  console.log(`📋️ Planned total ${tasks.length} new tasks.`);
   return tasks;
 };
