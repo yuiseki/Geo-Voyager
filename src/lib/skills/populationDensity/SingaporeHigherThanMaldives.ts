@@ -1,89 +1,105 @@
 // description: シンガポールの人口密度がモルディブよりも高いことを確認する。
 // file_path: src/lib/skills/populationDensity/SingaporeHigherThanMaldives.ts
+
 import * as turf from "@turf/turf";
 import osmtogeojson from "osmtogeojson";
 
 /**
- * @return boolean
+ * Fetches data from the Overpass API.
+ * @param query - The Overpass QL query string.
+ * @returns Promise resolving to JSON data from the Overpass API.
  */
-const isPopulationDensityOfSingaporeHigherThanMaldives = async () => {
-  /**
-   *
-   * @param query Overpass QL
-   * @returns Overpass API JSON
-   */
-  const fetchOverpassData = async (query: string): Promise<any> => {
-    const endpoint = "https://overpass-api.de/api/interpreter";
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: `data=${encodeURIComponent(query)}`,
-    });
-    return await res.json();
-  };
-
-  /**
-   *
-   * @param countryCode ISO 3166-1 alpha-2 country code
-   * @returns JSON
-   */
-  const fetchWorldBankTotalPopulation = async (
-    countryCode: string
-  ): Promise<any> => {
-    const endpoint = `https://api.worldbank.org/v2/country/${countryCode}/indicator/SP.POP.TOTL?&format=json`;
-    const res = await fetch(endpoint);
-    return await res.json();
-  };
-
-  // シンガポールの面積を取得
-  const querySingapore = `[out:json];
-relation["name"="Singapore"]["admin_level"=2];
-out geom;`;
-  const resultSingapore = await fetchOverpassData(querySingapore);
-  if (resultSingapore.elements.length === 0) {
+const fetchOverpassData = async (query: string): Promise<any> => {
+  const endpoint = "https://overpass-api.de/api/interpreter";
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: `data=${encodeURIComponent(query)}`,
+  });
+  if (!res.ok) {
+    throw new Error(`HTTP error! status: ${res.status}`);
+  }
+  const data = await res.json();
+  if (!data.elements || data.elements.length === 0) {
     throw new Error(
-      `Overpass API returned no data without errors. Please try to fix this query:\n${querySingapore}`
+      `Overpass API returned no data without errors. Please try to fix this query:\n${query}`
     );
   }
-  const geoJsonSingapore = osmtogeojson(resultSingapore);
-  if (geoJsonSingapore.features.length === 0) {
-    throw new Error(
-      `osmtogeojson returned no GeoJSON data. Please try to fix this query:\n${querySingapore}`
-    );
-  }
-  const areaSingapore = turf.area(geoJsonSingapore);
-  // シンガポールの人口を取得
-  const resultPopulationSingapore = await fetchWorldBankTotalPopulation("sg");
-  const populationSingapore = resultPopulationSingapore[1][0].value;
-  // シンガポールの人口密度を計算
-  const populationDensitySingapore = populationSingapore / areaSingapore;
-
-  // モルディブの面積を取得
-  const queryMaldives = `[out:json];
-relation["name:en"="Maldives"]["admin_level"=2];
-out geom;`;
-  const resultMaldives = await fetchOverpassData(queryMaldives);
-  if (resultMaldives.elements.length === 0) {
-    throw new Error(
-      `Overpass API returned no data without errors. Please try to fix this query:\n${queryMaldives}`
-    );
-  }
-  const geoJsonMaldives = osmtogeojson(resultMaldives);
-  if (geoJsonMaldives.features.length === 0) {
-    throw new Error(
-      `osmtogeojson returned no GeoJSON data. Please try to fix this query:\n${queryMaldives}`
-    );
-  }
-  const areaMaldives = turf.area(geoJsonMaldives);
-  // モルディブの人口を取得
-  const resultPopulationMaldives = await fetchWorldBankTotalPopulation("mv");
-  const populationMaldives = resultPopulationMaldives[1][0].value;
-  // モルディブの人口密度を計算
-  const populationDensityMaldives = populationMaldives / areaMaldives;
-
-  return populationDensitySingapore > populationDensityMaldives;
+  return data;
 };
+
+/**
+ * Fetches total population data from the World Bank API.
+ * @param countryCode - The ISO 3166-1 alpha-2 country code.
+ * @returns Promise resolving to JSON data containing the population.
+ */
+const fetchWorldBankTotalPopulation = async (
+  countryCode: string
+): Promise<any> => {
+  const endpoint = `https://api.worldbank.org/v2/country/${countryCode}/indicator/SP.POP.TOTL?format=json`;
+  const res = await fetch(endpoint);
+  if (!res.ok) {
+    throw new Error(`HTTP error! status: ${res.status}`);
+  }
+  const data = await res.json();
+  if (data.length === 0 || data[1].length === 0) {
+    throw new Error(`No population data found for country code ${countryCode}`);
+  }
+  return data;
+};
+
+/**
+ * Calculates the population density of a country.
+ * @param geojsonData - GeoJSON data representing the country's boundaries.
+ * @param population - The total population of the country.
+ * @returns Population density in people per square kilometer.
+ */
+const calculatePopulationDensity = (
+  geojsonData: any,
+  population: number
+): number => {
+  const area = turf.area(geojsonData); // Area in square meters
+  const areaInKm2 = area / 1000000; // Convert to square kilometers
+  return population / areaInKm2;
+};
+
+/**
+ * Checks if Singapore's population density is higher than Maldives's.
+ * @returns Promise resolving to a boolean indicating whether Singapore's population density is higher.
+ */
+const isPopulationDensityOfSingaporeHigherThanMaldives =
+  async (): Promise<boolean> => {
+    // Fetch Singapore's GeoJSON data
+    const singaporeOverpassQuery = `[out:json];relation["name"="Singapore"]["admin_level"=2];out geom;`;
+    const singaporeOverpassData = await fetchOverpassData(
+      singaporeOverpassQuery
+    );
+    const singaporeGeojsonData = osmtogeojson(singaporeOverpassData);
+    // Fetch Singapore's population data
+    const singaporePopulationData = await fetchWorldBankTotalPopulation("sg");
+    const singaporePopulation = singaporePopulationData[1][0].value;
+    // Calculate Singapore's population density
+    const singaporePopulationDensity = calculatePopulationDensity(
+      singaporeGeojsonData,
+      singaporePopulation
+    );
+
+    // Fetch Maldives's geojson data
+    const maldivesOverpassQuery = `[out:json];relation["name:en"="Maldives"]["admin_level"=2];out geom;`;
+    const maldivesOverpassData = await fetchOverpassData(maldivesOverpassQuery);
+    const maldivesGeojsonData = osmtogeojson(maldivesOverpassData);
+    // Fetch Maldives's population
+    const maldivesPopulationData = await fetchWorldBankTotalPopulation("mv");
+    const maldivesPopulation = maldivesPopulationData[1][0].value;
+    // Calculate Maldives's population density
+    const maldivesPopulationDensity = calculatePopulationDensity(
+      maldivesGeojsonData,
+      maldivesPopulation
+    );
+    // Compare the population densities
+    return singaporePopulationDensity > maldivesPopulationDensity;
+  };
 
 export default isPopulationDensityOfSingaporeHigherThanMaldives;

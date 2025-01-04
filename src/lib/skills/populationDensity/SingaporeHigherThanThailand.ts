@@ -20,7 +20,13 @@ const fetchOverpassData = async (query: string): Promise<any> => {
   if (!res.ok) {
     throw new Error(`HTTP error! status: ${res.status}`);
   }
-  return res.json();
+  const data = await res.json();
+  if (!data.elements || data.elements.length === 0) {
+    throw new Error(
+      `Overpass API returned no data without errors. Please try to fix this query:\n${query}`
+    );
+  }
+  return data;
 };
 
 /**
@@ -28,13 +34,19 @@ const fetchOverpassData = async (query: string): Promise<any> => {
  * @param countryCode - The ISO 3166-1 alpha-2 country code.
  * @returns Promise resolving to JSON data containing the population.
  */
-const fetchWorldBankPopulation = async (countryCode: string): Promise<any> => {
+const fetchWorldBankTotalPopulation = async (
+  countryCode: string
+): Promise<any> => {
   const endpoint = `https://api.worldbank.org/v2/country/${countryCode}/indicator/SP.POP.TOTL?format=json`;
   const res = await fetch(endpoint);
   if (!res.ok) {
     throw new Error(`HTTP error! status: ${res.status}`);
   }
-  return res.json();
+  const data = await res.json();
+  if (data.length === 0 || data[1].length === 0) {
+    throw new Error(`No population data found for country code ${countryCode}`);
+  }
+  return data;
 };
 
 /**
@@ -54,40 +66,39 @@ const calculatePopulationDensity = (
 
 /**
  * Checks if Singapore's population density is higher than Thailand's.
- * @returns Promise resolving to a boolean indicating the result.
+ * @returns Promise resolving to a boolean indicating whether Singapore's population density is higher.
  */
-const isSingaporePopulationDensityHigherThanThailand =
+const isPopulationDensityOfSingaporeHigherThanThailand =
   async (): Promise<boolean> => {
-    try {
-      // Fetch Singapore's geojson data
-      const singaporeQuery = `[out:json];relation["name:en"="Singapore"]["admin_level"=2];out geom;>;`;
-      const singaporeData = await fetchOverpassData(singaporeQuery);
-      const singaporeGeojsonData = osmtogeojson(singaporeData);
+    // Fetch Singapore's GeoJSON data
+    const singaporeOverpassQuery = `[out:json];relation["name"="Singapore"]["admin_level"=2];out geom;`;
+    const singaporeOverpassData = await fetchOverpassData(
+      singaporeOverpassQuery
+    );
+    const singaporeGeojsonData = osmtogeojson(singaporeOverpassData);
+    // Fetch Singapore's population data
+    const singaporePopulationData = await fetchWorldBankTotalPopulation("sg");
+    const singaporePopulation = singaporePopulationData[1][0].value;
+    // Calculate Singapore's population density
+    const singaporePopulationDensity = calculatePopulationDensity(
+      singaporeGeojsonData,
+      singaporePopulation
+    );
 
-      // Fetch Thailand's geojson data
-      const thailandQuery = `[out:json];relation["name:en"="Thailand"]["admin_level"=2];out geom;`;
-      const thailandData = await fetchOverpassData(thailandQuery);
-      const thailandGeojsonData = osmtogeojson(thailandData);
-
-      // Fetch population data
-      const singaporePopulation = await fetchWorldBankPopulation("SG");
-      const thailandPopulation = await fetchWorldBankPopulation("TH");
-
-      // Calculate population densities
-      const singaporeDensity = calculatePopulationDensity(
-        singaporeGeojsonData,
-        singaporePopulation[1][0].value
-      );
-      const thailandDensity = calculatePopulationDensity(
-        thailandGeojsonData,
-        thailandPopulation[1][0].value
-      );
-
-      return singaporeDensity > thailandDensity;
-    } catch (error) {
-      console.error(`Error calculating population density: ${error}`);
-      return false;
-    }
+    // Fetch Thailand's geojson data
+    const thailandOverpassQuery = `[out:json];relation["name:en"="Thailand"]["admin_level"=2];out geom;`;
+    const thailandOverpassData = await fetchOverpassData(thailandOverpassQuery);
+    const thailandGeojsonData = osmtogeojson(thailandOverpassData);
+    // Fetch Thailand's population
+    const thailandPopulationData = await fetchWorldBankTotalPopulation("th");
+    const thailandPopulation = thailandPopulationData[1][0].value;
+    // Calculate Thailand's population density
+    const thailandPopulationDensity = calculatePopulationDensity(
+      thailandGeojsonData,
+      thailandPopulation
+    );
+    // Compare the population densities
+    return singaporePopulationDensity > thailandPopulationDensity;
   };
 
-export default isSingaporePopulationDensityHigherThanThailand;
+export default isPopulationDensityOfSingaporeHigherThanThailand;
