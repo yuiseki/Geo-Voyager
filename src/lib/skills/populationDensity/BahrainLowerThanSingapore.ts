@@ -44,7 +44,10 @@ const fetchWorldBankPopulation = async (countryCode: string): Promise<any> => {
  * @param population - The total population.
  * @returns The population density in people per square kilometer.
  */
-const calculatePopulationDensity = (area: number, population: number): number => {
+const calculatePopulationDensity = (
+  area: number,
+  population: number
+): number => {
   return (population / area) * 1e6; // Convert from m² to km²
 };
 
@@ -52,48 +55,51 @@ const calculatePopulationDensity = (area: number, population: number): number =>
  * Checks if the population density of Bahrain is lower than Singapore.
  * @returns A promise that resolves to true if Bahrain's population density is lower, otherwise false.
  */
-const isPopulationDensityOfBahrainLowerThanSingapore = async (): Promise<boolean> => {
-  try {
-    // Fetch Bahrain data
-    const bahrainQuery = `[out:json];
-    relation["name"="Bahrain"]["admin_level"=2];
-    out body;
-    >;
-    out skel qt;`;
-    const bahrainData = await fetchOverpassData(bahrainQuery);
-    const geoJsonBahrain = osmtogeojson(bahrainData);
-    const areaBahrain = turf.area(geoJsonBahrain);
+const isPopulationDensityOfBahrainLowerThanSingapore =
+  async (): Promise<boolean> => {
+    try {
+      // Fetch Bahrain data
+      const bahrainQuery = `[out:json];
+    relation["name:en"="Bahrain"]["admin_level"=2];
+    out geom;`;
+      const bahrainData = await fetchOverpassData(bahrainQuery);
+      const geoJsonBahrain = osmtogeojson(bahrainData);
+      const areaBahrain = turf.area(geoJsonBahrain);
 
-    // Fetch Bahrain population
-    const resultPopulationBahrain = await fetchWorldBankPopulation("BH");
-    const populationBahrain = resultPopulationBahrain[1][0].value;
+      // Fetch Bahrain population
+      const resultPopulationBahrain = await fetchWorldBankPopulation("BH");
+      const populationBahrain = resultPopulationBahrain[1][0].value;
 
-    // Calculate Bahrain's population density
-    const populationDensityBahrain = calculatePopulationDensity(areaBahrain, populationBahrain);
+      // Calculate Bahrain's population density
+      const populationDensityBahrain = calculatePopulationDensity(
+        areaBahrain,
+        populationBahrain
+      );
 
-    // Fetch Singapore data
-    const singaporeQuery = `[out:json];
+      // Fetch Singapore data
+      const singaporeQuery = `[out:json];
     relation["name"="Singapore"]["admin_level"=2];
-    out body;
-    >;
-    out skel qt;`;
-    const singaporeData = await fetchOverpassData(singaporeQuery);
-    const geoJsonSingapore = osmtogeojson(singaporeData);
-    const areaSingapore = turf.area(geoJsonSingapore);
+    out geom;`;
+      const singaporeData = await fetchOverpassData(singaporeQuery);
+      const geoJsonSingapore = osmtogeojson(singaporeData);
+      const areaSingapore = turf.area(geoJsonSingapore);
 
-    // Fetch Singapore population
-    const resultPopulationSingapore = await fetchWorldBankPopulation("SG");
-    const populationSingapore = resultPopulationSingapore[1][0].value;
+      // Fetch Singapore population
+      const resultPopulationSingapore = await fetchWorldBankPopulation("SG");
+      const populationSingapore = resultPopulationSingapore[1][0].value;
 
-    // Calculate Singapore's population density
-    const populationDensitySingapore = calculatePopulationDensity(areaSingapore, populationSingapore);
+      // Calculate Singapore's population density
+      const populationDensitySingapore = calculatePopulationDensity(
+        areaSingapore,
+        populationSingapore
+      );
 
-    // Compare population densities
-    return populationDensityBahrain < populationDensitySingapore;
-  } catch (error) {
-    console.error("Error checking population density:", error);
-    throw error;
-  }
-};
+      // Compare population densities
+      return populationDensityBahrain < populationDensitySingapore;
+    } catch (error) {
+      console.error("Error checking population density:", error);
+      throw error;
+    }
+  };
 
 export default isPopulationDensityOfBahrainLowerThanSingapore;

@@ -44,7 +44,10 @@ const fetchWorldBankPopulation = async (countryCode: string): Promise<any> => {
  * @param population - The total population.
  * @returns The population density in people per square kilometer.
  */
-const calculatePopulationDensity = (area: number, population: number): number => {
+const calculatePopulationDensity = (
+  area: number,
+  population: number
+): number => {
   return (population / area) * 1e6; // Convert from m² to km²
 };
 
@@ -52,48 +55,51 @@ const calculatePopulationDensity = (area: number, population: number): number =>
  * Checks if the population density of Maldives is higher than Singapore.
  * @returns A promise that resolves to true if Maldives' population density is higher, otherwise false.
  */
-const isPopulationDensityOfMaldivesHigherThanSingapore = async (): Promise<boolean> => {
-  try {
-    // Fetch Maldives data
-    const maldivesQuery = `[out:json];
+const isPopulationDensityOfMaldivesHigherThanSingapore =
+  async (): Promise<boolean> => {
+    try {
+      // Fetch Maldives data
+      const maldivesQuery = `[out:json];
     relation["name:en"="Maldives"]["admin_level"=2];
-    out body;
-    >;
-    out skel qt;`;
-    const maldivesData = await fetchOverpassData(maldivesQuery);
-    const geoJsonMaldives = osmtogeojson(maldivesData);
-    const areaMaldives = turf.area(geoJsonMaldives);
+    out geom;`;
+      const maldivesData = await fetchOverpassData(maldivesQuery);
+      const geoJsonMaldives = osmtogeojson(maldivesData);
+      const areaMaldives = turf.area(geoJsonMaldives);
 
-    // Fetch Maldives population
-    const resultPopulationMaldives = await fetchWorldBankPopulation("MV");
-    const populationMaldives = resultPopulationMaldives[1][0].value;
+      // Fetch Maldives population
+      const resultPopulationMaldives = await fetchWorldBankPopulation("MV");
+      const populationMaldives = resultPopulationMaldives[1][0].value;
 
-    // Calculate Maldives' population density
-    const populationDensityMaldives = calculatePopulationDensity(areaMaldives, populationMaldives);
+      // Calculate Maldives' population density
+      const populationDensityMaldives = calculatePopulationDensity(
+        areaMaldives,
+        populationMaldives
+      );
 
-    // Fetch Singapore data
-    const singaporeQuery = `[out:json];
+      // Fetch Singapore data
+      const singaporeQuery = `[out:json];
     relation["name"="Singapore"]["admin_level"=2];
-    out body;
-    >;
-    out skel qt;`;
-    const singaporeData = await fetchOverpassData(singaporeQuery);
-    const geoJsonSingapore = osmtogeojson(singaporeData);
-    const areaSingapore = turf.area(geoJsonSingapore);
+    out geom;`;
+      const singaporeData = await fetchOverpassData(singaporeQuery);
+      const geoJsonSingapore = osmtogeojson(singaporeData);
+      const areaSingapore = turf.area(geoJsonSingapore);
 
-    // Fetch Singapore population
-    const resultPopulationSingapore = await fetchWorldBankPopulation("SG");
-    const populationSingapore = resultPopulationSingapore[1][0].value;
+      // Fetch Singapore population
+      const resultPopulationSingapore = await fetchWorldBankPopulation("SG");
+      const populationSingapore = resultPopulationSingapore[1][0].value;
 
-    // Calculate Singapore's population density
-    const populationDensitySingapore = calculatePopulationDensity(areaSingapore, populationSingapore);
+      // Calculate Singapore's population density
+      const populationDensitySingapore = calculatePopulationDensity(
+        areaSingapore,
+        populationSingapore
+      );
 
-    // Compare population densities
-    return populationDensityMaldives > populationDensitySingapore;
-  } catch (error) {
-    console.error("Error checking population density:", error);
-    throw error;
-  }
-};
+      // Compare population densities
+      return populationDensityMaldives > populationDensitySingapore;
+    } catch (error) {
+      console.error("Error checking population density:", error);
+      throw error;
+    }
+  };
 
 export default isPopulationDensityOfMaldivesHigherThanSingapore;

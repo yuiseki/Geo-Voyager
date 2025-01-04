@@ -1,8 +1,5 @@
 // description: 文京区の学校の数が新宿区よりも多いことを確認する。
-// file_path: src/lib/skills/populationDensity/ShinjukuHigherThanBunkyo.ts
-
-import * as turf from "@turf/turf";
-import osmtogeojson from "osmtogeojson";
+// file_path: src/lib/skills/numberOfSchools/Japan/Tokyo/ShinjukuHigherThanBunkyo.ts
 
 /**
  * Fetches data from the Overpass API.

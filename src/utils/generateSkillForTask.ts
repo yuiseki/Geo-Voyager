@@ -45,7 +45,7 @@ export const generateNewSkillForTask = async (
       inputKeys: ["input"],
     });
     const examplePrompt = PromptTemplate.fromTemplate(
-      `\`\`\`typescript\n{output}\`\`\``
+      `\`\`\`typescript\n{output}\`\`\`\n`
     );
 
     const currentAllSkills = await getAllSkills();
@@ -88,12 +88,12 @@ ${
 
 ${
   lastCode
-    ? `Your previous code of last attempt: \n\`\`\`typescript\n${lastCode}\n\`\`\``
+    ? `Your previous code of last attempt: \n\`\`\`typescript\n${lastCode}\n\`\`\`\n`
     : ""
 }
 ${
   lastError
-    ? `Fix the following error from the last attempt code:\n${lastError}`
+    ? `Fix the following error from the last attempt code:\n${lastError}\n`
     : ""
 }
 ${lastHint ? `Hint to fix the code: ${lastHint}` : ""}

@@ -57,12 +57,12 @@ const calculatePopulationDensity = (geojsonData: any, population: number): numbe
 const isBahrainPopulationDensityLowerThanMonaco = async (): Promise<boolean> => {
   try {
     // Fetch Bahrain's geojson data
-    const bahrainQuery = `[out:json];relation["name"="Bahrain"]["admin_level"=2];out body;>;out skel qt;`;
+    const bahrainQuery = `[out:json];relation["name:en"="Bahrain"]["admin_level"=2];out geom;>;`;
     const bahrainData = await fetchOverpassData(bahrainQuery);
     const bahrainGeojsonData = osmtogeojson(bahrainData);
 
     // Fetch Monaco's geojson data
-    const monacoQuery = `[out:json];relation["name"="Monaco"]["admin_level"=2];out body;>;out skel qt;`;
+    const monacoQuery = `[out:json];relation["name"="Monaco"]["admin_level"=2];out geom;`;
     const monacoData = await fetchOverpassData(monacoQuery);
     const monacoGeojsonData = osmtogeojson(monacoData);
 

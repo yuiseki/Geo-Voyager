@@ -42,7 +42,10 @@ const fetchWorldBankPopulation = async (countryCode: string): Promise<any> => {
  * @param population - The total population of the country.
  * @returns The population density in people per square kilometer.
  */
-const calculatePopulationDensity = (geojsonData: any, population: number): number => {
+const calculatePopulationDensity = (
+  geojsonData: any,
+  population: number
+): number => {
   const area = turf.area(geojsonData);
   return population / area;
 };
@@ -51,46 +54,49 @@ const calculatePopulationDensity = (geojsonData: any, population: number): numbe
  * Checks if Laos's population density is higher than Singapore's.
  * @returns Promise resolving to a boolean indicating whether Laos's population density is higher.
  */
-const isLaosPopulationDensityHigherThanSingapore = async (): Promise<boolean> => {
-  try {
-    // Fetch Laos's GeoJSON data
-    const laosQuery = `[out:json];
-    relation["name"="Lao People's Democratic Republic"]["admin_level"=2];
-    out body;
-    >;
-    out skel qt;`;
-    const laosData = await fetchOverpassData(laosQuery);
-    const laosGeojsonData = osmtogeojson(laosData);
+const isLaosPopulationDensityHigherThanSingapore =
+  async (): Promise<boolean> => {
+    try {
+      // Fetch Laos's GeoJSON data
+      const laosQuery = `[out:json];
+    relation["name:en"="Laos"]["admin_level"=2];
+    out geom;`;
+      const laosData = await fetchOverpassData(laosQuery);
+      const laosGeojsonData = osmtogeojson(laosData);
 
-    // Fetch Laos's population data
-    const laosPopulationData = await fetchWorldBankPopulation("LAO");
-    const laosPopulation = laosPopulationData[1][0].value;
+      // Fetch Laos's population data
+      const laosPopulationData = await fetchWorldBankPopulation("LA");
+      const laosPopulation = laosPopulationData[1][0].value;
 
-    // Calculate Laos's population density
-    const laosPopulationDensity = calculatePopulationDensity(laosGeojsonData, laosPopulation);
+      // Calculate Laos's population density
+      const laosPopulationDensity = calculatePopulationDensity(
+        laosGeojsonData,
+        laosPopulation
+      );
 
-    // Fetch Singapore's GeoJSON data
-    const singaporeQuery = `[out:json];
+      // Fetch Singapore's GeoJSON data
+      const singaporeQuery = `[out:json];
     relation["name"="Singapore"]["admin_level"=2];
-    out body;
-    >;
-    out skel qt;`;
-    const singaporeData = await fetchOverpassData(singaporeQuery);
-    const singaporeGeojsonData = osmtogeojson(singaporeData);
+    out geom;`;
+      const singaporeData = await fetchOverpassData(singaporeQuery);
+      const singaporeGeojsonData = osmtogeojson(singaporeData);
 
-    // Fetch Singapore's population data
-    const singaporePopulationData = await fetchWorldBankPopulation("SGP");
-    const singaporePopulation = singaporePopulationData[1][0].value;
+      // Fetch Singapore's population data
+      const singaporePopulationData = await fetchWorldBankPopulation("SG");
+      const singaporePopulation = singaporePopulationData[1][0].value;
 
-    // Calculate Singapore's population density
-    const singaporePopulationDensity = calculatePopulationDensity(singaporeGeojsonData, singaporePopulation);
+      // Calculate Singapore's population density
+      const singaporePopulationDensity = calculatePopulationDensity(
+        singaporeGeojsonData,
+        singaporePopulation
+      );
 
-    // Compare the population densities
-    return laosPopulationDensity > singaporePopulationDensity;
-  } catch (error) {
-    console.error("Error fetching data:", error);
-    throw error;
-  }
-};
+      // Compare the population densities
+      return laosPopulationDensity > singaporePopulationDensity;
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      throw error;
+    }
+  };
 
 export default isLaosPopulationDensityHigherThanSingapore;
