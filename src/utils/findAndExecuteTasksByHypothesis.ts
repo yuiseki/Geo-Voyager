@@ -3,6 +3,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import { Hypothesis } from "@prisma/client";
 import {
+  deleteTaskById,
   getAllTasksByHypothesisId,
   TaskStatus,
   updateTaskStatusAndResult,
@@ -17,6 +18,7 @@ import {
   updateQuestionStatus,
 } from "../db/question";
 import { glob } from "glob";
+import { prisma } from "../db";
 
 export const findAndExecuteTasksByHypothesis = async (
   hypothesis: Hypothesis
@@ -32,7 +34,7 @@ export const findAndExecuteTasksByHypothesis = async (
   // すべてのタスクがCOMPLETEDの場合
   if (tasks.every((task) => task.status === "COMPLETED")) {
     console.log("🎉 All tasks for this hypothesis has completed.");
-    if (tasks.length < 20) {
+    if (tasks.length < 14) {
       // タスクの計画を再度行う
       tasks = await planNewTasksForHypothesis(hypothesis);
     } else {
@@ -53,6 +55,18 @@ export const findAndExecuteTasksByHypothesis = async (
 
   console.log("📋 Associated Tasks:");
   for (const task of tasks) {
+    if (task.description.includes("蓬爾")) {
+      console.log("🚫 Task contains 蓬爾, invalid!");
+      // hypothesisTaskを削除
+      await prisma.hypothesisTask.deleteMany({
+        where: { taskId: task.id },
+      });
+      // Taskを削除
+      await prisma.task.delete({
+        where: { id: task.id },
+      });
+      continue;
+    }
     if (task.status === "COMPLETED") {
       console.log(
         `  - ✅ Task: ${task.description} [${task.result?.toUpperCase()}]`

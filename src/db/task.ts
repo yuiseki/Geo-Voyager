@@ -8,6 +8,12 @@ export enum TaskStatus {
   ERROR = "ERROR",
 }
 
+export const deleteTaskById = async (id: number) => {
+  return await prisma.task.delete({
+    where: { id },
+  });
+};
+
 export const getAllTasksByHypothesisId = async (hypothesisId: number) => {
   return await prisma.task.findMany({
     where: {
@@ -30,7 +36,9 @@ export const getAllExecutedTasks = async () => {
   });
 };
 
-export const getAllExecutedTasksByHypothesisId = async (hypothesisId: number) => {
+export const getAllExecutedTasksByHypothesisId = async (
+  hypothesisId: number
+) => {
   return await prisma.task.findMany({
     where: {
       hypotheses: {
@@ -43,7 +51,7 @@ export const getAllExecutedTasksByHypothesisId = async (hypothesisId: number) =>
       },
     },
   });
-}
+};
 
 export const updateTaskStatusAndResult = async (
   id: number,

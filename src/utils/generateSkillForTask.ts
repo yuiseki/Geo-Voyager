@@ -23,9 +23,15 @@ export const generateNewSkillForTask = async (
   let lastCode = null;
   let lastHint = null;
 
+  // 120秒待ってからやる
+  const sleep = (msec: number) =>
+    new Promise((resolve) => setTimeout(resolve, msec));
+  // await sleep(120000);
+
   const model = new ChatOllama({
     model: "qwen2.5-coder:14b",
     temperature: 0,
+    numCtx: 4096,
   });
   const embeddings = new OllamaEmbeddings({
     // model: "snowflake-arctic-embed:33m",
@@ -60,10 +66,9 @@ export const generateNewSkillForTask = async (
     const dynamicPrompt = new FewShotPromptTemplate({
       exampleSelector: exampleSelector,
       examplePrompt: examplePrompt,
-      prefix: "Using the following existing skills as reference:",
+      prefix: `Create a new skill by written TypeScript code that performs the task described below.
+Using the following existing and working codes as reference:`,
       suffix: `Task: {input}
-
-Create a new skill in TypeScript that performs the task described above.
 
 Ensure the code must be surrounded by three backtick to indicate that it is a code block.
 
@@ -74,6 +79,9 @@ Ensure the second line of the script includes the file_path in the following for
 // file_path: src/lib/skills/path/to/your/file.ts
 
 Make sure the code you replay must be executable and follows best practices.
+The code shown as reference is working fine.
+When possible, only partially modify the code shown as a reference.
+
 Do not forget to import necessary libraries.
 Include comments in English for clarity.
 
@@ -182,6 +190,9 @@ ${lastHint ? `Hint to fix the code: ${lastHint}` : ""}
           return value;
         };
         console.error(error.message);
+        console.debug("----- ----- -----");
+        console.log(skillCode);
+        console.debug("----- ----- -----");
         lastError = JSON.stringify(error, replaceErrors, 2)
           .replaceAll("{", "{{")
           .replaceAll("}", "}}");

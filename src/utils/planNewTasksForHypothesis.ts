@@ -48,7 +48,10 @@ Wrong task: 東京都文京区の学校の数が他のすべての行政区の�
 Reason: The task is leapfrog. The task should be most detailed possible and executable step-by-step.
 
 Examples of executable tasks:
-${executedTasks.map((t) => `- ${t.description} [${t.status}]`).join("\n")}
+${executedTasks
+  .slice(0, 10)
+  .map((t) => `- ${t.description} [${t.status}]`)
+  .join("\n")}
 
 Reply with only a list of possible new executable tasks, separated by newlines.`;
 
@@ -101,6 +104,11 @@ Reply with only a list of possible new executable tasks, separated by newlines.`
     // 「低い」が含まれている場合は無視する
     if (taskDescription.includes("低い")) {
       console.error(`⚠️  Ignoring task: ${taskDescription}`);
+      continue;
+    }
+    // 蓬爾問題
+    if (taskDescription.includes("蓬爾")) {
+      console.log("🚫 Task contains 蓬爾, invalid!");
       continue;
     }
     console.log(`💾 Saving new task: ${taskDescription}`);
