@@ -1,16 +1,16 @@
-// description: 東京都新宿区の学校の数が東京都中央区の学校の数より多いことを確認する。
-// file_path: src/lib/skills/numberOfSchools/Japan/Tokyo/ShinjukuHigherThanChuo.ts
+// description: 東京都新宿区の学校の数が東京都墨田区の学校の数より多いことを確認する。
+// file_path: src/lib/skills/numberOfSchools/Japan/Tokyo/ShinjukuHigherThanOta.ts
 
 /**
- * Fetches the number of schools in a specified area using Overpass API.
- * @param areaName - The name of the area to query.
- * @returns The count of schools in the specified area.
+ * Fetches the number of schools in a specified ward using Overpass API.
+ * @param wardName - The name of the ward to query.
+ * @returns The total count of schools in the ward.
  */
-async function getSchoolCount(areaName: string): Promise<number> {
+async function getSchoolCount(wardName: string): Promise<number> {
   const overpassQuery = `
 [out:json];
 area["name"="東京都"]->.tokyo;
-area["name"="${areaName}"]->.ward;
+area["name"="${wardName}"]->.ward;
 (
   nwr["amenity"="school"](area.ward)(area.tokyo);
 );
@@ -41,18 +41,18 @@ out count;
 }
 
 /**
- * Compares the number of schools in Shinjuku and Chuo wards.
- * @returns A boolean indicating whether Shinjuku has more schools than Chuo.
+ * Compares the number of schools in Shinjuku Ward and Ota Ward.
+ * @returns True if Shinjuku Ward has more schools than Ota Ward, otherwise false.
  */
-async function isShinjukuHigherThanChuo(): Promise<boolean> {
+async function isShinjukuHigherThanOta(): Promise<boolean> {
   const shinjukuSchoolCount = await getSchoolCount("新宿区");
-  const chuoSchoolCount = await getSchoolCount("中央区");
+  const otaSchoolCount = await getSchoolCount("墨田区");
 
   console.log(`Number of schools in Shinjuku Ward: ${shinjukuSchoolCount}`);
-  console.log(`Number of schools in Chuo Ward: ${chuoSchoolCount}`);
+  console.log(`Number of schools in Ota Ward: ${otaSchoolCount}`);
 
-  return shinjukuSchoolCount > chuoSchoolCount;
+  return shinjukuSchoolCount > otaSchoolCount;
 }
 
 // Export the function to be used as a skill
-export default isShinjukuHigherThanChuo;
+export default isShinjukuHigherThanOta;

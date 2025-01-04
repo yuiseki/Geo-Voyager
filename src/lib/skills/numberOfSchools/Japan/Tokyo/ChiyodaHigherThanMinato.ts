@@ -1,5 +1,5 @@
-// description: 東京都文京区の学校の数が東京都中央区の学校の数より多いことを確認する。
-// file_path: src/lib/skills/numberOfSchools/Japan/Tokyo/BunkyoHigherThanChuo.ts
+// description: 東京都千代田区の学校の数が東京都港区よりも多いことを確認する。
+// file_path: src/lib/skills/numberOfSchools/Japan/Tokyo/ChiyodaHigherThanMinato.ts
 
 /**
  * Fetches the count of schools in a given ward using Overpass API.
@@ -41,22 +41,22 @@ out count;
 }
 
 /**
- * Compares the number of schools in Bunkyo Ward and Chuo Ward.
- * @returns Promise<boolean> - True if Bunkyo has more schools than Chuo, otherwise false.
+ * Compares the number of schools in Chiyoda Ward and Minato Ward.
+ * @returns Promise<boolean> - True if Chiyoda has more schools than Minato, otherwise false.
  */
-async function isBunkyoHigherThanChuo(): Promise<boolean> {
+async function isNumberOfSchoolsInChiyodaHigherThanMinato(): Promise<boolean> {
   try {
-    const bunkyoCount = await getSchoolCount("文京区");
-    const chuoCount = await getSchoolCount("中央区");
+    const chiyodaCount = await getSchoolCount("千代田区");
+    const minatoCount = await getSchoolCount("港区");
 
-    console.log(`Number of schools in Bunkyo Ward: ${bunkyoCount}`);
-    console.log(`Number of schools in Chuo Ward: ${chuoCount}`);
+    console.log(`Number of schools in Chiyoda Ward: ${chiyodaCount}`);
+    console.log(`Number of schools in Minato Ward: ${minatoCount}`);
 
-    return bunkyoCount > chuoCount;
+    return chiyodaCount > minatoCount;
   } catch (error) {
     console.error("Error comparing school counts:", error);
     throw error;
   }
 }
 
-export default isBunkyoHigherThanChuo;
+export default isNumberOfSchoolsInChiyodaHigherThanMinato;

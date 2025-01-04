@@ -1,5 +1,5 @@
-// description: 東京都文京区の学校の数が東京都中央区の学校の数より多いことを確認する。
-// file_path: src/lib/skills/numberOfSchools/Japan/Tokyo/BunkyoHigherThanChuo.ts
+// description: 東京都文京区の学校の数が東京都江戸川区の学校の数より多いことを確認する。
+// file_path: src/lib/skills/numberOfSchools/Japan/Tokyo/BunkyoHigherThanEdogawa.ts
 
 /**
  * Fetches the count of schools in a given ward using Overpass API.
@@ -41,22 +41,22 @@ out count;
 }
 
 /**
- * Compares the number of schools in Bunkyo Ward and Chuo Ward.
- * @returns Promise<boolean> - True if Bunkyo has more schools than Chuo, otherwise false.
+ * Compares the number of schools in Bunkyo Ward and Edogawa Ward.
+ * @returns Promise<boolean> - True if Bunkyo has more schools than Edogawa, otherwise false.
  */
-async function isBunkyoHigherThanChuo(): Promise<boolean> {
+async function isBunkyoHigherThanEdogawa(): Promise<boolean> {
   try {
     const bunkyoCount = await getSchoolCount("文京区");
-    const chuoCount = await getSchoolCount("中央区");
+    const edogawaCount = await getSchoolCount("江戸川区");
 
     console.log(`Number of schools in Bunkyo Ward: ${bunkyoCount}`);
-    console.log(`Number of schools in Chuo Ward: ${chuoCount}`);
+    console.log(`Number of schools in Edogawa Ward: ${edogawaCount}`);
 
-    return bunkyoCount > chuoCount;
+    return bunkyoCount > edogawaCount;
   } catch (error) {
     console.error("Error comparing school counts:", error);
     throw error;
   }
 }
 
-export default isBunkyoHigherThanChuo;
+export default isBunkyoHigherThanEdogawa;

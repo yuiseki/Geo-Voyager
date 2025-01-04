@@ -1,4 +1,4 @@
-// description: 東京都文京区の学校の数が東京都千代田区よりも多いことを確認する。
+// description: 東京都文京区の学校の数が東京都千代田区の学校の数より多いことを確認する。
 // file_path: src/lib/skills/numberOfSchools/Japan/Tokyo/BunkyoHigherThanChiyoda.ts
 
 /**
@@ -59,4 +59,5 @@ async function isNumberOfSchoolsInBunkyoHigherThanChiyoda(): Promise<boolean> {
   }
 }
 
+// Export the function to be used as a skill
 export default isNumberOfSchoolsInBunkyoHigherThanChiyoda;

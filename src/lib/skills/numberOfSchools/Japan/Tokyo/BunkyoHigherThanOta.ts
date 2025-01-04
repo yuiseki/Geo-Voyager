@@ -1,5 +1,5 @@
-// description: 東京都文京区の学校の数が東京都中央区の学校の数より多いことを確認する。
-// file_path: src/lib/skills/numberOfSchools/Japan/Tokyo/BunkyoHigherThanChuo.ts
+// description: 東京都文京区の学校の数が東京都墨田区の学校の数より多いことを確認する。
+// file_path: src/lib/skills/numberOfSchools/Japan/Tokyo/BunkyoHigherThanOta.ts
 
 /**
  * Fetches the count of schools in a given ward using Overpass API.
@@ -41,22 +41,22 @@ out count;
 }
 
 /**
- * Compares the number of schools in Bunkyo Ward and Chuo Ward.
- * @returns Promise<boolean> - True if Bunkyo has more schools than Chuo, otherwise false.
+ * Compares the number of schools in Bunkyo Ward and Ota Ward.
+ * @returns Promise<boolean> - True if Bunkyo has more schools than Ota, otherwise false.
  */
-async function isBunkyoHigherThanChuo(): Promise<boolean> {
+async function isBunkyoHigherThanOta(): Promise<boolean> {
   try {
     const bunkyoCount = await getSchoolCount("文京区");
-    const chuoCount = await getSchoolCount("中央区");
+    const otaCount = await getSchoolCount("墨田区");
 
     console.log(`Number of schools in Bunkyo Ward: ${bunkyoCount}`);
-    console.log(`Number of schools in Chuo Ward: ${chuoCount}`);
+    console.log(`Number of schools in Ota Ward: ${otaCount}`);
 
-    return bunkyoCount > chuoCount;
+    return bunkyoCount > otaCount;
   } catch (error) {
     console.error("Error comparing school counts:", error);
     throw error;
   }
 }
 
-export default isBunkyoHigherThanChuo;
+export default isBunkyoHigherThanOta;
