@@ -1,5 +1,5 @@
-// description: 東京都のすべての行政区の中で、最も多くの学校がある行政区を見つける
-// file_path: src/lib/skills/numberOfSchools/Japan/Tokyo/getWardWithMostSchools.ts
+// description: 東京都のすべての行政区の中で、最も多くの病院がある行政区を見つける
+// file_path: src/lib/skills/numberOfSchools/Japan/Tokyo/getWardWithMostHospitals.ts
 
 /**
  * Fetches data from the Overpass API.
@@ -45,17 +45,17 @@ out body;
 };
 
 /**
- * Fetches the number of schools in a specified ward using Overpass API.
+ * Fetches the number of hospitals in a specified ward using Overpass API.
  * @param wardName - The name of the ward to query.
- * @returns The total count of schools in the ward.
+ * @returns The total count of hospitals in the ward.
  */
-async function getSchoolCountInTokyo(wardName: string): Promise<number> {
+async function getHospitalCountInTokyo(wardName: string): Promise<number> {
   const overpassQuery = `
 [out:json];
 area["name"="東京都"]->.tokyo;
 area["name"="${wardName}"]->.ward;
 (
-  nwr["amenity"="school"](area.ward)(area.tokyo);
+  nwr["amenity"="hospital"](area.ward)(area.tokyo);
 );
 out count;
 `;
@@ -64,19 +64,19 @@ out count;
   return response.elements[0].tags.total;
 }
 
-const getWardWithMostSchools = async (): Promise<string> => {
+const getWardWithMostHospitals = async (): Promise<string> => {
   const wards = await getAllWardsInTokyo();
-  let maxSchools = 0;
-  let wardWithMostSchools = "";
+  let maxHospitals = 0;
+  let wardWithMostHospitals = "";
   for (const ward of wards) {
-    const schoolCount = await getSchoolCountInTokyo(ward);
-    console.log(`getWardWithMostSchools ${ward}: ${schoolCount} schools`);
-    if (schoolCount > maxSchools) {
-      maxSchools = schoolCount;
-      wardWithMostSchools = ward;
+    const hospitalCount = await getHospitalCountInTokyo(ward);
+    console.log(`getWardWithMostHospitals ${ward}: ${hospitalCount} hospitals`);
+    if (hospitalCount > maxHospitals) {
+      maxHospitals = hospitalCount;
+      wardWithMostHospitals = ward;
     }
   }
-  return wardWithMostSchools;
+  return wardWithMostHospitals;
 };
 
-export default getWardWithMostSchools;
+export default getWardWithMostHospitals;

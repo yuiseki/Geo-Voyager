@@ -1,5 +1,5 @@
-// description: 東京都のすべての行政区の名前を取得する
-// file_path: src/lib/skills/list/Japan/Tokyo/listUpAllWardsInTokyo.ts
+// description: 世界のすべての国の英語名を取得する
+// file_path: src/lib/skills/list/getAllCountriesEnglishNames.ts
 
 /**
  * Fetches data from the Overpass API.
@@ -30,18 +30,19 @@ const fetchOverpassData = async (query: string): Promise<any> => {
 /**
  * @returns A list of all wards in Tokyo.
  */
-const getAllWardsInTokyo = async (): Promise<string[]> => {
+const getAllCountriesEnglishNames = async (): Promise<string[]> => {
   const overpassQuery = `
 [out:json];
-area["name"="東京都"]->.tokyo;
-(
-  nwr["admin_level"="7"](area.tokyo);
-);
+relation["admin_level"="2"];
 out body;
 `;
   const response = await fetchOverpassData(overpassQuery);
-  const wards = response.elements.map((element: any) => element.tags.name);
+  const wards = response.elements.map((element: any) => {
+    if ("name:en" in element.tags) {
+      return element.tags["name:en"];
+    }
+  });
   return wards;
 };
 
-export default getAllWardsInTokyo;
+export default getAllCountriesEnglishNames;

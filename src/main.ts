@@ -1,7 +1,6 @@
 // src/main.ts
 import { getFirstOpenQuestion } from "./db/question";
 import {
-  getAllOtherHypothesesByQuestionId,
   getAllRejectedHypothesesByQuestionId,
   getFirstPendingHypothesisByQuestionId,
 } from "./db/hypothesis";
@@ -9,12 +8,12 @@ import { findAndExecuteTasksByHypothesis } from "./utils/findAndExecuteTasksByHy
 import { formulateNewHypothesis } from "./utils/formulateNewHypothesis";
 import { listUpAllSolvedQuestions } from "./utils/listUpAllSolvedQuestions";
 import { getAllExecutedTasksByHypothesisId, TaskStatus } from "./db/task";
-import getWardWithMostSchools from "./lib/skills/numberOfSchools/Japan/Tokyo/getWardWithMostSchools";
+import getMostDenselyPopulatedCountry from "./lib/skills/populationDensity/getMostDenselyPopulatedCountry";
 
 (async () => {
   console.log("🗺️  Initializing Geo-Voyager...");
 
-  const result = await getWardWithMostSchools();
+  const result = await getMostDenselyPopulatedCountry();
 
   console.log(`🏫 Ward with the most schools in Tokyo: ${result}`);
 
