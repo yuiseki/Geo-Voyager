@@ -8,14 +8,15 @@ import { findAndExecuteTasksByHypothesis } from "./utils/findAndExecuteTasksByHy
 import { formulateNewHypothesis } from "./utils/formulateNewHypothesis";
 import { listUpAllSolvedQuestions } from "./utils/listUpAllSolvedQuestions";
 import { getAllExecutedTasksByHypothesisId, TaskStatus } from "./db/task";
-import getMostDenselyPopulatedCountry from "./lib/skills/populationDensity/getMostDenselyPopulatedCountry";
+import getWorldsMostDenselyPopulatedCountry from "./lib/skills/populationDensity/getWorldsMostDenselyPopulatedCountry";
+import getMostDenselyPopulatedAdminInTokyo from "./lib/skills/populationDensity/Japan/Tokyo/getMostDenselyPopulatedAdminInTokyo";
 
 (async () => {
   console.log("🗺️  Initializing Geo-Voyager...");
 
-  const result = await getMostDenselyPopulatedCountry();
+  const result = await getMostDenselyPopulatedAdminInTokyo();
 
-  console.log(`🏫 Ward with the most schools in Tokyo: ${result}`);
+  console.log(`result: ${result}`);
 
   return;
 
