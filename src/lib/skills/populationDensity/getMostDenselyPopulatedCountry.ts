@@ -1,4 +1,4 @@
-// description: 世界のすべての国の ISO3166-1 Alpha-2 コードを取得する
+// description: 世界で最も人口密度の高い国の ISO3166-1 Alpha-2 コードを取得する
 // file_path: src/lib/skills/populationDensity/getMostDenselyPopulatedCountry.ts
 
 /**
