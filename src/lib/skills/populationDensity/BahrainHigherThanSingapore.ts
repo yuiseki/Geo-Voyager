@@ -42,8 +42,8 @@ const isPopulationDensityOfBahrainHigherThanSingapore =
   async (): Promise<boolean> => {
     // Fetch Bahrain's area and population
     const queryBahrain = `[out:json];
-  relation["name:en"="Bahrain"]["admin_level"=2];
-  out geom;`;
+relation["name:en"="Bahrain"]["admin_level"=2];
+out geom;`;
     const resultBahrain = await fetchOverpassData(queryBahrain);
     if (resultBahrain.elements.length === 0) {
       throw new Error(

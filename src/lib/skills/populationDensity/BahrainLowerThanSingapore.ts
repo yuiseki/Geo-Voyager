@@ -60,8 +60,8 @@ const isPopulationDensityOfBahrainLowerThanSingapore =
     try {
       // Fetch Bahrain data
       const bahrainQuery = `[out:json];
-    relation["name:en"="Bahrain"]["admin_level"=2];
-    out geom;`;
+relation["name:en"="Bahrain"]["admin_level"=2];
+out geom;`;
       const bahrainData = await fetchOverpassData(bahrainQuery);
       const geoJsonBahrain = osmtogeojson(bahrainData);
       const areaBahrain = turf.area(geoJsonBahrain);
@@ -78,8 +78,8 @@ const isPopulationDensityOfBahrainLowerThanSingapore =
 
       // Fetch Singapore data
       const singaporeQuery = `[out:json];
-    relation["name"="Singapore"]["admin_level"=2];
-    out geom;`;
+relation["name"="Singapore"]["admin_level"=2];
+out geom;`;
       const singaporeData = await fetchOverpassData(singaporeQuery);
       const geoJsonSingapore = osmtogeojson(singaporeData);
       const areaSingapore = turf.area(geoJsonSingapore);

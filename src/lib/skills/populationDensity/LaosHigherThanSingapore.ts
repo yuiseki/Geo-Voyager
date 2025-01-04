@@ -59,8 +59,8 @@ const isLaosPopulationDensityHigherThanSingapore =
     try {
       // Fetch Laos's GeoJSON data
       const laosQuery = `[out:json];
-    relation["name:en"="Laos"]["admin_level"=2];
-    out geom;`;
+relation["name:en"="Laos"]["admin_level"=2];
+out geom;`;
       const laosData = await fetchOverpassData(laosQuery);
       const laosGeojsonData = osmtogeojson(laosData);
 
@@ -76,8 +76,8 @@ const isLaosPopulationDensityHigherThanSingapore =
 
       // Fetch Singapore's GeoJSON data
       const singaporeQuery = `[out:json];
-    relation["name"="Singapore"]["admin_level"=2];
-    out geom;`;
+relation["name"="Singapore"]["admin_level"=2];
+out geom;`;
       const singaporeData = await fetchOverpassData(singaporeQuery);
       const singaporeGeojsonData = osmtogeojson(singaporeData);
 

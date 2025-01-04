@@ -60,8 +60,8 @@ const isPopulationDensityOfMaldivesHigherThanSingapore =
     try {
       // Fetch Maldives data
       const maldivesQuery = `[out:json];
-    relation["name:en"="Maldives"]["admin_level"=2];
-    out geom;`;
+relation["name:en"="Maldives"]["admin_level"=2];
+out geom;`;
       const maldivesData = await fetchOverpassData(maldivesQuery);
       const geoJsonMaldives = osmtogeojson(maldivesData);
       const areaMaldives = turf.area(geoJsonMaldives);
@@ -78,8 +78,8 @@ const isPopulationDensityOfMaldivesHigherThanSingapore =
 
       // Fetch Singapore data
       const singaporeQuery = `[out:json];
-    relation["name"="Singapore"]["admin_level"=2];
-    out geom;`;
+relation["name"="Singapore"]["admin_level"=2];
+out geom;`;
       const singaporeData = await fetchOverpassData(singaporeQuery);
       const geoJsonSingapore = osmtogeojson(singaporeData);
       const areaSingapore = turf.area(geoJsonSingapore);

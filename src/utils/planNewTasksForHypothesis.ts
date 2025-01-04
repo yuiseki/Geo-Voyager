@@ -98,6 +98,11 @@ Reply with only a list of possible new executable tasks, separated by newlines.`
       console.error(`⚠️  Ignoring task: ${taskDescription}`);
       continue;
     }
+    // 「低い」が含まれている場合は無視する
+    if (taskDescription.includes("低い")) {
+      console.error(`⚠️  Ignoring task: ${taskDescription}`);
+      continue;
+    }
     console.log(`💾 Saving new task: ${taskDescription}`);
     const newTask = await createTaskByHypothesisId(
       hypothesis.id,

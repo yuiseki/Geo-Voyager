@@ -1,5 +1,5 @@
-// description: シンガポールの人口密度がラオスよりも高いことを確認する。
-// file_path: src/lib/skills/populationDensity/SingaporeHigherThanLaos.ts
+// description: シンガポールの人口密度がミャンマーよりも高いことを確認する。
+// file_path: src/lib/skills/populationDensity/SingaporeHigherThanMyanmar.ts
 
 import * as turf from "@turf/turf";
 import osmtogeojson from "osmtogeojson";
@@ -54,10 +54,10 @@ const calculatePopulationDensity = (
 };
 
 /**
- * Checks if Singapore's population density is higher than Laos'.
+ * Checks if Singapore's population density is higher than Myanmar's.
  * @returns Promise resolving to a boolean indicating the result.
  */
-const isPopulationDensityOfSingaporeHigherThanLaos =
+const isPopulationDensityOfSingaporeHigherThanMyanmar =
   async (): Promise<boolean> => {
     try {
       // Fetch Singapore's area and population
@@ -69,27 +69,30 @@ out geom;`;
       const areaSingapore = turf.area(geoJsonSingapore);
       const populationSingapore = await fetchWorldBankPopulation("SG");
 
-      // Fetch Laos's area and population
-      const queryLaos = `[out:json];
-relation["name:en"="Laos"]["admin_level"=2];
+      // Fetch Myanmar's area and population
+      const queryMyanmar = `[out:json];
+relation["name:en"="Myanmar"]["admin_level"=2];
 out geom;`;
-      const dataLaos = await fetchOverpassData(queryLaos);
-      const geoJsonLaos = osmtogeojson(dataLaos);
-      const areaLaos = turf.area(geoJsonLaos);
-      const populationLaos = await fetchWorldBankPopulation("LA");
+      const dataMyanmar = await fetchOverpassData(queryMyanmar);
+      const geoJsonMyanmar = osmtogeojson(dataMyanmar);
+      const areaMyanmar = turf.area(geoJsonMyanmar);
+      const populationMyanmar = await fetchWorldBankPopulation("MM");
 
       // Calculate population densities
       const densitySingapore = calculatePopulationDensity(
         areaSingapore,
         populationSingapore
       );
-      const densityLaos = calculatePopulationDensity(areaLaos, populationLaos);
+      const densityMyanmar = calculatePopulationDensity(
+        areaMyanmar,
+        populationMyanmar
+      );
 
-      return densitySingapore > densityLaos;
+      return densitySingapore > densityMyanmar;
     } catch (error) {
       console.error("Error checking population density:", error);
       throw error;
     }
   };
 
-export default isPopulationDensityOfSingaporeHigherThanLaos;
+export default isPopulationDensityOfSingaporeHigherThanMyanmar;
