@@ -5,9 +5,9 @@ import * as turf from "@turf/turf";
 import osmtogeojson from "osmtogeojson";
 
 /**
- * Fetch data from the Overpass API.
+ * Fetches data from the Overpass API.
  * @param query - The Overpass QL query string.
- * @returns JSON response from the Overpass API.
+ * @returns Promise resolving to JSON data from the Overpass API.
  */
 const fetchOverpassData = async (query: string): Promise<any> => {
   const endpoint = "https://overpass-api.de/api/interpreter";
@@ -18,78 +18,89 @@ const fetchOverpassData = async (query: string): Promise<any> => {
     },
     body: `data=${encodeURIComponent(query)}`,
   });
-  return await res.json();
+  if (!res.ok) {
+    throw new Error(`HTTP error! status: ${res.status}`);
+  }
+  const data = await res.json();
+  if (!data.elements || data.elements.length === 0) {
+    throw new Error(
+      `Overpass API returned no data without errors. Please try to fix this query:\n${query}`
+    );
+  }
+  return data;
 };
 
 /**
- * Fetch total population data from the World Bank API.
+ * Fetches total population data from the World Bank API.
  * @param countryCode - The ISO 3166-1 alpha-2 country code.
- * @returns JSON response containing population data.
+ * @returns Promise resolving to JSON data containing the population.
  */
 const fetchWorldBankTotalPopulation = async (
   countryCode: string
 ): Promise<any> => {
-  const endpoint = `https://api.worldbank.org/v2/country/${countryCode}/indicator/SP.POP.TOTL?&format=json`;
+  const endpoint = `https://api.worldbank.org/v2/country/${countryCode}/indicator/SP.POP.TOTL?format=json`;
   const res = await fetch(endpoint);
-  return await res.json();
+  if (!res.ok) {
+    throw new Error(`HTTP error! status: ${res.status}`);
+  }
+  const data = await res.json();
+  if (data.length === 0 || data[1].length === 0) {
+    throw new Error(`No population data found for country code ${countryCode}`);
+  }
+  return data;
+};
+
+/**
+ * Calculates the population density of a country.
+ * @param geojsonData - GeoJSON data representing the country's boundaries.
+ * @param population - The total population of the country.
+ * @returns Population density in people per square kilometer.
+ */
+const calculatePopulationDensity = (
+  geojsonData: any,
+  population: number
+): number => {
+  const area = turf.area(geojsonData); // Area in square meters
+  const areaInKm2 = area / 1000000; // Convert to square kilometers
+  return population / areaInKm2;
 };
 
 /**
  * Check if Japan's population density is lower than Singapore's.
  * @returns A boolean indicating whether Japan's population density is lower than Singapore's.
  */
-const isPopulationDensityOfJapanLowerThanSingapore = async (): Promise<boolean> => {
-  // Fetch Singapore's area
-  const querySingapore = `[out:json];
-relation["name"="Singapore"]["admin_level"=2];
-out geom;`;
-  const resultSingapore = await fetchOverpassData(querySingapore);
-  if (resultSingapore.elements.length === 0) {
-    throw new Error(
-      `Overpass API returned no data without errors. Please try to fix this query:\n${querySingapore}`
+const isPopulationDensityOfJapanLowerThanSingapore =
+  async (): Promise<boolean> => {
+    // Fetch Japan's geojson data
+    const japanOverpassQuery = `[out:json];relation["name:en"="Japan"]["admin_level"=2];out geom;`;
+    const japanOverpassData = await fetchOverpassData(japanOverpassQuery);
+    const japanGeojsonData = osmtogeojson(japanOverpassData);
+    // Fetch Japan's population
+    const japanPopulationData = await fetchWorldBankTotalPopulation("jp");
+    const japanPopulation = japanPopulationData[1][0].value;
+    // Calculate Japan's population density
+    const japanPopulationDensity = calculatePopulationDensity(
+      japanGeojsonData,
+      japanPopulation
     );
-  }
-  const geoJsonSingapore = osmtogeojson(resultSingapore);
-  if (geoJsonSingapore.features.length === 0) {
-    throw new Error(
-      `osmtogeojson returned no GeoJSON data. Please try to fix this query:\n${querySingapore}`
+
+    // Fetch Singapore's geojson data
+    const singaporeOverpassQuery = `[out:json];relation["name"="Singapore"]["admin_level"=2];out geom;`;
+    const singaporeOverpassData = await fetchOverpassData(
+      singaporeOverpassQuery
     );
-  }
-  const areaSingapore = turf.area(geoJsonSingapore);
-
-  // Fetch Singapore's population
-  const resultPopulationSingapore = await fetchWorldBankTotalPopulation("SG");
-  const populationSingapore = resultPopulationSingapore[1][0].value;
-
-  // Calculate Singapore's population density
-  const populationDensitySingapore = populationSingapore / areaSingapore;
-
-  // Fetch Japan's area
-  const queryJapan = `[out:json];
-relation["name:en"="Japan"]["admin_level"=2];
-out geom;`;
-  const resultJapan = await fetchOverpassData(queryJapan);
-  if (resultJapan.elements.length === 0) {
-    throw new Error(
-      `Overpass API returned no data without errors. Please try to fix this query:\n${queryJapan}`
+    const singaporeGeojsonData = osmtogeojson(singaporeOverpassData);
+    // Fetch Singapore's population
+    const singaporePopulationData = await fetchWorldBankTotalPopulation("sg");
+    const singaporePopulation = singaporePopulationData[1][0].value;
+    // Calculate Singapore's population density
+    const singaporePopulationDensity = calculatePopulationDensity(
+      singaporeGeojsonData,
+      singaporePopulation
     );
-  }
-  const geoJsonJapan = osmtogeojson(resultJapan);
-  if (geoJsonJapan.features.length === 0) {
-    throw new Error(
-      `osmtogeojson returned no GeoJSON data. Please try to fix this query:\n${queryJapan}`
-    );
-  }
-  const areaJapan = turf.area(geoJsonJapan);
 
-  // Fetch Japan's population
-  const resultPopulationJapan = await fetchWorldBankTotalPopulation("JP");
-  const populationJapan = resultPopulationJapan[1][0].value;
-
-  // Calculate Japan's population density
-  const populationDensityJapan = populationJapan / areaJapan;
-
-  return populationDensityJapan < populationDensitySingapore;
-};
+    // Compare the population densities
+    return japanPopulationDensity < singaporePopulationDensity;
+  };
 
 export default isPopulationDensityOfJapanLowerThanSingapore;

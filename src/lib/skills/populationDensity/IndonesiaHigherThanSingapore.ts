@@ -100,6 +100,7 @@ const isPopulationDensityOfIndonesiaHigherThanSingapore =
       singaporePopulation
     );
 
+    // Compare population densities
     return indonesiaPopulationDensity > singaporePopulationDensity;
   };
 

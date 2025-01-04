@@ -69,7 +69,7 @@ const calculatePopulationDensity = (
  * Checks if Bahrain's population density is lower than Monaco's.
  * @returns Promise resolving to a boolean indicating the result.
  */
-const isPopulationDensityBahrainLowerThanMonaco =
+const isPopulationDensityOfBahrainLowerThanMonaco =
   async (): Promise<boolean> => {
     // Fetch Bahrain's geojson data
     const bahrainOverpassQuery = `[out:json];relation["name:en"="Bahrain"]["admin_level"=2];out geom;`;
@@ -101,4 +101,4 @@ const isPopulationDensityBahrainLowerThanMonaco =
     return bahrainPopulationDensity < monacoPopulationDensity;
   };
 
-export default isPopulationDensityBahrainLowerThanMonaco;
+export default isPopulationDensityOfBahrainLowerThanMonaco;
