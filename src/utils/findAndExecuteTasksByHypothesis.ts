@@ -7,7 +7,7 @@ import {
   TaskStatus,
   updateTaskStatusAndResult,
 } from "../db/task";
-import { getFirstSkillByDescription } from "../db/skill";
+import { getFirstSkillByDescription, saveSkillToDatabase } from "../db/skill";
 import { HypothesisStatus, updateHypothesisStatus } from "../db/hypothesis";
 import { planNewTasksForHypothesis } from "./planNewTasksForHypothesis";
 import { generateNewSkillForTask } from "./generateSkillForTask";
@@ -16,6 +16,7 @@ import {
   QuestionStatus,
   updateQuestionStatus,
 } from "../db/question";
+import { glob } from "glob";
 
 export const findAndExecuteTasksByHypothesis = async (
   hypothesis: Hypothesis
@@ -54,19 +55,23 @@ export const findAndExecuteTasksByHypothesis = async (
   for (const task of tasks) {
     if (task.status === "COMPLETED") {
       console.log(
-        `  - ✅ Task: ${task.description} already completed with result: ${task.result}`
+        `  - ✅ Task: ${
+          task.description
+        } already completed with result: [${task.result?.toUpperCase()}]`
       );
       continue;
     }
     if (task.status === "FAILED") {
       console.log(
-        `  - ❌ Task: ${task.description} failed with result: ${task.result}`
+        `  - ❌ Task: ${
+          task.description
+        } failed with result: [${task.result?.toUpperCase()}]`
       );
       break;
     }
     if (task.status === "ERROR") {
       console.log(
-        `  - 🚫 Task: ${task.description} errored with message: ${task.result}`
+        `  - 🚫 Task: ${task.description} errored with message: ${task.result?.toUpperCase}`
       );
       continue;
     }
@@ -75,6 +80,28 @@ export const findAndExecuteTasksByHypothesis = async (
 
       // 仮説検証タスクを実行するためのスキルを取得
       let skill = await getFirstSkillByDescription(task.description);
+
+      if (skill === null) {
+        // src/lib/skills/**/*.ts 以下のスキルを探す
+        const skillFiles = await glob(
+          path.join(__dirname, "../lib/skills/**/*.ts")
+        );
+        for await (const file of skillFiles) {
+          const fileContent = await fs.readFile(file, "utf-8");
+          const lines = fileContent.split("\n");
+          // 一行目からdescriptionを抽出
+          const descriptionMatch = lines[0].match(/\/\/ description: (.+)/);
+          if (!descriptionMatch) {
+            console.warn(`No description found in ${file}`);
+            continue;
+          }
+          const description = descriptionMatch[1].trim();
+          if (description === task.description) {
+            skill = await saveSkillToDatabase(description, fileContent);
+          }
+        }
+      }
+
       if (!skill) {
         // スキルがなかったら新しいスキルの生成を試みる
         try {

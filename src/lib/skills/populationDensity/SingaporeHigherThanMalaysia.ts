@@ -64,3 +64,45 @@ const calculatePopulationDensity = (
   const areaInKm2 = area / 1000000; // Convert to square kilometers
   return population / areaInKm2;
 };
+
+/**
+ * Checks if the population density of Singapore is higher than that of Malaysia.
+ * @returns Promise resolving to a boolean indicating if Singapore's population density is higher.
+ */
+const isPopulationDensityOfSingaporeHigherThanMalaysia =
+  async (): Promise<boolean> => {
+    // Fetch Singapore's GeoJSON data
+    const singaporeOverpassQuery = `[out:json];relation["name"="Singapore"]["admin_level"=2];out geom;`;
+    const singaporeOverpassData = await fetchOverpassData(
+      singaporeOverpassQuery
+    );
+    const singaporeGeojsonData = osmtogeojson(singaporeOverpassData);
+    // Fetch Singapore's population data
+    const singaporePopulationData = await fetchWorldBankTotalPopulation("sg");
+    const singaporePopulation = singaporePopulationData[1][0].value;
+    // Calculate Singapore's population density
+    const singaporePopulationDensity = calculatePopulationDensity(
+      singaporeGeojsonData,
+      singaporePopulation
+    );
+
+    // Fetch Malaysia's GeoJSON data
+    const malaysiaOverpassQuery = `[out:json];relation["name"="Malaysia"]["admin_level"=2];out geom;`;
+    const malaysiaOverpassData = await fetchOverpassData(malaysiaOverpassQuery);
+    const malaysiaGeojsonData = osmtogeojson(malaysiaOverpassData);
+
+    // Fetch Malaysia's population data
+    const malaysiaPopulationData = await fetchWorldBankTotalPopulation("my");
+    const malaysiaPopulation = malaysiaPopulationData[1][0].value;
+
+    // Calculate Malaysia's population density
+    const malaysiaPopulationDensity = calculatePopulationDensity(
+      malaysiaGeojsonData,
+      malaysiaPopulation
+    );
+
+    // Compare population densities
+    return singaporePopulationDensity > malaysiaPopulationDensity;
+  };
+
+export default isPopulationDensityOfSingaporeHigherThanMalaysia;
