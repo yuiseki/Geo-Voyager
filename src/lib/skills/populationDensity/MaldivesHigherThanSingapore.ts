@@ -1,5 +1,5 @@
-// description: バーレーンの人口密度がシンガポールよりも低いことを確認する。
-// file_path: src/lib/skills/populationDensity/BahrainLowerThanSingapore.ts
+// description: モルディブの人口密度がシンガポールよりも高いことを確認する。
+// file_path: src/lib/skills/populationDensity/MaldivesHigherThanSingapore.ts
 
 import * as turf from "@turf/turf";
 import osmtogeojson from "osmtogeojson";
@@ -49,27 +49,27 @@ const calculatePopulationDensity = (area: number, population: number): number =>
 };
 
 /**
- * Checks if the population density of Bahrain is lower than Singapore.
- * @returns A promise that resolves to true if Bahrain's population density is lower, otherwise false.
+ * Checks if the population density of Maldives is higher than Singapore.
+ * @returns A promise that resolves to true if Maldives' population density is higher, otherwise false.
  */
-const isPopulationDensityOfBahrainLowerThanSingapore = async (): Promise<boolean> => {
+const isPopulationDensityOfMaldivesHigherThanSingapore = async (): Promise<boolean> => {
   try {
-    // Fetch Bahrain data
-    const bahrainQuery = `[out:json];
-    relation["name"="Bahrain"]["admin_level"=2];
+    // Fetch Maldives data
+    const maldivesQuery = `[out:json];
+    relation["name:en"="Maldives"]["admin_level"=2];
     out body;
     >;
     out skel qt;`;
-    const bahrainData = await fetchOverpassData(bahrainQuery);
-    const geoJsonBahrain = osmtogeojson(bahrainData);
-    const areaBahrain = turf.area(geoJsonBahrain);
+    const maldivesData = await fetchOverpassData(maldivesQuery);
+    const geoJsonMaldives = osmtogeojson(maldivesData);
+    const areaMaldives = turf.area(geoJsonMaldives);
 
-    // Fetch Bahrain population
-    const resultPopulationBahrain = await fetchWorldBankPopulation("BH");
-    const populationBahrain = resultPopulationBahrain[1][0].value;
+    // Fetch Maldives population
+    const resultPopulationMaldives = await fetchWorldBankPopulation("MV");
+    const populationMaldives = resultPopulationMaldives[1][0].value;
 
-    // Calculate Bahrain's population density
-    const populationDensityBahrain = calculatePopulationDensity(areaBahrain, populationBahrain);
+    // Calculate Maldives' population density
+    const populationDensityMaldives = calculatePopulationDensity(areaMaldives, populationMaldives);
 
     // Fetch Singapore data
     const singaporeQuery = `[out:json];
@@ -89,11 +89,11 @@ const isPopulationDensityOfBahrainLowerThanSingapore = async (): Promise<boolean
     const populationDensitySingapore = calculatePopulationDensity(areaSingapore, populationSingapore);
 
     // Compare population densities
-    return populationDensityBahrain < populationDensitySingapore;
+    return populationDensityMaldives > populationDensitySingapore;
   } catch (error) {
     console.error("Error checking population density:", error);
     throw error;
   }
 };
 
-export default isPopulationDensityOfBahrainLowerThanSingapore;
+export default isPopulationDensityOfMaldivesHigherThanSingapore;

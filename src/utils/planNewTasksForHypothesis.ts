@@ -78,6 +78,26 @@ Reply with only a list of possible new executable tasks, separated by newlines.`
       console.error(`⚠️  Ignoring task: ${taskDescription}`);
       continue;
     }
+    // 「など」が含まれている場合は無視する
+    if (taskDescription.includes("など")) {
+      console.error(`⚠️  Ignoring task: ${taskDescription}`);
+      continue;
+    }
+    // 「他の」が含まれている場合は無視する
+    if (taskDescription.includes("他の")) {
+      console.error(`⚠️  Ignoring task: ${taskDescription}`);
+      continue;
+    }
+    // 「すべて」が含まれている場合は無視する
+    if (taskDescription.includes("すべて")) {
+      console.error(`⚠️  Ignoring task: ${taskDescription}`);
+      continue;
+    }
+    // 「全て」が含まれている場合は無視する
+    if (taskDescription.includes("全て")) {
+      console.error(`⚠️  Ignoring task: ${taskDescription}`);
+      continue;
+    }
     console.log(`💾 Saving new task: ${taskDescription}`);
     const newTask = await createTaskByHypothesisId(
       hypothesis.id,
