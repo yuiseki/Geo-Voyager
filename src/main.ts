@@ -45,7 +45,7 @@ import { getAllExecutedTasksByHypothesisId, TaskStatus } from "./db/task";
     );
     console.log("🚫 Rejected hypotheses:");
     for (const rejectedHypothesis of rejectedHypothesesWithTasks) {
-      console.log(`  - 🚫 ${rejectedHypothesis.description}`);
+      console.log(`  - 🚫 ${rejectedHypothesis.description} [REJECTED]`);
       for (const task of rejectedHypothesis.tasks) {
         console.log(task);
       }

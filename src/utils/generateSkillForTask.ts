@@ -125,18 +125,21 @@ ${lastHint ? `Hint to fix the code: ${lastHint}` : ""}
     try {
       // 一時ファイルからスキルをインポートして動作確認
       const skillModule = await import(`file://${path.resolve(tempFilePath)}`);
-      const result = await skillModule.default();
-      console.log(`🎉🎉🎉 New skill executed successfully 🎉🎉🎉`);
-
-      // スキルをファイルとして保存
       const saveFilePath = skillCode.match(/file_path: (.+)/)?.[1];
       if (!saveFilePath) {
-        console.error("❌ Failed to save new skill: no file_path found.");
+        console.error("❌ Something went wrong: no file_path found.");
         lastCode = skillCode.replaceAll("{", "{{").replaceAll("}", "}}");
         lastError = "No file_path found in the generated skill code.";
         lastHint = "Include the file_path in the second line of the script.";
         continue;
+      } else {
+        console.log(`👀 Suggested new skill file path: ${saveFilePath}`);
       }
+      console.log(`⏳️ Testing new skill...`);
+      await skillModule.default();
+      console.log(`🎉🎉🎉 New skill tested successfully 🎉🎉🎉`);
+
+      // スキルをファイルとして保存
       console.log(`⏳️ Saving new skill to file: ${saveFilePath}`);
       // まず、 saveFilePath までのディレクトリが存在することを確認
       // src/lib/skills/populationDensity/JapanHigherThanChina.ts みたいなファイルパスのはず
