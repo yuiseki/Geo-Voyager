@@ -30,19 +30,19 @@ const fetchOverpassData = async (query: string): Promise<any> => {
 /**
  * @returns A list of all wards in Tokyo.
  */
-const getAllCountriesEnglishNames = async (): Promise<string[]> => {
+const getAllCountriesEnglishNames = async (): Promise<string> => {
   const overpassQuery = `
 [out:json];
 relation["admin_level"="2"];
 out body;
 `;
   const response = await fetchOverpassData(overpassQuery);
-  const wards = response.elements.map((element: any) => {
+  const names = response.elements.map((element: any) => {
     if ("name:en" in element.tags) {
       return element.tags["name:en"];
     }
   });
-  return wards;
+  return names.join("\n");
 };
 
 export default getAllCountriesEnglishNames;

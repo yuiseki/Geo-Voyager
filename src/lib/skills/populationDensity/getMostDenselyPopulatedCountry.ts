@@ -56,14 +56,14 @@ const fetchWorldBankPopulationDensity = async (
 /**
  * @returns A list of all ISO3166-1 alpha-2 country codes.
  */
-const getAllCountriesAlpha2Codes = async (): Promise<string[]> => {
+const getAllCountriesAlpha2Codes = async (): Promise<string> => {
   const overpassQuery = `
 [out:json];
 relation["admin_level"="2"];
 out body;
 `;
   const response = await fetchOverpassData(overpassQuery);
-  const wards = response.elements
+  const codes = response.elements
     .map((element: any) => {
       if ("ISO3166-1:alpha2" in element.tags) {
         return element.tags["ISO3166-1:alpha2"];
@@ -72,14 +72,14 @@ out body;
       }
     })
     .filter((code: string | null) => code !== null);
-  return wards;
+  return codes.join("\n");
 };
 
 const getMostDenselyPopulatedCountry = async (): Promise<string> => {
   const alpha2Codes = await getAllCountriesAlpha2Codes();
   let mostDenselyPopulatedCountry = "";
   let highestPopulationDensity = 0;
-  for (const code of alpha2Codes) {
+  for (const code of alpha2Codes.split("\n")) {
     try {
       const populationDensity = await fetchWorldBankPopulationDensity(code);
       console.log(

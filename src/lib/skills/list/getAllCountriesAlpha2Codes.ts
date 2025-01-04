@@ -30,19 +30,19 @@ const fetchOverpassData = async (query: string): Promise<any> => {
 /**
  * @returns A list of all ISO3166-1 alpha-2 country codes.
  */
-const getAllCountriesAlpha2Codes = async (): Promise<string[]> => {
+const getAllCountriesAlpha2Codes = async (): Promise<string> => {
   const overpassQuery = `
 [out:json];
 relation["admin_level"="2"];
 out body;
 `;
   const response = await fetchOverpassData(overpassQuery);
-  const wards = response.elements.map((element: any) => {
+  const codes = response.elements.map((element: any) => {
     if ("ISO3166-1:alpha2" in element.tags) {
       return element.tags["ISO3166-1:alpha2"];
     }
   });
-  return wards;
+  return codes.join("\n");
 };
 
 export default getAllCountriesAlpha2Codes;

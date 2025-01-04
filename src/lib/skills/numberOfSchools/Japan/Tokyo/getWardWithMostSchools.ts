@@ -30,7 +30,7 @@ const fetchOverpassData = async (query: string): Promise<any> => {
 /**
  * @returns A list of all wards in Tokyo.
  */
-const getAllWardsInTokyo = async (): Promise<string[]> => {
+const getAllWardsInTokyo = async (): Promise<string> => {
   const overpassQuery = `
 [out:json];
 area["name"="東京都"]->.tokyo;
@@ -41,7 +41,7 @@ out body;
 `;
   const response = await fetchOverpassData(overpassQuery);
   const wards = response.elements.map((element: any) => element.tags.name);
-  return wards;
+  return wards.join("\n");
 };
 
 /**
@@ -68,7 +68,7 @@ const getWardWithMostSchools = async (): Promise<string> => {
   const wards = await getAllWardsInTokyo();
   let maxSchools = 0;
   let wardWithMostSchools = "";
-  for (const ward of wards) {
+  for (const ward of wards.split("\n")) {
     const schoolCount = await getSchoolCountInTokyo(ward);
     console.log(`getWardWithMostSchools ${ward}: ${schoolCount} schools`);
     if (schoolCount > maxSchools) {
