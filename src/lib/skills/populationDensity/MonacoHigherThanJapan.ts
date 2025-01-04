@@ -1,89 +1,103 @@
 // description: モナコの人口密度が日本よりも高いことを確認する。
 // file_path: src/lib/skills/populationDensity/MonacoHigherThanJapan.ts
+
 import * as turf from "@turf/turf";
 import osmtogeojson from "osmtogeojson";
 
 /**
- * @return boolean
+ * Fetches data from the Overpass API.
+ * @param query - The Overpass QL query string.
+ * @returns Promise resolving to JSON data from the Overpass API.
  */
-const isPopulationDensityOfMonacoHigherThanJapan = async () => {
-  /**
-   *
-   * @param query Overpass QL
-   * @returns Overpass API JSON
-   */
-  const fetchOverpassData = async (query: string): Promise<any> => {
-    const endpoint = "https://overpass-api.de/api/interpreter";
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: `data=${encodeURIComponent(query)}`,
-    });
-    return await res.json();
-  };
-
-  /**
-   *
-   * @param countryCode ISO 3166-1 alpha-2 country code
-   * @returns JSON
-   */
-  const fetchWorldBankTotalPopulation = async (
-    countryCode: string
-  ): Promise<any> => {
-    const endpoint = `https://api.worldbank.org/v2/country/${countryCode}/indicator/SP.POP.TOTL?&format=json`;
-    const res = await fetch(endpoint);
-    return await res.json();
-  };
-
-  // モナコの面積を取得
-  const queryMonaco = `[out:json];
-relation["name"="Monaco"]["admin_level"=2];
-out geom;`;
-  const resultMonaco = await fetchOverpassData(queryMonaco);
-  if (resultMonaco.elements.length === 0) {
+const fetchOverpassData = async (query: string): Promise<any> => {
+  const endpoint = "https://overpass-api.de/api/interpreter";
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: `data=${encodeURIComponent(query)}`,
+  });
+  if (!res.ok) {
+    throw new Error(`HTTP error! status: ${res.status}`);
+  }
+  const data = await res.json();
+  if (!data.elements || data.elements.length === 0) {
     throw new Error(
-      `Overpass API returned no data without errors. Please try to fix this query:\n${queryMonaco}`
+      `Overpass API returned no data without errors. Please try to fix this query:\n${query}`
     );
   }
-  const geoJsonMonaco = osmtogeojson(resultMonaco);
-  if (geoJsonMonaco.features.length === 0) {
-    throw new Error(
-      `osmtogeojson returned no GeoJSON data. Please try to fix this query:\n${queryMonaco}`
-    );
-  }
-  const areaMonaco = turf.area(geoJsonMonaco);
-  // モナコの人口を取得
-  const resultMonacoPopulation = await fetchWorldBankTotalPopulation("mc");
-  const populationMonaco = resultMonacoPopulation[1][0].value;
-  // モナコの人口密度を計算
-  const populationDensityMonaco = populationMonaco / areaMonaco;
-
-  // 日本の面積を取得
-  const queryJapan = `[out:json];
-relation["name:en"="Japan"]["admin_level"=2];
-out geom;`;
-  const resultJapan = await fetchOverpassData(queryJapan);
-  if (resultJapan.elements.length === 0) {
-    throw new Error(
-      `Overpass API returned no data without errors. Please try to fix this query:\n${queryJapan}`
-    );
-  }
-  const geoJsonJapan = osmtogeojson(resultJapan);
-  if (geoJsonJapan.features.length === 0) {
-    throw new Error(
-      `osmtogeojson returned no GeoJSON data. Please try to fix this query:\n${queryJapan}`
-    );
-  }
-  const areaJapan = turf.area(geoJsonJapan);
-  // 日本の人口を取得
-  const resultPopulationJapan = await fetchWorldBankTotalPopulation("jp");
-  const populationJapan = resultPopulationJapan[1][0].value;
-  // 日本の人口密度を計算
-  const populationDensityJapan = populationJapan / areaJapan;
-
-  return populationDensityMonaco > populationDensityJapan;
+  return data;
 };
+
+/**
+ * Fetches total population data from the World Bank API.
+ * @param countryCode - The ISO 3166-1 alpha-2 country code.
+ * @returns Promise resolving to JSON data containing the population.
+ */
+const fetchWorldBankTotalPopulation = async (
+  countryCode: string
+): Promise<any> => {
+  const endpoint = `https://api.worldbank.org/v2/country/${countryCode}/indicator/SP.POP.TOTL?format=json`;
+  const res = await fetch(endpoint);
+  if (!res.ok) {
+    throw new Error(`HTTP error! status: ${res.status}`);
+  }
+  const data = await res.json();
+  if (data.length === 0 || data[1].length === 0) {
+    throw new Error(`No population data found for country code ${countryCode}`);
+  }
+  return data;
+};
+
+/**
+ * Calculates the population density of a country.
+ * @param geojsonData - GeoJSON data representing the country's boundaries.
+ * @param population - The total population of the country.
+ * @returns Population density in people per square kilometer.
+ */
+const calculatePopulationDensity = (
+  geojsonData: any,
+  population: number
+): number => {
+  const area = turf.area(geojsonData); // Area in square meters
+  const areaInKm2 = area / 1000000; // Convert to square kilometers
+  return population / areaInKm2;
+};
+
+/**
+ * Checks if Monaco's population density is higher than Japan's.
+ * @returns Promise resolving to a boolean indicating whether Monaco's population density is higher.
+ */
+const isPopulationDensityOfMonacoHigherThanJapan =
+  async (): Promise<boolean> => {
+    // Fetch Monaco's GeoJSON data
+    const monacoOverpassQuery = `[out:json];relation["name"="Monaco"]["admin_level"=2];out geom;`;
+    const monacoOverpassData = await fetchOverpassData(monacoOverpassQuery);
+    const monacoGeojsonData = osmtogeojson(monacoOverpassData);
+    // Fetch Monaco's population data
+    const monacoPopulationData = await fetchWorldBankTotalPopulation("mc");
+    const monacoPopulation = monacoPopulationData[1][0].value;
+    // Calculate Monaco's population density
+    const monacoPopulationDensity = calculatePopulationDensity(
+      monacoGeojsonData,
+      monacoPopulation
+    );
+
+    // Fetch Japan's geojson data
+    const japanOverpassQuery = `[out:json];relation["name:en"="Japan"]["admin_level"=2];out geom;`;
+    const japanOverpassData = await fetchOverpassData(japanOverpassQuery);
+    const japanGeojsonData = osmtogeojson(japanOverpassData);
+    // Fetch Japan's population
+    const japanPopulationData = await fetchWorldBankTotalPopulation("jp");
+    const japanPopulation = japanPopulationData[1][0].value;
+    // Calculate Japan's population density
+    const japanPopulationDensity = calculatePopulationDensity(
+      japanGeojsonData,
+      japanPopulation
+    );
+    // Compare the population densities
+    return monacoPopulationDensity > japanPopulationDensity;
+  };
 
 export default isPopulationDensityOfMonacoHigherThanJapan;
