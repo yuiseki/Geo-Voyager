@@ -8,7 +8,7 @@ import {
 import { findAndExecuteTasksByHypothesis } from "./utils/findAndExecuteTasksByHypothesis";
 import { formulateNewHypothesis } from "./utils/formulateNewHypothesis";
 import { listUpAllSolvedQuestions } from "./utils/listUpAllSolvedQuestions";
-import { getAllExecutedTasksByHypothesisId } from "./db/task";
+import { getAllExecutedTasksByHypothesisId, TaskStatus } from "./db/task";
 
 (async () => {
   console.log("🗺️  Initializing Geo-Voyager...");
@@ -33,9 +33,13 @@ import { getAllExecutedTasksByHypothesisId } from "./db/task";
         const tasks = await getAllExecutedTasksByHypothesisId(hypothesis.id);
         return {
           description: hypothesis.description,
-          tasks: tasks.map(
-            (task) => `    - ❌️ Task: ${task.description} [${task.status}]`
-          ),
+          tasks: tasks.map((task) => {
+            if (task.status === TaskStatus.COMPLETED) {
+              return `    - ✅ Task: ${task.description} [${task.status}]`;
+            } else if (task.status === TaskStatus.FAILED) {
+              return `    - ❌ Task: ${task.description} [${task.status}]`;
+            }
+          }),
         };
       })
     );
