@@ -181,7 +181,7 @@ ${lastHint ? `Hint to fix the code: ${lastHint}` : ""}
           }
           return value;
         };
-        console.error(JSON.stringify(error, replaceErrors, 2));
+        console.error(error.message);
         lastError = JSON.stringify(error, replaceErrors, 2)
           .replaceAll("{", "{{")
           .replaceAll("}", "}}");

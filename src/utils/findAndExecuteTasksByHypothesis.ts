@@ -55,23 +55,19 @@ export const findAndExecuteTasksByHypothesis = async (
   for (const task of tasks) {
     if (task.status === "COMPLETED") {
       console.log(
-        `  - ✅ Task: ${
-          task.description
-        } already completed with result: [${task.result?.toUpperCase()}]`
+        `  - ✅ Task: ${task.description} [${task.result?.toUpperCase()}]`
       );
       continue;
     }
     if (task.status === "FAILED") {
       console.log(
-        `  - ❌ Task: ${
-          task.description
-        } failed with result: [${task.result?.toUpperCase()}]`
+        `  - ❌ Task: ${task.description} [${task.result?.toUpperCase()}]`
       );
       break;
     }
     if (task.status === "ERROR") {
       console.log(
-        `  - 🚫 Task: ${task.description} errored with message: ${task.result?.toUpperCase}`
+        `  - 🚫 Task: ${task.description} ${task.result?.toUpperCase}`
       );
       continue;
     }
