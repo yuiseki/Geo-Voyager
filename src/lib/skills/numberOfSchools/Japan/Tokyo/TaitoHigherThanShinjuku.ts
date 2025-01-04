@@ -1,5 +1,5 @@
-// description: 東京都文京区の学校の数が東京都新宿区よりも少ないことを確認する。
-// file_path: src/lib/skills/numberOfSchools/BunkyoLowerThanShinjuku.ts
+// description: 東京都台東区の学校の数が東京都新宿区より多いことを確認する。
+// file_path: src/lib/skills/numberOfSchools/Japan/Tokyo/TaitoHigherThanShinjuku.ts
 
 /**
  * Fetches the number of schools in a specified ward using Overpass API.
@@ -41,17 +41,17 @@ out count;
 }
 
 /**
- * Compares the number of schools in Bunkyo Ward and Shinjuku Ward.
- * @returns True if Bunkyo Ward has fewer schools than Shinjuku Ward, otherwise false.
+ * Compares the number of schools in Taito Ward and Shinjuku Ward.
+ * @returns True if Taito Ward has more schools than Shinjuku Ward, otherwise false.
  */
-async function isBunkyoLowerThanShinjuku(): Promise<boolean> {
-  const bunkyoSchoolCount = await getSchoolCount("文京区");
+async function isTaitoHigherThanShinjuku(): Promise<boolean> {
+  const taitoSchoolCount = await getSchoolCount("台東区");
   const shinjukuSchoolCount = await getSchoolCount("新宿区");
 
-  console.log(`Number of schools in Bunkyo Ward: ${bunkyoSchoolCount}`);
+  console.log(`Number of schools in Taito Ward: ${taitoSchoolCount}`);
   console.log(`Number of schools in Shinjuku Ward: ${shinjukuSchoolCount}`);
 
-  return bunkyoSchoolCount < shinjukuSchoolCount;
+  return taitoSchoolCount > shinjukuSchoolCount;
 }
 
-export default isBunkyoLowerThanShinjuku;
+export default isTaitoHigherThanShinjuku;

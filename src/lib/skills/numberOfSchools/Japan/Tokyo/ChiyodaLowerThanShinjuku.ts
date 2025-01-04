@@ -1,10 +1,10 @@
-// description: 東京都千代田区の学校の数が東京都新宿区の学校の数より少ないことを確認する。
+// description: 東京都千代田区の学校の数が東京都新宿区よりも少ないことを確認する。
 // file_path: src/lib/skills/numberOfSchools/Japan/Tokyo/ChiyodaLowerThanShinjuku.ts
 
 /**
- * Fetches the number of schools in a specified ward using Overpass API.
- * @param wardName - The name of the ward to query.
- * @returns The total count of schools in the ward.
+ * Fetches the count of schools in a given ward using Overpass API.
+ * @param wardName - The name of the ward.
+ * @returns Promise<number> - The count of schools in the ward.
  */
 async function getSchoolCount(wardName: string): Promise<number> {
   const overpassQuery = `
@@ -25,7 +25,7 @@ out count;
 
   if (!response.ok) {
     throw new Error(
-      `Failed to fetch data from Overpass API: ${response.statusText}`
+      `Failed to fetch data for ${wardName}: ${response.statusText}`
     );
   }
 
@@ -42,16 +42,21 @@ out count;
 
 /**
  * Compares the number of schools in Chiyoda Ward and Shinjuku Ward.
- * @returns True if Chiyoda Ward has fewer schools than Shinjuku Ward, otherwise false.
+ * @returns Promise<boolean> - True if Chiyoda has fewer schools than Shinjuku, otherwise false.
  */
 async function isChiyodaLowerThanShinjuku(): Promise<boolean> {
-  const chiyodaSchoolCount = await getSchoolCount("千代田区");
-  const shinjukuSchoolCount = await getSchoolCount("新宿区");
+  try {
+    const chiyodaCount = await getSchoolCount("千代田区");
+    const shinjukuCount = await getSchoolCount("新宿区");
 
-  console.log(`Number of schools in Chiyoda Ward: ${chiyodaSchoolCount}`);
-  console.log(`Number of schools in Shinjuku Ward: ${shinjukuSchoolCount}`);
+    console.log(`Number of schools in Chiyoda Ward: ${chiyodaCount}`);
+    console.log(`Number of schools in Shinjuku Ward: ${shinjukuCount}`);
 
-  return chiyodaSchoolCount < shinjukuSchoolCount;
+    return chiyodaCount < shinjukuCount;
+  } catch (error) {
+    console.error("Error comparing school counts:", error);
+    throw error;
+  }
 }
 
 export default isChiyodaLowerThanShinjuku;
