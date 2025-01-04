@@ -105,7 +105,7 @@ ${
     ? `Fix the following error from the last attempt code:\n${lastError}\n`
     : ""
 }
-${lastHint ? `Hint to fix the code: ${lastHint}` : ""}
+${lastHint ? `Important Hint to fix the code: ${lastHint}` : ""}
 `,
       inputVariables: ["input"],
     });
@@ -189,22 +189,20 @@ ${lastHint ? `Hint to fix the code: ${lastHint}` : ""}
           }
           return value;
         };
-        console.error(error.message);
         console.debug("----- ----- -----");
         console.log(skillCode);
         console.debug("----- ----- -----");
+        console.error(error.message);
         lastError = JSON.stringify(error, replaceErrors, 2)
           .replaceAll("{", "{{")
           .replaceAll("}", "}}");
-        if (error instanceof Error) {
-          if (error.message.includes("Overpass")) {
-            lastHint = `Try to fix Overpass QL.
+        if (error.message.includes("Overpass")) {
+          lastHint = `Try to fix Overpass Query.
 For example:
-- Change name to name:en only failed Overpass QL.
+- Change key "name" to "name:en" only failed Overpass Query.
 `;
-          } else {
-            lastHint = null;
-          }
+        } else {
+          lastHint = null;
         }
       }
     }
