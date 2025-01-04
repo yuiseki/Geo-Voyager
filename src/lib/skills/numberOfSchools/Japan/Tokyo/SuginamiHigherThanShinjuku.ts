@@ -1,5 +1,5 @@
-// description: 東京都文京区の学校の数が東京都新宿区よりも多いことを確認する。
-// file_path: src/lib/skills/numberOfSchools/BunkyoHigherThanShinjuku.ts
+// description: 東京都杉並区の学校の数が東京都新宿区より多いことを確認する。
+// file_path: src/lib/skills/numberOfSchools/Japan/Tokyo/SuginamiHigherThanShinjuku.ts
 
 /**
  * Fetches the number of schools in a specified ward using Overpass API.
@@ -41,17 +41,17 @@ out count;
 }
 
 /**
- * Compares the number of schools in Bunkyo Ward and Shinjuku Ward.
- * @returns True if Bunkyo Ward has more schools than Shinjuku Ward, otherwise false.
+ * Compares the number of schools in Shibuya Ward and Shinjuku Ward.
+ * @returns True if Shibuya Ward has more schools than Shinjuku Ward, otherwise false.
  */
-async function isBunkyoHigherThanShinjuku(): Promise<boolean> {
-  const bunkyoSchoolCount = await getSchoolCount("文京区");
+async function isSuginamiHigherThanShinjuku(): Promise<boolean> {
+  const suginamiSchoolCount = await getSchoolCount("杉並区");
   const shinjukuSchoolCount = await getSchoolCount("新宿区");
 
-  console.log(`Number of schools in Bunkyo Ward: ${bunkyoSchoolCount}`);
+  console.log(`Number of schools in Shibuya Ward: ${suginamiSchoolCount}`);
   console.log(`Number of schools in Shinjuku Ward: ${shinjukuSchoolCount}`);
 
-  return bunkyoSchoolCount > shinjukuSchoolCount;
+  return suginamiSchoolCount > shinjukuSchoolCount;
 }
 
-export default isBunkyoHigherThanShinjuku;
+export default isSuginamiHigherThanShinjuku;

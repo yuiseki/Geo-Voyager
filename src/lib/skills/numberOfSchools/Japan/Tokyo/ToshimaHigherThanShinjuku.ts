@@ -1,5 +1,5 @@
-// description: 東京都世田谷区の学校の数が東京都新宿区より多いことを確認する。
-// file_path: src/lib/skills/numberOfSchools/Japan/Tokyo/SetagayaGreaterThanShinjuku.ts
+// description: 東京都豊島区の学校の数が東京都新宿区より多いことを確認する。
+// file_path: src/lib/skills/numberOfSchools/Japan/Tokyo/ToshimaHigherThanShinjuku.ts
 
 /**
  * Fetches the number of schools in a specified ward using Overpass API.
@@ -41,17 +41,17 @@ out count;
 }
 
 /**
- * Compares the number of schools in Setagaya Ward and Shinjuku Ward.
- * @returns True if Setagaya Ward has more schools than Shinjuku Ward, otherwise false.
+ * Compares the number of schools in Toshima Ward and Shinjuku Ward.
+ * @returns True if Toshima Ward has more schools than Shinjuku Ward, otherwise false.
  */
-async function isSetagayaGreaterThanShinjuku(): Promise<boolean> {
-  const setagayaSchoolCount = await getSchoolCount("世田谷区");
+async function isToshimaHigherThanShinjuku(): Promise<boolean> {
+  const toshimaSchoolCount = await getSchoolCount("豊島区");
   const shinjukuSchoolCount = await getSchoolCount("新宿区");
 
-  console.log(`Number of schools in Setagaya Ward: ${setagayaSchoolCount}`);
+  console.log(`Number of schools in Toshima Ward: ${toshimaSchoolCount}`);
   console.log(`Number of schools in Shinjuku Ward: ${shinjukuSchoolCount}`);
 
-  return setagayaSchoolCount > shinjukuSchoolCount;
+  return toshimaSchoolCount > shinjukuSchoolCount;
 }
 
-export default isSetagayaGreaterThanShinjuku;
+export default isToshimaHigherThanShinjuku;
