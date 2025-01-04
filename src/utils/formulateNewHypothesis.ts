@@ -22,15 +22,6 @@ export const formulateNewHypothesis = async (question: Question) => {
   });
 
   // 新しい仮説を生成するロジック（仮説の立案プロンプト）
-  const exampleHypotheses = await getAllOtherHypothesesByQuestionId(
-    question.id
-  );
-  /**
-Examples of testable hypotheses for other questions:
-${exampleHypotheses.map((h) => `- ${h.description}`).join("\n")}
-
-   * 
-   */
   const rejectedHypotheses = await getAllRejectedHypothesesByQuestionId(
     question.id
   );
