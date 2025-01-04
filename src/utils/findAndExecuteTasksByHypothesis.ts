@@ -93,6 +93,7 @@ export const findAndExecuteTasksByHypothesis = async (
       if (skill) {
         // スキルがあったら実行する
         console.log(`    - 🎁 Skill found: ${skill.description}`);
+        let result;
         let attempts = 0;
         const maxAttempts = 5;
         const sleep = await new Promise((resolve) => setTimeout(resolve, 5000));
@@ -106,7 +107,6 @@ export const findAndExecuteTasksByHypothesis = async (
           await fs.writeFile(tempFilePath, skill.code);
 
           let status;
-          let result;
           try {
             // 動的にスキルをインポートして実行
             const skillModule = await import(`file://${tempFilePath}`);
@@ -159,6 +159,10 @@ export const findAndExecuteTasksByHypothesis = async (
               );
             }
           }
+        }
+        if (result === false) {
+          console.log("🚫 Hypothesis rejected.");
+          break;
         }
       }
     }
