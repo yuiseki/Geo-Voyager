@@ -28,7 +28,8 @@ export const generateNewSkillForTask = async (
     temperature: 0,
   });
   const embeddings = new OllamaEmbeddings({
-    model: "snowflake-arctic-embed:33m",
+    // model: "snowflake-arctic-embed:33m",
+    model: "snowflake-arctic-embed:110m",
   });
   const vectorStore = new MemoryVectorStore(embeddings);
 
@@ -41,7 +42,7 @@ export const generateNewSkillForTask = async (
     // プロンプトを生成
     const exampleSelector = new SemanticSimilarityExampleSelector({
       vectorStore: vectorStore,
-      k: 4,
+      k: 3,
       inputKeys: ["input"],
     });
     const examplePrompt = PromptTemplate.fromTemplate(
