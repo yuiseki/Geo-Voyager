@@ -35,7 +35,7 @@ export const generateNewSkillForTask = async (
   while (attempts < maxAttempts) {
     attempts++;
     console.log(
-      `🧠 Generating new skill for task: "${taskDescription}" (Attempt ${attempts})`
+      `🤖 Generating new skill for task: "${taskDescription}" (Attempt ${attempts})`
     );
 
     // プロンプトを生成

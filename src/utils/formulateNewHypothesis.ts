@@ -15,7 +15,7 @@ import { getAllExecutedTasksByHypothesisId } from "../db/task";
  * @returns 生成された新しいHypothesis
  */
 export const formulateNewHypothesis = async (question: Question) => {
-  console.log("🧠 Formulating a new hypothesis...");
+  console.log("🤖 Formulating a new hypothesis...");
   const model = new ChatOllama({
     model: "qwen2.5:7b",
     temperature: 0,
