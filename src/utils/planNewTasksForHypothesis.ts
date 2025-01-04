@@ -10,7 +10,7 @@ export const planNewTasksForHypothesis = async (hypothesis: Hypothesis) => {
   console.log("🧠 Planning new tasks for the hypothesis...");
   const model = new ChatOllama({
     model: "qwen2.5:7b",
-    temperature: 0,
+    temperature: 0.1,
   });
 
   // 仮説を検証するためのタスク
