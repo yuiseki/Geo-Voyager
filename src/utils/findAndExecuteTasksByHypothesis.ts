@@ -93,51 +93,71 @@ export const findAndExecuteTasksByHypothesis = async (
       if (skill) {
         // スキルがあったら実行する
         console.log(`    - 🎁 Skill found: ${skill.description}`);
-        // 一時保存先ディレクトリとファイルパスを設定
-        const tempDir = path.join(__dirname, "tmp", "skills");
-        const tempFilePath = path.join(tempDir, `${skill.id}.ts`);
-        // 一時ディレクトリを作成（存在しない場合のみ）
-        await fs.mkdir(tempDir, { recursive: true });
-        // スキルコードを一時ファイルに保存
-        await fs.writeFile(tempFilePath, skill.code);
+        let attempts = 0;
+        const maxAttempts = 5;
+        const sleep = await new Promise((resolve) => setTimeout(resolve, 5000));
+        while (attempts < maxAttempts) {
+          // 一時保存先ディレクトリとファイルパスを設定
+          const tempDir = path.join(__dirname, "tmp", "skills");
+          const tempFilePath = path.join(tempDir, `${skill.id}.ts`);
+          // 一時ディレクトリを作成（存在しない場合のみ）
+          await fs.mkdir(tempDir, { recursive: true });
+          // スキルコードを一時ファイルに保存
+          await fs.writeFile(tempFilePath, skill.code);
 
-        let status;
-        let result;
-        try {
-          // 動的にスキルをインポートして実行
-          const skillModule = await import(`file://${tempFilePath}`);
-          if (skillModule.default) {
-            result = await skillModule.default();
-            // trueなら仮説は引き続き支持される
-            // falseなら仮説は棄却される
-            if (result) {
-              console.log(`      - ✅ Result: ${result}`);
-              status = TaskStatus.COMPLETED;
+          let status;
+          let result;
+          try {
+            // 動的にスキルをインポートして実行
+            const skillModule = await import(`file://${tempFilePath}`);
+            if (skillModule.default) {
+              result = await skillModule.default();
+              // trueなら仮説は引き続き支持される
+              // falseなら仮説は棄却される
+              if (result) {
+                console.log(`      - ✅ Result: ${result}`);
+                status = TaskStatus.COMPLETED;
+                break;
+              } else {
+                console.log(
+                  `      - ❌ Result: ${result}, hypothesis rejected.`
+                );
+                status = TaskStatus.FAILED;
+                // hypothesisのstatusをREJECTEDに更新
+                await updateHypothesisStatus(
+                  hypothesis.id,
+                  HypothesisStatus.REJECTED
+                );
+                break;
+              }
             } else {
-              console.log(`      - ❌ Result: ${result}, hypothesis rejected.`);
-              status = TaskStatus.FAILED;
-              // hypothesisのstatusをREJECTEDに更新
-              await updateHypothesisStatus(
-                hypothesis.id,
-                HypothesisStatus.REJECTED
-              );
-              break;
+              console.error("      - 🚫 No default export found in skill.");
+              status = TaskStatus.ERROR;
+              result = "No default export found in skill.";
             }
-          } else {
-            console.error("      - 🚫 No default export found in skill.");
-            status = TaskStatus.ERROR;
-            result = "No default export found in skill.";
-          }
-        } catch (error) {
-          console.error("      - 🚫 Error executing skill:", error);
-          status = TaskStatus.ERROR;
-          result = (error as Error).message;
-        } finally {
-          // 一時ファイルを削除
-          await fs.unlink(tempFilePath);
-          // taskのstatusとresultを更新
-          if (status) {
-            await updateTaskStatusAndResult(task.id, status, result.toString());
+          } catch (error) {
+            console.error("      - 🚫 Error executing skill:", error);
+            if (attempts === maxAttempts) {
+              status = TaskStatus.ERROR;
+              result = (error as Error).message;
+              break;
+            } else {
+              console.log("      - 🔁 Retrying in 5 seconds...");
+              attempts++;
+              await sleep;
+              continue;
+            }
+          } finally {
+            // 一時ファイルを削除
+            await fs.unlink(tempFilePath);
+            // taskのstatusとresultを更新
+            if (status) {
+              await updateTaskStatusAndResult(
+                task.id,
+                status,
+                result.toString()
+              );
+            }
           }
         }
       }

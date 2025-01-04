@@ -112,8 +112,8 @@ Reply with only a list of possible new executable tasks, separated by newlines.`
   }
 
   console.log(`📋️ Planned total ${tasks.length} new tasks.`);
-  if (tasks.length > 0) {
-    process.exit(0);
-  }
+  // if (tasks.length > 0) {
+  //   process.exit(0);
+  // }
   return tasks;
 };
