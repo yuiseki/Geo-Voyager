@@ -35,7 +35,9 @@ const fetchOverpassData = async (query: string): Promise<any> => {
  * @param countryCode - The ISO 3166-1 alpha-2 country code.
  * @returns Promise resolving to JSON data containing the population.
  */
-const fetchWorldBankPopulation = async (countryCode: string): Promise<any> => {
+const fetchWorldBankTotalPopulation = async (
+  countryCode: string
+): Promise<any> => {
   const endpoint = `https://api.worldbank.org/v2/country/${countryCode}/indicator/SP.POP.TOTL?format=json`;
   const res = await fetch(endpoint);
   if (!res.ok) {
@@ -67,43 +69,36 @@ const calculatePopulationDensity = (
  * Checks if Bahrain's population density is lower than Monaco's.
  * @returns Promise resolving to a boolean indicating the result.
  */
-const isBahrainPopulationDensityLowerThanMonaco =
+const isPopulationDensityBahrainLowerThanMonaco =
   async (): Promise<boolean> => {
-    try {
-      // Fetch Bahrain's geojson data
-      const bahrainQuery = `[out:json];relation["name:en"="Bahrain"]["admin_level"=2];out geom;>;`;
-      const bahrainData = await fetchOverpassData(bahrainQuery);
-      const bahrainGeojsonData = osmtogeojson(bahrainData);
+    // Fetch Bahrain's geojson data
+    const bahrainOverpassQuery = `[out:json];relation["name:en"="Bahrain"]["admin_level"=2];out geom;`;
+    const bahrainOverpassData = await fetchOverpassData(bahrainOverpassQuery);
+    const bahrainGeojsonData = osmtogeojson(bahrainOverpassData);
+    // Fetch Bahrain's population
+    const bahrainPopulationData = await fetchWorldBankTotalPopulation("BH");
+    const bahrainPopulation = bahrainPopulationData[1][0].value;
+    // Calculate Bahrain's population density
+    const bahrainPopulationDensity = calculatePopulationDensity(
+      bahrainGeojsonData,
+      bahrainPopulation
+    );
 
-      // Fetch Monaco's geojson data
-      const monacoQuery = `[out:json];relation["name"="Monaco"]["admin_level"=2];out geom;`;
-      const monacoData = await fetchOverpassData(monacoQuery);
-      const monacoGeojsonData = osmtogeojson(monacoData);
+    // Fetch Monaco's geojson data
+    const monacoOverpassQuery = `[out:json];relation["name"="Monaco"]["admin_level"=2];out geom;`;
+    const monacoOverpassData = await fetchOverpassData(monacoOverpassQuery);
+    const monacoGeojsonData = osmtogeojson(monacoOverpassData);
+    // Fetch Monaco's population
+    const monacoPopulationData = await fetchWorldBankTotalPopulation("MC");
+    const monacoPopulation = monacoPopulationData[1][0].value;
+    // Calculate Monaco's population density
+    const monacoPopulationDensity = calculatePopulationDensity(
+      monacoGeojsonData,
+      monacoPopulation
+    );
 
-      // Fetch Bahrain's population
-      const bahrainPopulationData = await fetchWorldBankPopulation("BH");
-      const bahrainPopulation = bahrainPopulationData[1][0].value;
-
-      // Fetch Monaco's population
-      const monacoPopulationData = await fetchWorldBankPopulation("MC");
-      const monacoPopulation = monacoPopulationData[1][0].value;
-
-      // Calculate population densities
-      const bahrainDensity = calculatePopulationDensity(
-        bahrainGeojsonData,
-        bahrainPopulation
-      );
-      const monacoDensity = calculatePopulationDensity(
-        monacoGeojsonData,
-        monacoPopulation
-      );
-
-      // Compare and return result
-      return bahrainDensity < monacoDensity;
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      throw error;
-    }
+    // Compare and return result
+    return bahrainPopulationDensity < monacoPopulationDensity;
   };
 
-export default isBahrainPopulationDensityLowerThanMonaco;
+export default isPopulationDensityBahrainLowerThanMonaco;

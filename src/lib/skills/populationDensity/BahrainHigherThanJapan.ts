@@ -18,7 +18,16 @@ const fetchOverpassData = async (query: string): Promise<any> => {
     },
     body: `data=${encodeURIComponent(query)}`,
   });
-  return res.json();
+  if (!res.ok) {
+    throw new Error(`HTTP error! status: ${res.status}`);
+  }
+  const data = await res.json();
+  if (!data.elements || data.elements.length === 0) {
+    throw new Error(
+      `Overpass API returned no data without errors. Please try to fix this query:\n${query}`
+    );
+  }
+  return data;
 };
 
 /**
@@ -31,7 +40,29 @@ const fetchWorldBankTotalPopulation = async (
 ): Promise<any> => {
   const endpoint = `https://api.worldbank.org/v2/country/${countryCode}/indicator/SP.POP.TOTL?format=json`;
   const res = await fetch(endpoint);
-  return res.json();
+  if (!res.ok) {
+    throw new Error(`HTTP error! status: ${res.status}`);
+  }
+  const data = await res.json();
+  if (data.length === 0 || data[1].length === 0) {
+    throw new Error(`No population data found for country code ${countryCode}`);
+  }
+  return data;
+};
+
+/**
+ * Calculates the population density of a country.
+ * @param geojsonData - GeoJSON data representing the country's boundaries.
+ * @param population - The total population of the country.
+ * @returns Population density in people per square kilometer.
+ */
+const calculatePopulationDensity = (
+  geojsonData: any,
+  population: number
+): number => {
+  const area = turf.area(geojsonData); // Area in square meters
+  const areaInKm2 = area / 1000000; // Convert to square kilometers
+  return population / areaInKm2;
 };
 
 /**
@@ -40,49 +71,34 @@ const fetchWorldBankTotalPopulation = async (
  */
 const isPopulationDensityOfBahrainHigherThanJapan =
   async (): Promise<boolean> => {
-    // Fetch Bahrain's area and population
-    const queryBahrain = `[out:json];
-relation["name:en"="Bahrain"]["admin_level"=2];
-out geom;`;
-    const resultBahrain = await fetchOverpassData(queryBahrain);
-    if (resultBahrain.elements.length === 0) {
-      throw new Error(
-        `Overpass API returned no data without errors. Please try to fix this query:\n${queryBahrain}`
-      );
-    }
-    const geoJsonBahrain = osmtogeojson(resultBahrain);
-    if (geoJsonBahrain.features.length === 0) {
-      throw new Error(
-        `osmtogeojson returned no GeoJSON data. Please try to fix this query:\n${queryBahrain}`
-      );
-    }
-    const areaBahrain = turf.area(geoJsonBahrain);
-    const resultBahrainPopulation = await fetchWorldBankTotalPopulation("BH");
-    const populationBahrain = resultBahrainPopulation[1][0].value;
-    const populationDensityBahrain = populationBahrain / areaBahrain;
+    // Fetch Bahrain's geojson data
+    const bahrainOverpassQuery = `[out:json];relation["name:en"="Bahrain"]["admin_level"=2];out geom;`;
+    const bahrainOverpassData = await fetchOverpassData(bahrainOverpassQuery);
+    const bahrainGeojsonData = osmtogeojson(bahrainOverpassData);
+    // Fetch Bahrain's population
+    const bahrainPopulationData = await fetchWorldBankTotalPopulation("BH");
+    const bahrainPopulation = bahrainPopulationData[1][0].value;
+    // Calculate Bahrain's population density
+    const bahrainPopulationDensity = calculatePopulationDensity(
+      bahrainGeojsonData,
+      bahrainPopulation
+    );
 
-    // Fetch Japan's area and population
-    const queryJapan = `[out:json];
-relation["name:en"="Japan"]["admin_level"=2];
-out geom;`;
-    const resultJapan = await fetchOverpassData(queryJapan);
-    if (resultJapan.elements.length === 0) {
-      throw new Error(
-        `Overpass API returned no data without errors. Please try to fix this query:\n${queryJapan}`
-      );
-    }
-    const geoJsonJapan = osmtogeojson(resultJapan);
-    if (geoJsonJapan.features.length === 0) {
-      throw new Error(
-        `osmtogeojson returned no GeoJSON data. Please try to fix this query:\n${queryJapan}`
-      );
-    }
-    const areaJapan = turf.area(geoJsonJapan);
-    const resultJapanPopulation = await fetchWorldBankTotalPopulation("JP");
-    const populationJapan = resultJapanPopulation[1][0].value;
-    const populationDensityJapan = populationJapan / areaJapan;
+    // Fetch Japan's geojson data
+    const japanOverpassQuery = `[out:json];relation["name:en"="Japan"]["admin_level"=2];out geom;`;
+    const japanOverpassData = await fetchOverpassData(japanOverpassQuery);
+    const japanGeojsonData = osmtogeojson(japanOverpassData);
+    // Fetch Japan's population
+    const japanPopulationData = await fetchWorldBankTotalPopulation("JP");
+    const japanPopulation = japanPopulationData[1][0].value;
+    // Calculate Japan's population density
+    const japanPopulationDensity = calculatePopulationDensity(
+      japanGeojsonData,
+      japanPopulation
+    );
 
-    return populationDensityBahrain > populationDensityJapan;
+    // Compare the population densities
+    return bahrainPopulationDensity > japanPopulationDensity;
   };
 
 export default isPopulationDensityOfBahrainHigherThanJapan;

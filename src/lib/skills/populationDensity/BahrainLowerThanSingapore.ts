@@ -6,8 +6,8 @@ import osmtogeojson from "osmtogeojson";
 
 /**
  * Fetches data from the Overpass API.
- * @param query - The Overpass QL query to execute.
- * @returns A promise that resolves to the JSON response from the Overpass API.
+ * @param query - The Overpass QL query string.
+ * @returns Promise resolving to JSON data from the Overpass API.
  */
 const fetchOverpassData = async (query: string): Promise<any> => {
   const endpoint = "https://overpass-api.de/api/interpreter";
@@ -19,36 +19,50 @@ const fetchOverpassData = async (query: string): Promise<any> => {
     body: `data=${encodeURIComponent(query)}`,
   });
   if (!res.ok) {
-    throw new Error(`Overpass API request failed with status ${res.status}`);
+    throw new Error(`HTTP error! status: ${res.status}`);
   }
-  return res.json();
+  const data = await res.json();
+  if (!data.elements || data.elements.length === 0) {
+    throw new Error(
+      `Overpass API returned no data without errors. Please try to fix this query:\n${query}`
+    );
+  }
+  return data;
 };
 
 /**
  * Fetches total population data from the World Bank API.
  * @param countryCode - The ISO 3166-1 alpha-2 country code.
- * @returns A promise that resolves to the JSON response containing population data.
+ * @returns Promise resolving to JSON data containing the population.
  */
-const fetchWorldBankPopulation = async (countryCode: string): Promise<any> => {
+const fetchWorldBankTotalPopulation = async (
+  countryCode: string
+): Promise<any> => {
   const endpoint = `https://api.worldbank.org/v2/country/${countryCode}/indicator/SP.POP.TOTL?format=json`;
   const res = await fetch(endpoint);
   if (!res.ok) {
-    throw new Error(`World Bank API request failed with status ${res.status}`);
+    throw new Error(`HTTP error! status: ${res.status}`);
   }
-  return res.json();
+  const data = await res.json();
+  if (data.length === 0 || data[1].length === 0) {
+    throw new Error(`No population data found for country code ${countryCode}`);
+  }
+  return data;
 };
 
 /**
  * Calculates the population density of a country.
- * @param area - The area in square meters.
- * @param population - The total population.
- * @returns The population density in people per square kilometer.
+ * @param geojsonData - GeoJSON data representing the country's boundaries.
+ * @param population - The total population of the country.
+ * @returns Population density in people per square kilometer.
  */
 const calculatePopulationDensity = (
-  area: number,
+  geojsonData: any,
   population: number
 ): number => {
-  return (population / area) * 1e6; // Convert from m² to km²
+  const area = turf.area(geojsonData); // Area in square meters
+  const areaInKm2 = area / 1000000; // Convert to square kilometers
+  return population / areaInKm2;
 };
 
 /**
@@ -57,49 +71,36 @@ const calculatePopulationDensity = (
  */
 const isPopulationDensityOfBahrainLowerThanSingapore =
   async (): Promise<boolean> => {
-    try {
-      // Fetch Bahrain data
-      const bahrainQuery = `[out:json];
-relation["name:en"="Bahrain"]["admin_level"=2];
-out geom;`;
-      const bahrainData = await fetchOverpassData(bahrainQuery);
-      const geoJsonBahrain = osmtogeojson(bahrainData);
-      const areaBahrain = turf.area(geoJsonBahrain);
+    // Fetch Bahrain's geojson data
+    const bahrainOverpassQuery = `[out:json];relation["name:en"="Bahrain"]["admin_level"=2];out geom;`;
+    const bahrainOverpassData = await fetchOverpassData(bahrainOverpassQuery);
+    const bahrainGeojsonData = osmtogeojson(bahrainOverpassData);
+    // Fetch Bahrain's population
+    const bahrainPopulationData = await fetchWorldBankTotalPopulation("BH");
+    const bahrainPopulation = bahrainPopulationData[1][0].value;
+    // Calculate Bahrain's population density
+    const bahrainPopulationDensity = calculatePopulationDensity(
+      bahrainGeojsonData,
+      bahrainPopulation
+    );
 
-      // Fetch Bahrain population
-      const resultPopulationBahrain = await fetchWorldBankPopulation("BH");
-      const populationBahrain = resultPopulationBahrain[1][0].value;
+    // Fetch Singapore's geojson data
+    const singaporeOverpassQuery = `[out:json];relation["name"="Singapore"]["admin_level"=2];out geom;`;
+    const singaporeOverpassData = await fetchOverpassData(
+      singaporeOverpassQuery
+    );
+    const singaporeGeojsonData = osmtogeojson(singaporeOverpassData);
+    // Fetch Singapore's population
+    const singaporePopulationData = await fetchWorldBankTotalPopulation("sg");
+    const singaporePopulation = singaporePopulationData[1][0].value;
+    // Calculate Singapore's population density
+    const singaporePopulationDensity = calculatePopulationDensity(
+      singaporeGeojsonData,
+      singaporePopulation
+    );
 
-      // Calculate Bahrain's population density
-      const populationDensityBahrain = calculatePopulationDensity(
-        areaBahrain,
-        populationBahrain
-      );
-
-      // Fetch Singapore data
-      const singaporeQuery = `[out:json];
-relation["name"="Singapore"]["admin_level"=2];
-out geom;`;
-      const singaporeData = await fetchOverpassData(singaporeQuery);
-      const geoJsonSingapore = osmtogeojson(singaporeData);
-      const areaSingapore = turf.area(geoJsonSingapore);
-
-      // Fetch Singapore population
-      const resultPopulationSingapore = await fetchWorldBankPopulation("SG");
-      const populationSingapore = resultPopulationSingapore[1][0].value;
-
-      // Calculate Singapore's population density
-      const populationDensitySingapore = calculatePopulationDensity(
-        areaSingapore,
-        populationSingapore
-      );
-
-      // Compare population densities
-      return populationDensityBahrain < populationDensitySingapore;
-    } catch (error) {
-      console.error("Error checking population density:", error);
-      throw error;
-    }
+    // Compare the population densities
+    return bahrainPopulationDensity < singaporePopulationDensity;
   };
 
 export default isPopulationDensityOfBahrainLowerThanSingapore;
