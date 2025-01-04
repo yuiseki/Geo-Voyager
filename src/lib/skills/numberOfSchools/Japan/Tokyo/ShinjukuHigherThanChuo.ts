@@ -8,14 +8,14 @@
  */
 async function getSchoolCount(areaName: string): Promise<number> {
   const overpassQuery = `
-    [out:json];
-    area["name"="東京都"]->.tokyo;
-    area["name"="${areaName}"]->.ward;
-    (
-      nwr["amenity"="school"](area.ward)(area.tokyo);
-    );
-    out count;
-  `;
+[out:json];
+area["name"="東京都"]->.tokyo;
+area["name"="${areaName}"]->.ward;
+(
+  nwr["amenity"="school"](area.ward)(area.tokyo);
+);
+out count;
+`;
 
   const response = await fetch("https://overpass-api.de/api/interpreter", {
     method: "POST",

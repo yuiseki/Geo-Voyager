@@ -2,25 +2,20 @@
 // file_path: src/lib/skills/numberOfSchools/Japan/Tokyo/BunkyoHigherThanChiyoda.ts
 
 /**
- * This function checks if the number of schools in Bunkyo Ward is higher than in Chiyoda Ward.
- * It uses Overpass API to fetch the data and compares the counts.
- */
-
-/**
  * Fetches the count of schools in a given ward using Overpass API.
  * @param wardName - The name of the ward.
  * @returns Promise<number> - The count of schools in the ward.
  */
 async function getSchoolCount(wardName: string): Promise<number> {
   const overpassQuery = `
-    [out:json];
-    area["name"="東京都"]->.tokyo;
-    area["name"="${wardName}"]->.ward;
-    (
-      nwr["amenity"="school"](area.ward)(area.tokyo);
-    );
-    out count;
-  `;
+[out:json];
+area["name"="東京都"]->.tokyo;
+area["name"="${wardName}"]->.ward;
+(
+  nwr["amenity"="school"](area.ward)(area.tokyo);
+);
+out count;
+`;
 
   const response = await fetch("https://overpass-api.de/api/interpreter", {
     method: "POST",
