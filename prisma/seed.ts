@@ -37,7 +37,7 @@ const seedQuestionWhichCountryIsMostHighestPopulationDensity = async () => {
   // Taskの作成
   const task1ForHypothesis1 = await prisma.task.create({
     data: {
-      description: "モナコの人口密度がシンガポールよりも高いことを確認する。",
+      description: "世界で最も人口密度の高い国がモナコであることを確認する。",
       status: "PENDING",
     },
   });
