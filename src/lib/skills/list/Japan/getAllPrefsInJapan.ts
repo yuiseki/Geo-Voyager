@@ -1,5 +1,5 @@
-// description: 世界のすべての国の ISO3166-1 Alpha-3 コードを取得する
-// file_path: src/lib/skills/list/getAllCountriesAlpha3Codes.ts
+// description: 東京都のすべての行政区の名前を取得する
+// file_path: src/lib/skills/list/Japan/Tokyo/listUpAllWardsInTokyo.ts
 
 /**
  * Fetches data from the Overpass API.
@@ -28,21 +28,20 @@ const fetchOverpassData = async (query: string): Promise<any> => {
 };
 
 /**
- * @returns A list of all ISO3166-1 alpha-3 country codes.
+ * @returns A list of all wards in Tokyo.
  */
-const getAllCountriesAlpha3Codes = async (): Promise<string> => {
+const getAllPrefsInTokyo = async (): Promise<string> => {
   const overpassQuery = `
 [out:json];
-relation["admin_level"="2"];
+area["name"="日本"]->.tokyo;
+(
+  nwr["admin_level"="4"](area.tokyo);
+);
 out tags;
 `;
   const response = await fetchOverpassData(overpassQuery);
-  const codes = response.elements.map((element: any) => {
-    if ("ISO3166-1:alpha3" in element.tags) {
-      return element.tags["ISO3166-1:alpha3"];
-    }
-  });
-  return codes.join("\n");
+  const wards = response.elements.map((element: any) => element.tags.name);
+  return wards.join("\n");
 };
 
-export default getAllCountriesAlpha3Codes;
+export default getAllPrefsInTokyo;

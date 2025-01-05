@@ -2,32 +2,6 @@
 // file_path: src/lib/skills/populationDensity/getWorldsMostDenselyPopulatedCountry.ts
 
 /**
- * Fetches data from the Overpass API.
- * @param query - The Overpass QL query string.
- * @returns Promise resolving to JSON data from the Overpass API.
- */
-const fetchOverpassData = async (query: string): Promise<any> => {
-  const endpoint = "https://overpass-api.de/api/interpreter";
-  const res = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: `data=${encodeURIComponent(query)}`,
-  });
-  if (!res.ok) {
-    throw new Error(`HTTP error! status: ${res.status}`);
-  }
-  const data = await res.json();
-  if (!data.elements || data.elements.length === 0) {
-    throw new Error(
-      `Overpass API returned no data without errors. Please try to fix this query:\n${query}`
-    );
-  }
-  return data;
-};
-
-/**
  * Fetches population density data from the World Bank API.
  * @param countryCode - The ISO 3166-1 alpha-2 country code.
  * @returns Promise resolving to JSON data containing the population density.

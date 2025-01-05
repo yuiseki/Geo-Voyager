@@ -34,7 +34,7 @@ const getAllCountriesAlpha2Codes = async (): Promise<string> => {
   const overpassQuery = `
 [out:json];
 relation["admin_level"="2"];
-out body;
+out tags;
 `;
   const response = await fetchOverpassData(overpassQuery);
   const codes = response.elements.map((element: any) => {

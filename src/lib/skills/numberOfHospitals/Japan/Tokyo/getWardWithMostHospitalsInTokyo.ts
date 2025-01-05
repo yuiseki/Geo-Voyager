@@ -37,7 +37,7 @@ area["name"="東京都"]->.tokyo;
 (
   relation["admin_level"="7"](area.tokyo);
 );
-out body;
+out tags;
 `;
   const response = await fetchOverpassData(overpassQuery);
   const adminNames = response.elements.map((element: any) => element.tags.name);
@@ -49,7 +49,9 @@ out body;
  * @param adminName - The name of the admin area to query.
  * @returns The total count of hospitals in the admin area.
  */
-async function getHospitalCountByAdminInsideTokyo(adminName: string): Promise<number> {
+async function getHospitalCountByAdminInsideTokyo(
+  adminName: string
+): Promise<number> {
   const overpassQuery = `
 [out:json];
 area["name"="東京都"]->.tokyo;
@@ -70,7 +72,9 @@ const getWardWithMostHospitalsInTokyo = async (): Promise<string> => {
   let wardWithMostHospitals = "";
   for (const adminArea of adminAreas.split("\n")) {
     const hospitalCount = await getHospitalCountByAdminInsideTokyo(adminArea);
-    console.log(`getWardWithMostHospitals ${adminArea}: ${hospitalCount} hospitals`);
+    console.log(
+      `getWardWithMostHospitals ${adminArea}: ${hospitalCount} hospitals`
+    );
     if (hospitalCount > maxHospitals) {
       maxHospitals = hospitalCount;
       wardWithMostHospitals = adminArea;
