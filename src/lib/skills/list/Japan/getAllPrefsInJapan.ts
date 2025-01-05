@@ -1,4 +1,4 @@
-// description: 東京都のすべての行政区の名前を取得する
+// description: 日本のすべての都道府県の名前を取得する
 // file_path: src/lib/skills/list/Japan/Tokyo/listUpAllWardsInTokyo.ts
 
 /**
@@ -28,14 +28,14 @@ const fetchOverpassData = async (query: string): Promise<any> => {
 };
 
 /**
- * @returns A list of all wards in Tokyo.
+ * @returns A list of all prefs in Japan.
  */
-const getAllPrefsInTokyo = async (): Promise<string> => {
+const getAllPrefsInJapan = async (): Promise<string> => {
   const overpassQuery = `
 [out:json];
 area["name"="日本"]->.tokyo;
 (
-  nwr["admin_level"="4"](area.tokyo);
+  relation["admin_level"="4"](area.tokyo);
 );
 out tags;
 `;
@@ -44,4 +44,4 @@ out tags;
   return wards.join("\n");
 };
 
-export default getAllPrefsInTokyo;
+export default getAllPrefsInJapan;

@@ -1,5 +1,5 @@
-// description: 東京都のすべての行政区の名前を取得する
-// file_path: src/lib/skills/list/Japan/Tokyo/listUpAllWardsInTokyo.ts
+// description: 大阪府大阪市のすべての行政区の名前を取得する
+// file_path: src/lib/skills/list/Japan/OsakaPref/OsakaCity/getAllAdminsInOsakaCity.ts
 
 /**
  * Fetches data from the Overpass API.
@@ -28,14 +28,15 @@ const fetchOverpassData = async (query: string): Promise<any> => {
 };
 
 /**
- * @returns A list of all wards in Tokyo.
+ * @returns A list of all admin areas in Osaka City.
  */
-const getAllWardsInTokyo = async (): Promise<string> => {
+const getAllAdminsInOsakaCity = async (): Promise<string> => {
   const overpassQuery = `
 [out:json];
-area["name"="東京都"]->.tokyo;
+area["name"="大阪府"]->.osakaPref;
+area["name"="大阪市"]->.osakaCity;
 (
-  relation["admin_level"="7"](area.tokyo);
+  relation["admin_level"="8"](area.osakaCity)(area.osakaPref);
 );
 out tags;
 `;
@@ -44,4 +45,4 @@ out tags;
   return wards.join("\n");
 };
 
-export default getAllWardsInTokyo;
+export default getAllAdminsInOsakaCity;
