@@ -8,8 +8,8 @@ import { findAndExecuteTasksByHypothesis } from "./utils/findAndExecuteTasksByHy
 import { formulateNewHypothesis } from "./utils/formulateNewHypothesis";
 import { listUpAllSolvedQuestions } from "./utils/listUpAllSolvedQuestions";
 import { getAllExecutedTasksByHypothesisId, TaskStatus } from "./db/task";
-import getWorldsMostDenselyPopulatedCountry from "./lib/skills/populationDensity/getWorldsMostDenselyPopulatedCountry";
-import getMostDenselyPopulatedAdminInTokyo from "./lib/skills/populationDensity/Japan/Tokyo/getMostDenselyPopulatedAdminInTokyo";
+import getWorldsMostDenselyPopulatedCountry from "./lib/skills/getWorldsMostDenselyPopulatedCountry";
+import getMostDenselyPopulatedAdminInTokyo from "./lib/skills/admins/Japan/Tokyo/getMostDenselyPopulatedAdminInsideTokyo";
 
 (async () => {
   console.log("🗺️  Initializing Geo-Voyager...");

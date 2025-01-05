@@ -1,5 +1,5 @@
 // description: 東京都のすべての行政区の中で、最も多くの病院がある行政区を見つける
-// file_path: src/lib/skills/numberOfSchools/Japan/Tokyo/getWardWithMostHospitalsInTokyo.ts
+// file_path: src/lib/skills/numberOfSchools/Japan/Tokyo/getAdminWithMostHospitalsInsideTokyo.ts
 
 /**
  * Fetches data from the Overpass API.
@@ -66,7 +66,7 @@ out count;
   return response.elements[0].tags.total;
 }
 
-const getWardWithMostHospitalsInTokyo = async (): Promise<string> => {
+const getAdminWithMostHospitalsInsideTokyo = async (): Promise<string> => {
   const adminAreas = await getAllAdminNamesInTokyo();
   let maxHospitals = 0;
   let wardWithMostHospitals = "";
@@ -83,4 +83,4 @@ const getWardWithMostHospitalsInTokyo = async (): Promise<string> => {
   return wardWithMostHospitals;
 };
 
-export default getWardWithMostHospitalsInTokyo;
+export default getAdminWithMostHospitalsInsideTokyo;
