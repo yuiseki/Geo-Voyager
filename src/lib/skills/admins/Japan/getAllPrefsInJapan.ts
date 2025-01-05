@@ -33,9 +33,9 @@ const fetchOverpassData = async (query: string): Promise<any> => {
 const getAllPrefsInJapan = async (): Promise<string> => {
   const overpassQuery = `
 [out:json];
-area["name"="日本"]->.tokyo;
+area["name"="日本"]->.japan;
 (
-  relation["admin_level"="4"](area.tokyo);
+  relation["admin_level"="4"](area.japan);
 );
 out tags;
 `;
