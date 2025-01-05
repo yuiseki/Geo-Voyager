@@ -65,9 +65,14 @@ out geom;
 `;
   const response = await fetchOverpassData(overpassQuery);
   const geojson = osmtogeojson(response);
+  // area in square meters
   const area = turf.area(geojson.features[0]);
-  const population = parseInt(response.elements[0].tags.population);
-  return (population / area) * 1000000; // m2 to km2
+  const areaKm2 = area / 1000000;
+  let population = parseInt(response.elements[0].tags.population);
+  if (isNaN(population)) {
+    population = 0;
+  }
+  return population / areaKm2;
 }
 
 const getMostDenselyPopulatedAdminInTokyo = async (): Promise<string> => {
