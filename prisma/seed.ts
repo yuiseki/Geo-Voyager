@@ -163,6 +163,29 @@ const seedQuestionWhichWardsInTokyoIsMostHospitals = async () => {
       taskId: task1.id,
     },
   });
+  // HypothesisAnswerの作成
+  const hypothesisAnswer = await prisma.hypothesis.create({
+    data: {
+      description: "東京都において、病院が最も多い行政区は多摩市である。",
+      status: "PENDING",
+      questionId: question.id, // Questionとの関連付け
+    },
+  });
+  // Taskの作成
+  const task2 = await prisma.task.create({
+    data: {
+      description:
+        "東京都において、病院が最も多い行政区が多摩市であることを確認する。",
+      status: "PENDING",
+    },
+  });
+  // HypothesisとTasksの関連付け
+  await prisma.hypothesisTask.create({
+    data: {
+      hypothesisId: hypothesisAnswer.id,
+      taskId: task2.id,
+    },
+  });
 };
 
 const seedQuestionWhichWardsInTokyoIsMostSchools = async () => {

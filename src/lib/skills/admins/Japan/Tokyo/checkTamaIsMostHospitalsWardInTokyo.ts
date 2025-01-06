@@ -1,5 +1,5 @@
-// description: 東京都において、学校の数が最も多い行政区が千代田区であることを確認する。
-// file_path: src/lib/skills/admins/Japan/Tokyo/checkTaitoIsMostSchoolsWardInTokyo.ts
+// description: 東京都において、病院が最も多い行政区が多摩市であることを確認する。
+// file_path: src/lib/skills/admins/Japan/Tokyo/checkTamaIsMostHospitalsWardInTokyo.ts
 
 import fs from "fs";
 import { Md5 } from "ts-md5";
@@ -61,11 +61,11 @@ out tags;
 };
 
 /**
- * Fetches the number of schools in a specified admin area using Overpass API.
+ * Fetches the number of hospitals in a specified admin area using Overpass API.
  * @param adminName - The name of the admin area to query.
- * @returns The total count of schools in the admin area.
+ * @returns The total count of hospitals in the admin area.
  */
-async function getSchoolCountByAdminInsideTokyo(
+async function getHospitalCountByAdminInsideTokyo(
   adminName: string
 ): Promise<number> {
   const overpassQuery = `
@@ -73,7 +73,7 @@ async function getSchoolCountByAdminInsideTokyo(
 area["name"="東京都"]->.tokyo;
 area["name"="${adminName}"]->.ward;
 (
-  nwr["amenity"="school"](area.ward)(area.tokyo);
+  nwr["amenity"="hospital"](area.ward)(area.tokyo);
 );
 out count;
 `;
@@ -82,12 +82,12 @@ out count;
   return response.elements[0].tags.total;
 }
 
-const getAdminWithMostSchoolsInTokyo = async (): Promise<string> => {
+const checkTamaIsMostHospitalsWardInTokyo = async (): Promise<string> => {
   const adminAreas = await getAllAdminNamesInTokyo();
   let maxSchools = 0;
   let wardWithMostSchools = "";
   for (const adminArea of adminAreas.split("\n")) {
-    const schoolCount = await getSchoolCountByAdminInsideTokyo(adminArea);
+    const schoolCount = await getHospitalCountByAdminInsideTokyo(adminArea);
     if (schoolCount > maxSchools) {
       maxSchools = schoolCount;
       wardWithMostSchools = adminArea;
@@ -96,10 +96,10 @@ const getAdminWithMostSchoolsInTokyo = async (): Promise<string> => {
   return wardWithMostSchools;
 };
 
-const checkTaitoIsMostSchoolsWardInTokyo = async (): Promise<boolean> => {
-  const wardWithMostSchools = await getAdminWithMostSchoolsInTokyo();
-  console.info(`Most schools ward in Tokyo: ${wardWithMostSchools}`);
-  return wardWithMostSchools.includes("台東区");
+const checkShibuyaIsMostHospitalsWardInTokyo = async (): Promise<boolean> => {
+  const wardWithMostSchools = await checkTamaIsMostHospitalsWardInTokyo();
+  console.info(`Ward with most hospitals in Tokyo: ${wardWithMostSchools}`);
+  return wardWithMostSchools.includes("多摩市");
 };
 
-export default checkTaitoIsMostSchoolsWardInTokyo;
+export default checkShibuyaIsMostHospitalsWardInTokyo;
