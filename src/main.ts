@@ -8,9 +8,13 @@ import { findAndExecuteTasksByHypothesis } from "./utils/findAndExecuteTasksByHy
 import { formulateNewHypothesis } from "./utils/formulateNewHypothesis";
 import { listUpAllSolvedQuestions } from "./utils/listUpAllSolvedQuestions";
 import { getAllExecutedTasksByHypothesisId, TaskStatus } from "./db/task";
+import checkKotoIsLargestWardInTokyo from "./lib/skills/admins/Japan/Tokyo/checkKotoIsLargestWardInTokyo";
 
 (async () => {
   console.log("🗺️  Initializing Geo-Voyager...");
+
+  const result = await checkKotoIsLargestWardInTokyo();
+  console.log(result);
 
   await listUpAllSolvedQuestions();
 
