@@ -1,4 +1,4 @@
-// description: 世界で最も人口密度が高い国がマカオであることを確認する。
+// description: 世界で最も人口密度の高い国がマカオであることを確認する。
 // file_path: src/lib/skills/checkMacaoIsMostDenselyPopulatedCountryInWorld.ts
 
 import fs from "fs";
@@ -124,6 +124,10 @@ const getWorldsMostDenselyPopulatedCountry = async (): Promise<string> => {
   for (const code of alpha2Codes) {
     // codeがstring型でない場合はスキップ
     if (typeof code !== "string") {
+      continue;
+    }
+    if (code === "XK") {
+      // KosovoのISOコードは"XK"であり、World Bank APIでは"XK"をサポートしていない
       continue;
     }
     try {

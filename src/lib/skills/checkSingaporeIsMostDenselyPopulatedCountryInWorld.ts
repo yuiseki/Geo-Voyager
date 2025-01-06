@@ -126,6 +126,10 @@ const getWorldsMostDenselyPopulatedCountry = async (): Promise<string> => {
     if (typeof code !== "string") {
       continue;
     }
+    if (code === "XK") {
+      // Kosovo has no population density data at the World Bank API
+      continue;
+    }
     try {
       const populationDensity = await fetchWorldBankPopulationDensity(code);
       if (populationDensity > highestPopulationDensity) {

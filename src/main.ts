@@ -8,6 +8,7 @@ import { findAndExecuteTasksByHypothesis } from "./utils/findAndExecuteTasksByHy
 import { formulateNewHypothesis } from "./utils/formulateNewHypothesis";
 import { listUpAllSolvedQuestions } from "./utils/listUpAllSolvedQuestions";
 import { getAllExecutedTasksByHypothesisId, TaskStatus } from "./db/task";
+import checkMacaoIsMostDenselyPopulatedCountryInWorld from "./lib/skills/checkMacaoIsMostDenselyPopulatedCountryInWorld";
 
 (async () => {
   console.log("🗺️  Initializing Geo-Voyager...");
