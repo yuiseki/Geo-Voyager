@@ -92,7 +92,7 @@ area["name"="東京都"]->.tokyo;
 (
   relation["name"="${adminName}"]["admin_level"="7"](area.tokyo);
 );
-out body;
+out tags;
 `;
   const response = await fetchOverpassData(overpassQuery);
   let population = parseInt(response.elements[0].tags.population);

@@ -65,7 +65,9 @@ out tags;
  * @param adminName - The name of the admin area to query.
  * @returns The total count of schools in the admin area.
  */
-async function getSchoolsCountInAdminInsideTokyo(adminName: string): Promise<number> {
+async function getSchoolsCountInAdminInsideTokyo(
+  adminName: string
+): Promise<number> {
   const overpassQuery = `
 [out:json];
 area["name"="${adminName}"]->.a;
@@ -81,14 +83,16 @@ out count;
  * @param adminName - The name of the admin area to query.
  * @returns The population of the admin area.
  */
-async function getPopulationInAdminInsideTokyo(adminName: string): Promise<number> {
+async function getPopulationInAdminInsideTokyo(
+  adminName: string
+): Promise<number> {
   const overpassQuery = `
 [out:json];
 area["name"="東京都"]->.tokyo;
 (
   relation["admin_level"="7"]["name"="${adminName}"](area.tokyo);
 );
-out body;
+out tags;
 `;
   const response = await fetchOverpassData(overpassQuery);
   let population = parseInt(response.elements[0].tags.population);

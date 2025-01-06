@@ -92,9 +92,8 @@ area["name"="東京都"]->.tokyo;
 (
   relation["name"="${adminName}"]["admin_level"="7"](area.tokyo);
 );
-out body;
+out tags;
 `;
-
   const response = await fetchOverpassData(overpassQuery);
   let population = parseInt(response.elements[0].tags.population);
   if (isNaN(population)) {
@@ -104,38 +103,38 @@ out body;
 }
 
 /**
- * Calculates the number of hospitals per population in a specified admin area.
+ * Calculates the number of schools per population in a specified admin area.
  * @param adminName - The name of the admin area to query.
- * @returns The number of hospitals per population.
+ * @returns The number of schools per population.
  */
-async function getHospitalsPerPopulationInAdminInsideTokyo(
+async function getSchoolsPerPopulationInAdminInsideTokyo(
   adminName: string
 ): Promise<number> {
-  const hospitalCount = await getSchoolsCountInAdminInsideTokyo(adminName);
+  const schoolsCount = await getSchoolsCountInAdminInsideTokyo(adminName);
   const population = await getPopulationInAdminInsideTokyo(adminName);
   if (population === 0) {
     return 0;
   }
-  return population > 0 ? hospitalCount / population : 0;
+  return population > 0 ? schoolsCount / population : 0;
 }
 
 const checkChuoIsMostSchoolsPerPopulationWardInTokyo =
   async (): Promise<boolean> => {
     const adminAreas = await getAllAdminNamesInTokyo();
-    let maxHospitalsPerPopulation = 0;
-    let wardWithMaxHospitalsPerPopulation = "";
+    let maxSchoolsPerPopulation = 0;
+    let wardWithMaxSchoolsPerPopulation = "";
     for (const adminArea of adminAreas.split("\n")) {
-      const hospitalsPerPopulation =
-        await getHospitalsPerPopulationInAdminInsideTokyo(adminArea);
-      if (hospitalsPerPopulation > maxHospitalsPerPopulation) {
-        maxHospitalsPerPopulation = hospitalsPerPopulation;
-        wardWithMaxHospitalsPerPopulation = adminArea;
+      const schoolsPerPopulation =
+        await getSchoolsPerPopulationInAdminInsideTokyo(adminArea);
+      if (schoolsPerPopulation > maxSchoolsPerPopulation) {
+        maxSchoolsPerPopulation = schoolsPerPopulation;
+        wardWithMaxSchoolsPerPopulation = adminArea;
       }
     }
     console.info(
-      `Ward with most hospitals per population in Tokyo: ${wardWithMaxHospitalsPerPopulation}`
+      `Ward with most schools per population in Tokyo: ${wardWithMaxSchoolsPerPopulation}`
     );
-    return wardWithMaxHospitalsPerPopulation.includes("中央区");
+    return wardWithMaxSchoolsPerPopulation.includes("中央区");
   };
 
 export default checkChuoIsMostSchoolsPerPopulationWardInTokyo;

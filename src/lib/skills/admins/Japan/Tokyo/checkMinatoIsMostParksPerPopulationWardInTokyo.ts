@@ -51,7 +51,7 @@ const getAllAdminNamesInTokyo = async (): Promise<string> => {
 [out:json];
 area["name"="東京都"]->.tokyo;
 (
-  relation["admin_level"="8"](area.tokyo);
+  relation["admin_level"="7"](area.tokyo);
 );
 out tags;
 `;
@@ -72,9 +72,7 @@ async function getParksCountInAdminInsideTokyo(
 [out:json];
 area["name"="${adminName}"]->.a;
 (
-  node["leisure"="park"](area.a);
-  way["leisure"="park"](area.a);
-  relation["leisure"="park"](area.a);
+  nwr["leisure"="park"](area.a);
 );
 out count;
 `;
@@ -96,7 +94,7 @@ area["name"="東京都"]->.tokyo;
 (
   relation["admin_level"="7"]["name"="${adminName}"](area.tokyo);
 );
-out body;
+out tags;
 `;
   const response = await fetchOverpassData(overpassQuery);
   let population = parseInt(response.elements[0].tags.population);

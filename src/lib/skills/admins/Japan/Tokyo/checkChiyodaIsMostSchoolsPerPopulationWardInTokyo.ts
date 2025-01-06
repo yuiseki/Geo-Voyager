@@ -82,6 +82,30 @@ out count;
 }
 
 /**
+ * Fetches the population of a specified admin area using Overpass API.
+ * @param adminName - The name of the admin area to query.
+ * @returns The population of the admin area.
+ */
+async function getPopulationInAdminInsideTokyo(
+  adminName: string
+): Promise<number> {
+  const overpassQuery = `
+[out:json];
+area["name"="東京都"]->.tokyo;
+(
+  relation["name"="${adminName}"]["admin_level"="7"](area.tokyo);
+);
+out tags;
+`;
+  const response = await fetchOverpassData(overpassQuery);
+  let population = parseInt(response.elements[0].tags.population);
+  if (isNaN(population)) {
+    population = 0;
+  }
+  return population;
+}
+
+/**
  * Calculates the number of schools per population in a specified admin area.
  * @param adminName - The name of the admin area to query.
  * @returns The number of schools per population.
@@ -90,18 +114,9 @@ async function getSchoolsPerPopulationInAdminInsideTokyo(
   adminName: string
 ): Promise<number> {
   const schoolCount = await getSchoolCountInAdminInsideTokyo(adminName);
-  const overpassQuery = `
-[out:json];
-area["name"="東京都"]->.tokyo;
-(
-  relation["admin_level"="7"]["name"="${adminName}"](area.tokyo);
-);
-out tags;
-`;
-  const response = await fetchOverpassData(overpassQuery);
-  let population = parseInt(response.elements[0].tags.population);
-  if (isNaN(population)) {
-    population = 0;
+  const population = await getPopulationInAdminInsideTokyo(adminName);
+  if (population === 0) {
+    return 0;
   }
   return population > 0 ? schoolCount / population : 0;
 }

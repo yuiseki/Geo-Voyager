@@ -1,5 +1,5 @@
-// description: 東京都において、人口あたりの公園の数が最も高い行政区が千代田区であることを確認する。
-// file_path: src/lib/skills/admins/Japan/Tokyo/checkChiyodaIsMostParksPerPopulationWardInTokyo.ts
+// description: 東京都において、人口あたりの学校の数が最も多い行政区が港区であることを確認する。
+// file_path: src/lib/skills/admins/Japan/Tokyo/checkMinatoIsMostSchoolsPerPopulationWardInTokyo.ts
 
 import fs from "fs";
 import { Md5 } from "ts-md5";
@@ -61,24 +61,21 @@ out tags;
 };
 
 /**
- * Fetches the number of parks in a specified admin area using Overpass API.
+ * Fetches the number of school in a specified admin area using Overpass API.
  * @param adminName - The name of the admin area to query.
- * @returns The total count of parks in the admin area.
+ * @returns The total count of school in the admin area.
  */
-async function getParkCountInAdminInsideTokyo(
+async function getSchoolsCountInAdminInsideTokyo(
   adminName: string
 ): Promise<number> {
   const overpassQuery = `
 [out:json];
-area["name"="東京都"]->.tokyo;
-area["name"="${adminName}"]->.admin;
-(
-  nwr["leisure"="park"](area.admin)(area.tokyo);
-);
+area["name"="${adminName}"]->.a;
+nwr["amenity"="school"](area.a);
 out count;
 `;
   const response = await fetchOverpassData(overpassQuery);
-  return response.elements.length;
+  return response.elements[0].tags.total;
 }
 
 /**
@@ -106,45 +103,38 @@ out tags;
 }
 
 /**
- * Calculates the number of parks per population in a specified admin area.
+ * Calculates the number of schools per population in a specified admin area.
  * @param adminName - The name of the admin area to query.
- * @returns The number of parks per population.
+ * @returns The number of schools per population.
  */
-async function getParksPerPopulationInAdminInsideTokyo(
+async function getSchoolsPerPopulationInAdminInsideTokyo(
   adminName: string
 ): Promise<number> {
-  const parkCount = await getParkCountInAdminInsideTokyo(adminName);
+  const schoolsCount = await getSchoolsCountInAdminInsideTokyo(adminName);
   const population = await getPopulationInAdminInsideTokyo(adminName);
   if (population === 0) {
     return 0;
   }
-  return population > 0 ? parkCount / population : 0;
+  return population > 0 ? schoolsCount / population : 0;
 }
 
-const getMostParksPerPopulationAdminInTokyo = async (): Promise<string> => {
-  const adminAreas = await getAllAdminNamesInTokyo();
-  let maxParksPerPopulation = 0;
-  let wardWithMaxParksPerPopulation = "";
-  for (const adminArea of adminAreas.split("\n")) {
-    const parksPerPopulation = await getParksPerPopulationInAdminInsideTokyo(
-      adminArea
-    );
-    if (parksPerPopulation > maxParksPerPopulation) {
-      maxParksPerPopulation = parksPerPopulation;
-      wardWithMaxParksPerPopulation = adminArea;
-    }
-  }
-  return wardWithMaxParksPerPopulation;
-};
-
-const checkChiyodaIsMostParksPerPopulationWardInTokyo =
+const checkChuoIsMostSchoolsPerPopulationWardInTokyo =
   async (): Promise<boolean> => {
-    const mostParksPerPopulationAdmin =
-      await getMostParksPerPopulationAdminInTokyo();
+    const adminAreas = await getAllAdminNamesInTokyo();
+    let maxSchoolsPerPopulation = 0;
+    let wardWithMaxSchoolsPerPopulation = "";
+    for (const adminArea of adminAreas.split("\n")) {
+      const schoolsPerPopulation =
+        await getSchoolsPerPopulationInAdminInsideTokyo(adminArea);
+      if (schoolsPerPopulation > maxSchoolsPerPopulation) {
+        maxSchoolsPerPopulation = schoolsPerPopulation;
+        wardWithMaxSchoolsPerPopulation = adminArea;
+      }
+    }
     console.info(
-      `Ward with most parks per population in Tokyo: ${mostParksPerPopulationAdmin}`
+      `Ward with most schools per population in Tokyo: ${wardWithMaxSchoolsPerPopulation}`
     );
-    return mostParksPerPopulationAdmin.includes("千代田区");
+    return wardWithMaxSchoolsPerPopulation.includes("港区");
   };
 
-export default checkChiyodaIsMostParksPerPopulationWardInTokyo;
+export default checkChuoIsMostSchoolsPerPopulationWardInTokyo;

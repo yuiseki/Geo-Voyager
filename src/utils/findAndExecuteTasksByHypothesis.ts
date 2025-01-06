@@ -133,7 +133,6 @@ export const findAndExecuteTasksByHypothesis = async (
         let result;
         let attempts = 0;
         const maxAttempts = 5;
-        const sleep = await new Promise((resolve) => setTimeout(resolve, 5000));
         while (attempts < maxAttempts) {
           // 一時保存先ディレクトリとファイルパスを設定
           const tempDir = path.join(__dirname, "tmp", "skills");
@@ -181,7 +180,9 @@ export const findAndExecuteTasksByHypothesis = async (
             } else {
               console.log("      - 🔁 Retrying in 5 seconds...");
               attempts++;
-              await sleep;
+              const sleep = () =>
+                new Promise((resolve) => setTimeout(resolve, 5000));
+              await sleep();
               continue;
             }
           } finally {

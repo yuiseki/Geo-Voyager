@@ -37,7 +37,7 @@ area["name"="東京都"]->.tokyo;
 (
   relation["admin_level"="7"](area.tokyo);
 );
-out body;
+out tags;
 `;
   const response = await fetchOverpassData(overpassQuery);
   const wards = response.elements.map((element: any) => element.tags.name);
