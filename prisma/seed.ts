@@ -429,6 +429,27 @@ const seedQuestionWhichWardsInTokyoIsMostHighestDensityParks = async () => {
       taskId: taskForHypothesisWrong.id,
     },
   });
+  const hypothesisAnswer = await prisma.hypothesis.create({
+    data: {
+      description:
+        "東京都において、人口あたりの公園の数が最も高い行政区は稲城市である。",
+      status: "PENDING",
+      questionId: question.id, // Questionとの関連付け
+    },
+  });
+  const taskForHypothesisAnswer = await prisma.task.create({
+    data: {
+      description:
+        "東京都において、人口あたりの公園の数が最も高い行政区が稲城市であることを確認する。",
+      status: "PENDING",
+    },
+  });
+  await prisma.hypothesisTask.create({
+    data: {
+      hypothesisId: hypothesisAnswer.id,
+      taskId: taskForHypothesisAnswer.id,
+    },
+  });
 };
 
 const seedQuestionWhichWardsInTokyoIsMostWidelyAreaInTokyo = async () => {
