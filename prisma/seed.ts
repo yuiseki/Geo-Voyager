@@ -381,6 +381,30 @@ const seedQuestionWhichWarsInTokyoIsMostHighestDensityParks = async () => {
       status: "OPEN",
     },
   });
+  // HypothesisWrongの作成
+  const hypothesisWrong = await prisma.hypothesis.create({
+    data: {
+      description:
+        "東京都において、人口あたりの公園の面積が最も高い行政区は千代田区である。",
+      status: "PENDING",
+      questionId: question.id, // Questionとの関連付け
+    },
+  });
+  // Taskの作成
+  const taskForHypothesisWrong = await prisma.task.create({
+    data: {
+      description:
+        "東京都において、人口あたりの公園の面積が最も高い行政区が千代田区であることを確認する。",
+      status: "PENDING",
+    },
+  });
+  // HypothesisとTasksの関連付け
+  await prisma.hypothesisTask.create({
+    data: {
+      hypothesisId: hypothesisWrong.id,
+      taskId: taskForHypothesisWrong.id,
+    },
+  });
 };
 
 const seedSkills = async () => {
