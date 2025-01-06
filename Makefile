@@ -12,5 +12,5 @@ migrate:
 
 clean:
 	rm prisma/dev.db
-	npx prisma migrate dev
+	npx prisma migrate dev --name init
 	npx prisma generate
