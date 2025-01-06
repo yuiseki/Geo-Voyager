@@ -372,12 +372,12 @@ const seedQuestionWhichWardsInTokyoIsMostHighestDensitySchools = async () => {
   });
 };
 
-const seedQuestionWhichWarsInTokyoIsMostHighestDensityParks = async () => {
+const seedQuestionWhichWardsInTokyoIsMostHighestDensityParks = async () => {
   // Questionの作成
   const question = await prisma.question.create({
     data: {
       description:
-        "東京都において、人口あたりの公園の面積が最も高い行政区はどこだろう？",
+        "東京都において、人口あたりの公園の数が最も高い行政区はどこだろう？",
       status: "OPEN",
     },
   });
@@ -385,7 +385,7 @@ const seedQuestionWhichWarsInTokyoIsMostHighestDensityParks = async () => {
   const hypothesisWrong = await prisma.hypothesis.create({
     data: {
       description:
-        "東京都において、人口あたりの公園の面積が最も高い行政区は千代田区である。",
+        "東京都において、人口あたりの公園の数が最も高い行政区は千代田区である。",
       status: "PENDING",
       questionId: question.id, // Questionとの関連付け
     },
@@ -394,7 +394,7 @@ const seedQuestionWhichWarsInTokyoIsMostHighestDensityParks = async () => {
   const taskForHypothesisWrong = await prisma.task.create({
     data: {
       description:
-        "東京都において、人口あたりの公園の面積が最も高い行政区が千代田区であることを確認する。",
+        "東京都において、人口あたりの公園の数が最も高い行政区が千代田区であることを確認する。",
       status: "PENDING",
     },
   });
@@ -403,6 +403,62 @@ const seedQuestionWhichWarsInTokyoIsMostHighestDensityParks = async () => {
     data: {
       hypothesisId: hypothesisWrong.id,
       taskId: taskForHypothesisWrong.id,
+    },
+  });
+};
+
+const seedQuestionWhichWardsInTokyoIsMostWidelyAreaInTokyo = async () => {
+  // Questionの作成
+  const question = await prisma.question.create({
+    data: {
+      description: "東京都において、面積が最も広い行政区はどこだろう？",
+      status: "OPEN",
+    },
+  });
+  // HypothesisWrongの作成
+  const hypothesisWrong = await prisma.hypothesis.create({
+    data: {
+      description: "東京都において、面積が最も広い行政区は江東区である。",
+      status: "PENDING",
+      questionId: question.id, // Questionとの関連付け
+    },
+  });
+  // Taskの作成
+  const taskForHypothesisWrong = await prisma.task.create({
+    data: {
+      description:
+        "東京都において、面積が最も広い行政区が江東区であることを確認する。",
+      status: "PENDING",
+    },
+  });
+  // HypothesisとTasksの関連付け
+  await prisma.hypothesisTask.create({
+    data: {
+      hypothesisId: hypothesisWrong.id,
+      taskId: taskForHypothesisWrong.id,
+    },
+  });
+  // HypothesisAnswerの作成
+  const hypothesisAnswer = await prisma.hypothesis.create({
+    data: {
+      description: "東京都において、面積が最も広い行政区は八王子市である。",
+      status: "PENDING",
+      questionId: question.id, // Questionとの関連付け
+    },
+  });
+  // Taskの作成
+  const taskForHypothesisAnswer = await prisma.task.create({
+    data: {
+      description:
+        "東京都において、面積が最も広い行政区が八王子市であることを確認する。",
+      status: "PENDING",
+    },
+  });
+  // HypothesisとTasksの関連付け
+  await prisma.hypothesisTask.create({
+    data: {
+      hypothesisId: hypothesisAnswer.id,
+      taskId: taskForHypothesisAnswer.id,
     },
   });
 };
@@ -447,7 +503,8 @@ async function main() {
   await seedQuestionWhichWardsInTokyoIsMostSchools();
   await seedQuestionWhichWardsInTokyoIsMostHighestDensityHospitals();
   await seedQuestionWhichWardsInTokyoIsMostHighestDensitySchools();
-  await seedQuestionWhichWarsInTokyoIsMostHighestDensityParks();
+  await seedQuestionWhichWardsInTokyoIsMostHighestDensityParks();
+  await seedQuestionWhichWardsInTokyoIsMostWidelyAreaInTokyo();
   await seedSkills();
 }
 

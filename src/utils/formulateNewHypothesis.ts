@@ -8,6 +8,7 @@ import {
 } from "../db/hypothesis";
 import { ChatOllama } from "@langchain/ollama";
 import { getAllExecutedTasksByHypothesisId } from "../db/task";
+import { getAllQuestionsByStatus, QuestionStatus } from "../db/question";
 
 /**
  * 新しい仮説を生成してデータベースに保存
@@ -22,6 +23,21 @@ export const formulateNewHypothesis = async (question: Question) => {
   });
 
   // 新しい仮説を生成するロジック（仮説の立案プロンプト）
+  const solvedQuestions = await getAllQuestionsByStatus(QuestionStatus.SOLVED);
+  const solvedQuestionsWithVerifiedHypotheses = await Promise.all(
+    solvedQuestions.map(async (question) => {
+      const hypotheses = await getAllHypothesesByStatus(
+        HypothesisStatus.VERIFIED
+      );
+      return {
+        question: question.description,
+        hypotheses: hypotheses.map(
+          (hypothesis) => `  - Hypothesis: ${hypothesis.description}`
+        ),
+      };
+    })
+  );
+
   const rejectedHypotheses = await getAllRejectedHypothesesByQuestionId(
     question.id
   );
@@ -41,6 +57,16 @@ export const formulateNewHypothesis = async (question: Question) => {
   const prompt = `Given the question: "${
     question.description
   }", formulate a new testable hypothesis in Japanese.
+
+For example:
+${solvedQuestionsWithVerifiedHypotheses
+  .map(
+    (questionWithHypotheses) =>
+      `- Question: ${
+        questionWithHypotheses.question
+      }\n${questionWithHypotheses.hypotheses.join("\n")}`
+  )
+  .join("\n")}
 
 Already rejected hypotheses for this question and their associated tasks:
 ${rejectedHypothesesWithTasks
