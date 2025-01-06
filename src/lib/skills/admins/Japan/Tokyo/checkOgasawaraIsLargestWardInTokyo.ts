@@ -1,5 +1,5 @@
 // description: 東京都において、面積が最も広い行政区が小笠原村であることを確認する。
-// file_path: src/lib/skills/admins/Japan/Tokyo/checkKasukabeIsLargestWardInTokyo.ts
+// file_path: src/lib/skills/admins/Japan/Tokyo/checkOgasawaraIsLargestWardInTokyo.ts
 
 import * as turf from "@turf/turf";
 import fs from "fs";
@@ -91,7 +91,7 @@ const getAdminWithLargestAreaInTokyo = async (): Promise<string> => {
   return adminWithLargestArea;
 };
 
-const checkKasukabeIsLargestWardInTokyo = async (): Promise<boolean> => {
+const checkOgasawaraIsLargestWardInTokyo = async (): Promise<boolean> => {
   const wardWithLargestArea = await getAdminWithLargestAreaInTokyo();
   if (!wardWithLargestArea) {
     console.error("wardWithLargestArea is undefined!!");
@@ -101,4 +101,4 @@ const checkKasukabeIsLargestWardInTokyo = async (): Promise<boolean> => {
   return wardWithLargestArea.includes("小笠原村");
 };
 
-export default checkKasukabeIsLargestWardInTokyo;
+export default checkOgasawaraIsLargestWardInTokyo;
