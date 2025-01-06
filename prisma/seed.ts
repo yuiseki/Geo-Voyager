@@ -60,7 +60,7 @@ const seedQuestionWhichCountryIsMostHighestPopulationDensity = async () => {
   // Taskの作成
   const task1ForHypothesis2 = await prisma.task.create({
     data: {
-      description: "シンガポールの人口密度がモナコよりも高いことを確認する。",
+      description: "世界で最も人口密度の高い国がシンガポールであることを確認する。",
       status: "PENDING",
     },
   });
@@ -69,50 +69,6 @@ const seedQuestionWhichCountryIsMostHighestPopulationDensity = async () => {
     data: {
       hypothesisId: hypothesis2.id,
       taskId: task1ForHypothesis2.id,
-    },
-  });
-  // Taskの作成
-  const task2ForHypothesis2 = await prisma.task.create({
-    data: {
-      description: "シンガポールの人口密度が日本よりも高いことを確認する。",
-      status: "PENDING",
-    },
-  });
-  // Hypothesis2とTasksの関連付け
-  await prisma.hypothesisTask.create({
-    data: {
-      hypothesisId: hypothesis2.id,
-      taskId: task2ForHypothesis2.id,
-    },
-  });
-  // Taskの作成
-  const task3ForHypothesis2 = await prisma.task.create({
-    data: {
-      description:
-        "シンガポールの人口密度がバーレーンよりも高いことを確認する。",
-      status: "PENDING",
-    },
-  });
-  // Hypothesis2とTasksの関連付け
-  await prisma.hypothesisTask.create({
-    data: {
-      hypothesisId: hypothesis2.id,
-      taskId: task3ForHypothesis2.id,
-    },
-  });
-  // Taskの作成
-  const task4ForHypothesis2 = await prisma.task.create({
-    data: {
-      description:
-        "シンガポールの人口密度がモルディブよりも高いことを確認する。",
-      status: "PENDING",
-    },
-  });
-  // Hypothesis2とTasksの関連付け
-  await prisma.hypothesisTask.create({
-    data: {
-      hypothesisId: hypothesis2.id,
-      taskId: task4ForHypothesis2.id,
     },
   });
 };
