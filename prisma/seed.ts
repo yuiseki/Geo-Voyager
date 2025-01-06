@@ -350,7 +350,7 @@ const seedQuestionWhichWardsInTokyoIsMostHighestDensitySchools = async () => {
   const hypothesisAnswer = await prisma.hypothesis.create({
     data: {
       description:
-        "東京都において、人口あたりの学校の数が最も多い行政区は中央区である。",
+        "東京都において、人口あたりの学校の数が最も多い行政区は港区である。",
       status: "PENDING",
       questionId: question.id, // Questionとの関連付け
     },
@@ -359,7 +359,7 @@ const seedQuestionWhichWardsInTokyoIsMostHighestDensitySchools = async () => {
   const taskForHypothesisAnswer = await prisma.task.create({
     data: {
       description:
-        "東京都において、人口あたりの学校の数が最も多い行政区が中央区であることを確認する。",
+        "東京都において、人口あたりの学校の数が最も多い行政区が港区であることを確認する。",
       status: "PENDING",
     },
   });
