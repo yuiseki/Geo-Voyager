@@ -71,11 +71,11 @@ async function getHospitalsCountInAdminInsideTokyo(
   const overpassQuery = `
 [out:json];
 area["name"="${adminName}"]->.a;
-nwr(area.a)["amenity"="hospital"];
+nwr["amenity"="hospital"](area.a);
 out count;
 `;
   const response = await fetchOverpassData(overpassQuery);
-  return response.elements[0].count;
+  return response.elements[0].tags.total;
 }
 
 /**
@@ -113,6 +113,9 @@ async function getHospitalsPerPopulationInAdminInsideTokyo(
 ): Promise<number> {
   const hospitalCount = await getHospitalsCountInAdminInsideTokyo(adminName);
   const population = await getPopulationInAdminInsideTokyo(adminName);
+  if (population === 0) {
+    return 0;
+  }
   return population > 0 ? hospitalCount / population : 0;
 }
 

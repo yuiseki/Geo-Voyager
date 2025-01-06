@@ -8,6 +8,7 @@ import { findAndExecuteTasksByHypothesis } from "./utils/findAndExecuteTasksByHy
 import { formulateNewHypothesis } from "./utils/formulateNewHypothesis";
 import { listUpAllSolvedQuestions } from "./utils/listUpAllSolvedQuestions";
 import { getAllExecutedTasksByHypothesisId, TaskStatus } from "./db/task";
+import checkChiyodaIsMostHospitalsPerPopulationWardInTokyo from "../tmp/skills/generated_skill_1736167666518";
 
 (async () => {
   console.log("🗺️  Initializing Geo-Voyager...");

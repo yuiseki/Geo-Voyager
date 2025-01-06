@@ -278,6 +278,65 @@ const seedQuestionWhichWardsInTokyoIsMostHighestDensityHospitals = async () => {
       taskId: taskForHypothesisWrong.id,
     },
   });
+  // HypothesisAnswerの作成
+  const hypothesisAnswer = await prisma.hypothesis.create({
+    data: {
+      description:
+        "東京都において、人口あたりの病院の数が最も多い行政区は中央区である。",
+      status: "PENDING",
+      questionId: question.id, // Questionとの関連付け
+    },
+  });
+  // Taskの作成
+  const taskForHypothesisAnswer = await prisma.task.create({
+    data: {
+      description:
+        "東京都において、人口あたりの病院の数が最も多い行政区が中央区であることを確認する。",
+      status: "PENDING",
+    },
+  });
+  // HypothesisとTasksの関連付け
+  await prisma.hypothesisTask.create({
+    data: {
+      hypothesisId: hypothesisAnswer.id,
+      taskId: taskForHypothesisAnswer.id,
+    },
+  });
+};
+
+const seedQuestionWhichWardsInTokyoIsMostHighestDensitySchools = async () => {
+  // Questionの作成
+  const question = await prisma.question.create({
+    data: {
+      description:
+        "東京都において、人口あたりの学校の数が最も多い行政区はどこだろう？",
+      status: "OPEN",
+    },
+  });
+  // HypothesisWrongの作成
+  const hypothesisWrong = await prisma.hypothesis.create({
+    data: {
+      description:
+        "東京都において、人口あたりの学校の数が最も多い行政区は千代田区である。",
+      status: "PENDING",
+      questionId: question.id, // Questionとの関連付け
+    },
+  });
+  // Taskの作成
+  const taskForHypothesisWrong = await prisma.task.create({
+    data: {
+      description:
+        "東京都において、人口あたりの学校の数が最も多い行政区が千代田区であることを確認する。",
+      status: "PENDING",
+    },
+  });
+  // HypothesisとTasksの関連付け
+  await prisma.hypothesisTask.create({
+    data: {
+      hypothesisId: hypothesisWrong.id,
+      taskId: taskForHypothesisWrong.id,
+    },
+  });
 };
 
 const seedSkills = async () => {
@@ -319,6 +378,7 @@ async function main() {
   await seedQuestionWhichWardsInTokyoIsMostHospitals();
   await seedQuestionWhichWardsInTokyoIsMostSchools();
   await seedQuestionWhichWardsInTokyoIsMostHighestDensityHospitals();
+  await seedQuestionWhichWardsInTokyoIsMostHighestDensitySchools();
   await seedSkills();
 }
 
