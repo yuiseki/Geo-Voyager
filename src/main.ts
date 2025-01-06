@@ -8,15 +8,9 @@ import { findAndExecuteTasksByHypothesis } from "./utils/findAndExecuteTasksByHy
 import { formulateNewHypothesis } from "./utils/formulateNewHypothesis";
 import { listUpAllSolvedQuestions } from "./utils/listUpAllSolvedQuestions";
 import { getAllExecutedTasksByHypothesisId, TaskStatus } from "./db/task";
-import checkChiyodaIsMostHospitalsPerPopulationWardInTokyo from "../tmp/skills/generated_skill_1736167666518";
-import checkInagiIsMostSchoolsPerPopulationWardInTokyo from "../tmp/skills/generated_skill_1736172707504";
-import checkChuoIsMostSchoolsPerPopulationWardInTokyo from "./lib/skills/admins/Japan/Tokyo/checkChuoIsMostSchoolsPerPopulationWardInTokyo";
 
 (async () => {
   console.log("🗺️  Initializing Geo-Voyager...");
-
-  const result = await checkChuoIsMostSchoolsPerPopulationWardInTokyo();
-  console.log(result);
 
   await listUpAllSolvedQuestions();
 
