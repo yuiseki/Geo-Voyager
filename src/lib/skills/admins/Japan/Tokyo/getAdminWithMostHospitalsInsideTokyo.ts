@@ -1,4 +1,4 @@
-// description: 東京都のすべての行政区の中で、最も多くの病院がある行政区を見つける
+// description: 東京都のすべての行政区の中で、最も多くの病院がある行政区を見つける。
 // file_path: src/lib/skills/numberOfSchools/Japan/Tokyo/getAdminWithMostHospitalsInsideTokyo.ts
 
 import fs from "fs";
@@ -89,7 +89,7 @@ const getAdminWithMostHospitalsInsideTokyo = async (): Promise<string> => {
   for (const adminArea of adminAreas.split("\n")) {
     const hospitalCount = await getHospitalCountByAdminInsideTokyo(adminArea);
     console.log(
-      `getWardWithMostHospitals ${adminArea}: ${hospitalCount} hospitals`
+      `getAdminWithMostHospitalsInsideTokyo ${adminArea}: ${hospitalCount} hospitals`
     );
     if (hospitalCount > maxHospitals) {
       maxHospitals = hospitalCount;

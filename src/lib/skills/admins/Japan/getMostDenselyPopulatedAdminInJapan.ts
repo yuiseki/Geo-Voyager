@@ -1,4 +1,4 @@
-// description: 日本で最も人口密度が高い都道府県を取得する
+// description: 日本で最も人口密度が高い都道府県を取得する。
 // file_path: src/lib/skills/admins/Japan/getMostDenselyPopulatedAdminInJapan.ts
 
 import * as turf from "@turf/turf";

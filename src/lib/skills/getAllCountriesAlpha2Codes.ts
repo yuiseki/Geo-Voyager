@@ -1,4 +1,4 @@
-// description: 世界のすべての国の ISO3166-1 Alpha-2 コードを取得する
+// description: 世界のすべての国の ISO3166-1 Alpha-2 コードを取得する。
 // file_path: src/lib/skills/list/getAllCountriesAlpha2Codes.ts
 
 import fs from "fs";

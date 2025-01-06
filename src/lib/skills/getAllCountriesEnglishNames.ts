@@ -1,4 +1,4 @@
-// description: 世界のすべての国の英語名を取得する
+// description: 世界のすべての国の英語名を取得する。
 // file_path: src/lib/skills/list/getAllCountriesEnglishNames.ts
 
 import fs from "fs";

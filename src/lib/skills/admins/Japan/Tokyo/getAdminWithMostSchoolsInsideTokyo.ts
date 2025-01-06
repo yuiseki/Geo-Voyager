@@ -1,4 +1,4 @@
-// description: 東京都のすべての行政区の中で、最も多くの学校がある行政区を見つける
+// description: 東京都のすべての行政区の中で、最も多くの学校がある行政区を見つける。
 // file_path: src/lib/skills/numberOfSchools/Japan/Tokyo/getAdminWithMostSchoolsInTokyo.ts
 
 import fs from "fs";
@@ -88,7 +88,9 @@ const getAdminWithMostSchoolsInTokyo = async (): Promise<string> => {
   let wardWithMostSchools = "";
   for (const adminArea of adminAreas.split("\n")) {
     const schoolCount = await getSchoolCountByAdminInsideTokyo(adminArea);
-    console.log(`getWardWithMostSchools ${adminArea}: ${schoolCount} schools`);
+    console.log(
+      `getAdminWithMostSchoolsInTokyo ${adminArea}: ${schoolCount} schools`
+    );
     if (schoolCount > maxSchools) {
       maxSchools = schoolCount;
       wardWithMostSchools = adminArea;

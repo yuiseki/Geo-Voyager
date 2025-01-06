@@ -1,4 +1,4 @@
-// description: 東京都のすべての行政区の名前を取得する
+// description: 東京都のすべての行政区の名前を取得する。
 // file_path: src/lib/skills/list/Japan/Tokyo/listUpAllWardsInTokyo.ts
 
 import fs from "fs";

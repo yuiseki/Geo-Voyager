@@ -1,8 +1,6 @@
-// description: 東京都のすべての行政区の中で、最も人口密度が高い行政区を見つける。
-// file_path: src/lib/skills/admins/Japan/Tokyo/getMostDenselyPopulatedAdminInsideTokyo.ts
+// description: 東京都において、学校が最も多い行政区が渋谷区であることを確認する。
+// file_path: src/lib/skills/admins/Japan/Tokyo/checkShibuyaIsMostSchoolsWardInTokyo.ts
 
-import * as turf from "@turf/turf";
-import osmtogeojson from "osmtogeojson";
 import fs from "fs";
 import { Md5 } from "ts-md5";
 
@@ -67,46 +65,43 @@ out tags;
  * @param adminName - The name of the admin area to query.
  * @returns The total count of schools in the admin area.
  */
-async function getPopulationDensityOfAdminInsideTokyo(
+async function getSchoolCountByAdminInsideTokyo(
   adminName: string
 ): Promise<number> {
   const overpassQuery = `
 [out:json];
 area["name"="東京都"]->.tokyo;
+area["name"="${adminName}"]->.ward;
 (
-  relation["name"="${adminName}"]["admin_level"="7"](area.tokyo);
+  nwr["amenity"="school"](area.ward)(area.tokyo);
 );
-out geom;
+out count;
 `;
+
   const response = await fetchOverpassData(overpassQuery);
-  const geojson = osmtogeojson(response);
-  // area in square meters
-  const area = turf.area(geojson.features[0]);
-  const areaKm2 = area / 1000000;
-  let population = parseInt(response.elements[0].tags.population);
-  if (isNaN(population)) {
-    population = 0;
-  }
-  return population / areaKm2;
+  return response.elements[0].tags.total;
 }
 
-const getMostDenselyPopulatedAdminInTokyo = async (): Promise<string> => {
+const getAdminWithMostSchoolsInTokyo = async (): Promise<string> => {
   const adminAreas = await getAllAdminNamesInTokyo();
-  let maxPopulationDensity = 0;
-  let mostDenselyPopulatedAdmin = "";
-  for (const admin of adminAreas.split("\n")) {
-    const populationDensity = await getPopulationDensityOfAdminInsideTokyo(
-      admin
-    );
+  let maxSchools = 0;
+  let wardWithMostSchools = "";
+  for (const adminArea of adminAreas.split("\n")) {
+    const schoolCount = await getSchoolCountByAdminInsideTokyo(adminArea);
     console.log(
-      `getMostDenselyPopulatedAdminInTokyo ${admin}: ${populationDensity} people/km²`
+      `getAdminWithMostSchoolsInTokyo ${adminArea}: ${schoolCount} schools`
     );
-    if (populationDensity > maxPopulationDensity) {
-      maxPopulationDensity = populationDensity;
-      mostDenselyPopulatedAdmin = admin;
+    if (schoolCount > maxSchools) {
+      maxSchools = schoolCount;
+      wardWithMostSchools = adminArea;
     }
   }
-  return mostDenselyPopulatedAdmin;
+  return wardWithMostSchools;
 };
 
-export default getMostDenselyPopulatedAdminInTokyo;
+const checkShibuyaIsMostSchoolsWardInTokyo = async (): Promise<boolean> => {
+  const wardWithMostSchools = await getAdminWithMostSchoolsInTokyo();
+  return wardWithMostSchools.includes("渋谷区");
+};
+
+export default checkShibuyaIsMostSchoolsWardInTokyo;

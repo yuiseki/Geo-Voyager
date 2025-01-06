@@ -1,4 +1,4 @@
-// description: 日本のすべての都道府県の名前を取得する
+// description: 日本のすべての都道府県の名前を取得する。
 // file_path: src/lib/skills/list/Japan/Tokyo/listUpAllWardsInTokyo.ts
 
 import fs from "fs";
