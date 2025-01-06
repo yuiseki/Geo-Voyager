@@ -1,5 +1,5 @@
-// description: 世界で最も人口密度の高い国がモナコであることを確認する。
-// file_path: src/lib/skills/checkWorldsMostDenselyPopulatedCountryIsMonaco.ts
+// description: 世界で最も人口密度の高い国がシンガポールであることを確認する。
+// file_path: src/lib/skills/checkWorldsMostDenselyPopulatedCountryIsSingapore.ts
 
 import fs from "fs";
 
@@ -133,11 +133,11 @@ const getWorldsMostDenselyPopulatedCountry = async (): Promise<string> => {
   return mostDenselyPopulatedCountry;
 };
 
-const checkWorldsMostDenselyPopulatedCountryIsMonaco =
+const checkWorldsMostDenselyPopulatedCountryIsSingapore =
   async (): Promise<boolean> => {
     const mostDenselyPopulatedCountry =
       await getWorldsMostDenselyPopulatedCountry();
-    return mostDenselyPopulatedCountry.includes("Monaco");
+    return mostDenselyPopulatedCountry.includes("Singapore");
   };
 
-export default checkWorldsMostDenselyPopulatedCountryIsMonaco;
+export default checkWorldsMostDenselyPopulatedCountryIsSingapore;
