@@ -18,24 +18,24 @@ const prisma = new PrismaClient();
 */
 
 const seedQuestionWhichCountryIsMostHighestPopulationDensity = async () => {
-  // Question1の作成
-  const question1 = await prisma.question.create({
+  // Questionの作成
+  const question = await prisma.question.create({
     data: {
       description: "世界で最も人口密度が高い国はどこだろう？",
       status: "OPEN",
     },
   });
 
-  // Hypothesisの作成
+  // HypothesisWrongの作成
   const hypothesisWrong = await prisma.hypothesis.create({
     data: {
       description: "世界で最も人口密度が高い国はシンガポールである。",
       status: "PENDING",
-      questionId: question1.id, // Questionとの関連付け
+      questionId: question.id, // Questionとの関連付け
     },
   });
   // Taskの作成
-  const task1ForHypothesisWrong = await prisma.task.create({
+  const taskForHypothesisWrong = await prisma.task.create({
     data: {
       description:
         "世界で最も人口密度の高い国がシンガポールであることを確認する。",
@@ -46,7 +46,7 @@ const seedQuestionWhichCountryIsMostHighestPopulationDensity = async () => {
   await prisma.hypothesisTask.create({
     data: {
       hypothesisId: hypothesisWrong.id,
-      taskId: task1ForHypothesisWrong.id,
+      taskId: taskForHypothesisWrong.id,
     },
   });
 
@@ -55,11 +55,11 @@ const seedQuestionWhichCountryIsMostHighestPopulationDensity = async () => {
     data: {
       description: "世界で最も人口密度が高い国はモナコである。",
       status: "PENDING",
-      questionId: question1.id, // Questionとの関連付け
+      questionId: question.id, // Questionとの関連付け
     },
   });
   // Taskの作成
-  const task1ForHypothesisAnswer = await prisma.task.create({
+  const taskForHypothesisAnswer = await prisma.task.create({
     data: {
       description: "世界で最も人口密度の高い国がモナコであることを確認する。",
       status: "PENDING",
@@ -69,31 +69,31 @@ const seedQuestionWhichCountryIsMostHighestPopulationDensity = async () => {
   await prisma.hypothesisTask.create({
     data: {
       hypothesisId: hypothesisAnswer.id,
-      taskId: task1ForHypothesisAnswer.id,
+      taskId: taskForHypothesisAnswer.id,
     },
   });
 };
 
 const seedQuestionWhichWardsInTokyoIsMostHighestPopulationDensity =
   async () => {
-    // Question2の作成
-    const question2 = await prisma.question.create({
+    // Questionの作成
+    const question = await prisma.question.create({
       data: {
         description: "東京都において、人口密度が最も高い行政区はどこだろう？",
         status: "OPEN",
       },
     });
-    // Hypothesisの作成
-    const hypothesis = await prisma.hypothesis.create({
+    // HypothesisWrongの作成
+    const hypothesisWrong = await prisma.hypothesis.create({
       data: {
         description:
           "東京都において、人口密度が最も高い行政区は千代田区である。",
         status: "PENDING",
-        questionId: question2.id, // Questionとの関連付け
+        questionId: question.id, // Questionとの関連付け
       },
     });
     // Taskの作成
-    const task1 = await prisma.task.create({
+    const taskForHypothesisWrong = await prisma.task.create({
       data: {
         description:
           "東京都において、人口密度が最も高い行政区が千代田区であることを確認する。",
@@ -103,8 +103,8 @@ const seedQuestionWhichWardsInTokyoIsMostHighestPopulationDensity =
     // HypothesisとTasksの関連付け
     await prisma.hypothesisTask.create({
       data: {
-        hypothesisId: hypothesis.id,
-        taskId: task1.id,
+        hypothesisId: hypothesisWrong.id,
+        taskId: taskForHypothesisWrong.id,
       },
     });
     // HypothesisAnswerの作成
@@ -112,11 +112,11 @@ const seedQuestionWhichWardsInTokyoIsMostHighestPopulationDensity =
       data: {
         description: "東京都において、人口密度が最も高い行政区は豊島区である。",
         status: "PENDING",
-        questionId: question2.id, // Questionとの関連付け
+        questionId: question.id, // Questionとの関連付け
       },
     });
     // Taskの作成
-    const task2 = await prisma.task.create({
+    const taskForHypothesisAnswer = await prisma.task.create({
       data: {
         description:
           "東京都において、人口密度が最も高い行政区が豊島区であることを確認する。",
@@ -127,21 +127,21 @@ const seedQuestionWhichWardsInTokyoIsMostHighestPopulationDensity =
     await prisma.hypothesisTask.create({
       data: {
         hypothesisId: hypothesisAnswer.id,
-        taskId: task2.id,
+        taskId: taskForHypothesisAnswer.id,
       },
     });
   };
 
 const seedQuestionWhichWardsInTokyoIsMostHospitals = async () => {
-  // Question4の作成
+  // Questionの作成
   const question = await prisma.question.create({
     data: {
       description: "東京都において、病院が最も多い行政区はどこだろう？",
       status: "OPEN",
     },
   });
-  // Hypothesisの作成
-  const hypothesis = await prisma.hypothesis.create({
+  // HypothesisWrongの作成
+  const hypothesisWrong = await prisma.hypothesis.create({
     data: {
       description: "東京都において、病院が最も多い行政区は江東区である。",
       status: "PENDING",
@@ -149,7 +149,7 @@ const seedQuestionWhichWardsInTokyoIsMostHospitals = async () => {
     },
   });
   // Taskの作成
-  const task1 = await prisma.task.create({
+  const taskForHypothesisWrong = await prisma.task.create({
     data: {
       description:
         "東京都において、病院が最も多い行政区が江東区であることを確認する。",
@@ -159,8 +159,8 @@ const seedQuestionWhichWardsInTokyoIsMostHospitals = async () => {
   // HypothesisとTasksの関連付け
   await prisma.hypothesisTask.create({
     data: {
-      hypothesisId: hypothesis.id,
-      taskId: task1.id,
+      hypothesisId: hypothesisWrong.id,
+      taskId: taskForHypothesisWrong.id,
     },
   });
   // HypothesisAnswerの作成
@@ -172,7 +172,7 @@ const seedQuestionWhichWardsInTokyoIsMostHospitals = async () => {
     },
   });
   // Taskの作成
-  const task2 = await prisma.task.create({
+  const taskForHypothesisAnswer = await prisma.task.create({
     data: {
       description:
         "東京都において、病院が最も多い行政区が多摩市であることを確認する。",
@@ -183,29 +183,29 @@ const seedQuestionWhichWardsInTokyoIsMostHospitals = async () => {
   await prisma.hypothesisTask.create({
     data: {
       hypothesisId: hypothesisAnswer.id,
-      taskId: task2.id,
+      taskId: taskForHypothesisAnswer.id,
     },
   });
 };
 
 const seedQuestionWhichWardsInTokyoIsMostSchools = async () => {
-  // Question3の作成
-  const question3 = await prisma.question.create({
+  // Questionの作成
+  const question = await prisma.question.create({
     data: {
       description: "東京都において、学校が最も多い行政区はどこだろう？",
       status: "OPEN",
     },
   });
-  // Hypothesisの作成
-  const hypothesis = await prisma.hypothesis.create({
+  // HypothesisWrongの作成
+  const hypothesisWrong = await prisma.hypothesis.create({
     data: {
       description: "東京都において、学校が最も多い行政区は渋谷区である。",
       status: "PENDING",
-      questionId: question3.id, // Questionとの関連付け
+      questionId: question.id, // Questionとの関連付け
     },
   });
   // Taskの作成
-  const task1 = await prisma.task.create({
+  const taskForHypothesisWrong = await prisma.task.create({
     data: {
       description:
         "東京都において、学校が最も多い行政区が渋谷区であることを確認する。",
@@ -215,8 +215,8 @@ const seedQuestionWhichWardsInTokyoIsMostSchools = async () => {
   // HypothesisとTasksの関連付け
   await prisma.hypothesisTask.create({
     data: {
-      hypothesisId: hypothesis.id,
-      taskId: task1.id,
+      hypothesisId: hypothesisWrong.id,
+      taskId: taskForHypothesisWrong.id,
     },
   });
   // HypothesisAnswerの作成
@@ -224,11 +224,11 @@ const seedQuestionWhichWardsInTokyoIsMostSchools = async () => {
     data: {
       description: "東京都において、学校が最も多い行政区は江東区である。",
       status: "PENDING",
-      questionId: question3.id, // Questionとの関連付け
+      questionId: question.id, // Questionとの関連付け
     },
   });
   // Taskの作成
-  const task2 = await prisma.task.create({
+  const taskForHypothesisAnswer = await prisma.task.create({
     data: {
       description:
         "東京都において、学校が最も多い行政区が江東区であることを確認する。",
@@ -239,7 +239,43 @@ const seedQuestionWhichWardsInTokyoIsMostSchools = async () => {
   await prisma.hypothesisTask.create({
     data: {
       hypothesisId: hypothesisAnswer.id,
-      taskId: task2.id,
+      taskId: taskForHypothesisAnswer.id,
+    },
+  });
+};
+
+// 東京都において、人口あたりの病院の数が最も多い行政区はどこだろう？
+const seedQuestionWhichWardsInTokyoIsMostHighestDensityHospitals = async () => {
+  // Questionの作成
+  const question = await prisma.question.create({
+    data: {
+      description:
+        "東京都において、人口あたりの病院の数が最も多い行政区はどこだろう？",
+      status: "OPEN",
+    },
+  });
+  // HypothesisWrongの作成
+  const hypothesisWrong = await prisma.hypothesis.create({
+    data: {
+      description:
+        "東京都において、人口あたりの病院の数が最も多い行政区は千代田区である。",
+      status: "PENDING",
+      questionId: question.id, // Questionとの関連付け
+    },
+  });
+  // Taskの作成
+  const taskForHypothesisWrong = await prisma.task.create({
+    data: {
+      description:
+        "東京都において、人口あたりの病院の数が最も多い行政区が千代田区であることを確認する。",
+      status: "PENDING",
+    },
+  });
+  // HypothesisとTasksの関連付け
+  await prisma.hypothesisTask.create({
+    data: {
+      hypothesisId: hypothesisWrong.id,
+      taskId: taskForHypothesisWrong.id,
     },
   });
 };
@@ -282,6 +318,7 @@ async function main() {
   await seedQuestionWhichWardsInTokyoIsMostHighestPopulationDensity();
   await seedQuestionWhichWardsInTokyoIsMostHospitals();
   await seedQuestionWhichWardsInTokyoIsMostSchools();
+  await seedQuestionWhichWardsInTokyoIsMostHighestDensityHospitals();
   await seedSkills();
 }
 
