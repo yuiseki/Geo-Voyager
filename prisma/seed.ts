@@ -486,7 +486,7 @@ const seedQuestionWhichWardsInTokyoIsMostWidelyAreaInTokyo = async () => {
   // HypothesisAnswerの作成
   const hypothesisAnswer = await prisma.hypothesis.create({
     data: {
-      description: "東京都において、面積が最も広い行政区は八王子市である。",
+      description: "東京都において、面積が最も広い行政区は小笠原村である。",
       status: "PENDING",
       questionId: question.id, // Questionとの関連付け
     },
@@ -495,7 +495,7 @@ const seedQuestionWhichWardsInTokyoIsMostWidelyAreaInTokyo = async () => {
   const taskForHypothesisAnswer = await prisma.task.create({
     data: {
       description:
-        "東京都において、面積が最も広い行政区が八王子市であることを確認する。",
+        "東京都において、面積が最も広い行政区が小笠原村であることを確認する。",
       status: "PENDING",
     },
   });
