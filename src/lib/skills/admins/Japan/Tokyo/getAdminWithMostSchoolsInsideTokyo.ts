@@ -88,7 +88,7 @@ const getAdminWithMostSchoolsInTokyo = async (): Promise<string> => {
   let wardWithMostSchools = "";
   for (const adminArea of adminAreas.split("\n")) {
     const schoolCount = await getSchoolCountByAdminInsideTokyo(adminArea);
-    console.log(
+    console.info(
       `getAdminWithMostSchoolsInTokyo ${adminArea}: ${schoolCount} schools`
     );
     if (schoolCount > maxSchools) {

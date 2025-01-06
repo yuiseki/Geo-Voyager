@@ -98,9 +98,6 @@ const getMostDenselyPopulatedAdminInTokyo = async (): Promise<string> => {
     const populationDensity = await getPopulationDensityOfAdminInsideTokyo(
       admin
     );
-    console.log(
-      `getMostDenselyPopulatedAdminInTokyo ${admin}: ${populationDensity} people/km²`
-    );
     if (populationDensity > maxPopulationDensity) {
       maxPopulationDensity = populationDensity;
       mostDenselyPopulatedAdmin = admin;
@@ -113,6 +110,10 @@ const checkChiyodaIsMostDenselyPopulatedWardInTokyo =
   async (): Promise<boolean> => {
     const mostDenselyPopulatedAdmin =
       await getMostDenselyPopulatedAdminInTokyo();
+    console.info(
+      "Most densely populated admin in Tokyo:",
+      mostDenselyPopulatedAdmin
+    );
     return mostDenselyPopulatedAdmin.includes("千代田区");
   };
 

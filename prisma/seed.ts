@@ -132,6 +132,39 @@ const seedQuestionWhichWardsInTokyoIsMostHighestPopulationDensity =
     });
   };
 
+const seedQuestionWhichWardsInTokyoIsMostHospitals = async () => {
+  // Question4の作成
+  const question = await prisma.question.create({
+    data: {
+      description: "東京都において、病院が最も多い行政区はどこだろう？",
+      status: "OPEN",
+    },
+  });
+  // Hypothesisの作成
+  const hypothesis = await prisma.hypothesis.create({
+    data: {
+      description: "東京都において、病院が最も多い行政区は江東区である。",
+      status: "PENDING",
+      questionId: question.id, // Questionとの関連付け
+    },
+  });
+  // Taskの作成
+  const task1 = await prisma.task.create({
+    data: {
+      description:
+        "東京都において、病院が最も多い行政区が江東区であることを確認する。",
+      status: "PENDING",
+    },
+  });
+  // HypothesisとTasksの関連付け
+  await prisma.hypothesisTask.create({
+    data: {
+      hypothesisId: hypothesis.id,
+      taskId: task1.id,
+    },
+  });
+};
+
 const seedQuestionWhichWardsInTokyoIsMostSchools = async () => {
   // Question3の作成
   const question3 = await prisma.question.create({
@@ -163,37 +196,27 @@ const seedQuestionWhichWardsInTokyoIsMostSchools = async () => {
       taskId: task1.id,
     },
   });
-};
-
-const seedQuestionWhichWardsInTokyoIsMostHospitals = async () => {
-  // Question4の作成
-  const question4 = await prisma.question.create({
+  // HypothesisAnswerの作成
+  const hypothesisAnswer = await prisma.hypothesis.create({
     data: {
-      description: "東京都において、病院が最も多い行政区はどこだろう？",
-      status: "OPEN",
-    },
-  });
-  // Hypothesisの作成
-  const hypothesis = await prisma.hypothesis.create({
-    data: {
-      description: "東京都において、病院が最も多い行政区は渋谷区である。",
+      description: "東京都において、学校が最も多い行政区は江東区である。",
       status: "PENDING",
-      questionId: question4.id, // Questionとの関連付け
+      questionId: question3.id, // Questionとの関連付け
     },
   });
   // Taskの作成
-  const task1 = await prisma.task.create({
+  const task2 = await prisma.task.create({
     data: {
       description:
-        "東京都において、病院が最も多い行政区が渋谷区であることを確認する。",
+        "東京都において、学校が最も多い行政区が江東区であることを確認する。",
       status: "PENDING",
     },
   });
   // HypothesisとTasksの関連付け
   await prisma.hypothesisTask.create({
     data: {
-      hypothesisId: hypothesis.id,
-      taskId: task1.id,
+      hypothesisId: hypothesisAnswer.id,
+      taskId: task2.id,
     },
   });
 };
@@ -234,8 +257,8 @@ async function main() {
 
   await seedQuestionWhichCountryIsMostHighestPopulationDensity();
   await seedQuestionWhichWardsInTokyoIsMostHighestPopulationDensity();
-  await seedQuestionWhichWardsInTokyoIsMostSchools();
   await seedQuestionWhichWardsInTokyoIsMostHospitals();
+  await seedQuestionWhichWardsInTokyoIsMostSchools();
   await seedSkills();
 }
 

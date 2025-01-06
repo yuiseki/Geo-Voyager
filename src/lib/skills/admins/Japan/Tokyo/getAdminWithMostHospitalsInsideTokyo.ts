@@ -88,7 +88,7 @@ const getAdminWithMostHospitalsInsideTokyo = async (): Promise<string> => {
   let wardWithMostHospitals = "";
   for (const adminArea of adminAreas.split("\n")) {
     const hospitalCount = await getHospitalCountByAdminInsideTokyo(adminArea);
-    console.log(
+    console.info(
       `getAdminWithMostHospitalsInsideTokyo ${adminArea}: ${hospitalCount} hospitals`
     );
     if (hospitalCount > maxHospitals) {

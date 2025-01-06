@@ -260,7 +260,7 @@ const getMostDenselyPopulatedPrefInJapan = async (): Promise<string> => {
       prefName,
       latestPopulation
     );
-    console.log(
+    console.info(
       `${prefName}: ${latestPopulation} people, ${populationDensity} people/km²`
     );
     if (populationDensity > maxPopulationDensity) {

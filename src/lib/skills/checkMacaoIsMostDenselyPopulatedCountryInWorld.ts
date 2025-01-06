@@ -128,9 +128,6 @@ const getWorldsMostDenselyPopulatedCountry = async (): Promise<string> => {
     }
     try {
       const populationDensity = await fetchWorldBankPopulationDensity(code);
-      console.log(
-        `getMostDenselyPopulatedCountry, ${code}: ${populationDensity}`
-      );
       if (populationDensity > highestPopulationDensity) {
         highestPopulationDensity = populationDensity;
         mostDenselyPopulatedCountry = await getCountryNameByAlpha2Codes(code);
@@ -147,6 +144,9 @@ const checkMacaoIsMostDenselyPopulatedCountryInWorld =
   async (): Promise<boolean> => {
     const mostDenselyPopulatedCountry =
       await getWorldsMostDenselyPopulatedCountry();
+    console.info(
+      `The most densely populated country is ${mostDenselyPopulatedCountry}.`
+    );
     return mostDenselyPopulatedCountry.includes("Macao");
   };
 

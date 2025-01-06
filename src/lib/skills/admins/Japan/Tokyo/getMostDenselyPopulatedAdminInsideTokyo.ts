@@ -98,7 +98,7 @@ const getMostDenselyPopulatedAdminInTokyo = async (): Promise<string> => {
     const populationDensity = await getPopulationDensityOfAdminInsideTokyo(
       admin
     );
-    console.log(
+    console.info(
       `getMostDenselyPopulatedAdminInTokyo ${admin}: ${populationDensity} people/km²`
     );
     if (populationDensity > maxPopulationDensity) {

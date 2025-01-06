@@ -88,9 +88,6 @@ const getAdminWithMostSchoolsInTokyo = async (): Promise<string> => {
   let wardWithMostSchools = "";
   for (const adminArea of adminAreas.split("\n")) {
     const schoolCount = await getSchoolCountByAdminInsideTokyo(adminArea);
-    console.log(
-      `getAdminWithMostSchoolsInTokyo ${adminArea}: ${schoolCount} schools`
-    );
     if (schoolCount > maxSchools) {
       maxSchools = schoolCount;
       wardWithMostSchools = adminArea;
@@ -101,6 +98,7 @@ const getAdminWithMostSchoolsInTokyo = async (): Promise<string> => {
 
 const checkShinjukuIsMostSchoolsWardInTokyo = async (): Promise<boolean> => {
   const wardWithMostSchools = await getAdminWithMostSchoolsInTokyo();
+  console.info(`Most schools ward in Tokyo: ${wardWithMostSchools}`);
   return wardWithMostSchools.includes("新宿区");
 };
 

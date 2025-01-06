@@ -8,9 +8,16 @@ import { findAndExecuteTasksByHypothesis } from "./utils/findAndExecuteTasksByHy
 import { formulateNewHypothesis } from "./utils/formulateNewHypothesis";
 import { listUpAllSolvedQuestions } from "./utils/listUpAllSolvedQuestions";
 import { getAllExecutedTasksByHypothesisId, TaskStatus } from "./db/task";
+import getAdminWithMostSchoolsInTokyo from "./lib/skills/admins/Japan/Tokyo/getAdminWithMostSchoolsInsideTokyo";
 
 (async () => {
   console.log("🗺️  Initializing Geo-Voyager...");
+
+  const schools = await getAdminWithMostSchoolsInTokyo();
+  console.log("Most schools in Tokyo:", schools);
+
+  const hospital = await getAdminWithMostSchoolsInTokyo();
+  console.log("Most hospitals in Tokyo:", hospital);
 
   await listUpAllSolvedQuestions();
 
