@@ -74,6 +74,58 @@ const seedQuestionWhichCountryIsMostHighestPopulationDensity = async () => {
   });
 };
 
+const seedQuestionWhichWardsInTokyoIsMostHighestPopulationDensity =
+  async () => {
+    // Question2の作成
+    const question2 = await prisma.question.create({
+      data: {
+        description: "東京都において、人口密度が最も高い行政区はどこだろう？",
+        status: "OPEN",
+      },
+    });
+    // Hypothesisの作成
+    const hypothesis = await prisma.hypothesis.create({
+      data: {
+        description:
+          "東京都において、人口密度が最も高い行政区は千代田区である。",
+        status: "PENDING",
+        questionId: question2.id, // Questionとの関連付け
+      },
+    });
+    // Taskの作成
+    const task1 = await prisma.task.create({
+      data: {
+        description:
+          "東京都において、人口密度が最も高い行政区が千代田区であることを確認する。",
+        status: "PENDING",
+      },
+    });
+    // HypothesisとTasksの関連付け
+    await prisma.hypothesisTask.create({
+      data: {
+        hypothesisId: hypothesis.id,
+        taskId: task1.id,
+      },
+    });
+    // HypothesisAnswerの作成
+    const hypothesisAnswer = await prisma.hypothesis.create({
+      data: {
+        description:
+          "東京都において、人口密度が最も高い行政区は豊島区である。",
+        status: "PENDING",
+        questionId: question2.id, // Questionとの関連付け
+      },
+    });
+    // Taskの作成
+    const task2 = await prisma.task.create({
+      data: {
+        description:
+          "東京都において、人口密度が最も高い行政区が豊島区であることを確認する。",
+        status: "PENDING",
+      },
+    });
+  };
+
 const seedSkills = async () => {
   // src/lib/skills/**/*.ts ファイルをすべて取得
   const skillFiles = await glob(
@@ -109,6 +161,7 @@ async function main() {
   console.log("Seeding...");
 
   await seedQuestionWhichCountryIsMostHighestPopulationDensity();
+  await seedQuestionWhichWardsInTokyoIsMostHighestPopulationDensity();
   await seedSkills();
 }
 

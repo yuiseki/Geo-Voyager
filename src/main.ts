@@ -8,18 +8,9 @@ import { findAndExecuteTasksByHypothesis } from "./utils/findAndExecuteTasksByHy
 import { formulateNewHypothesis } from "./utils/formulateNewHypothesis";
 import { listUpAllSolvedQuestions } from "./utils/listUpAllSolvedQuestions";
 import { getAllExecutedTasksByHypothesisId, TaskStatus } from "./db/task";
-import getWorldsMostDenselyPopulatedCountry from "./lib/skills/checkWorldsMostDenselyPopulatedCountryIsMonaco";
-import getMostDenselyPopulatedAdminInTokyo from "./lib/skills/admins/Japan/Tokyo/getMostDenselyPopulatedAdminInsideTokyo";
-import getMostDenselyPopulatedPrefInJapan from "./lib/skills/admins/Japan/getMostDenselyPopulatedAdminInJapan";
 
 (async () => {
   console.log("🗺️  Initializing Geo-Voyager...");
-
-  const result = await getMostDenselyPopulatedPrefInJapan();
-
-  console.log(`result: ${result}`);
-
-  return;
 
   await listUpAllSolvedQuestions();
 

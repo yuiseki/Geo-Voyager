@@ -1,5 +1,5 @@
-// description: 東京都のすべての行政区の中で、最も人口密度が高い行政区を見つける
-// file_path: src/lib/skills/admins/Japan/Tokyo/getMostDenselyPopulatedAdminInsideTokyo.ts
+// description: 東京都において、人口密度が最も高い行政区が豊島区であることを確認する。
+// file_path: src/lib/skills/admins/Japan/Tokyo/checkToshimaIsMostDenselyPopulatedWardInTokyo.ts
 
 import * as turf from "@turf/turf";
 import osmtogeojson from "osmtogeojson";
@@ -109,4 +109,11 @@ const getMostDenselyPopulatedAdminInTokyo = async (): Promise<string> => {
   return mostDenselyPopulatedAdmin;
 };
 
-export default getMostDenselyPopulatedAdminInTokyo;
+const checkToshimaIsMostDenselyPopulatedWardInTokyo =
+  async (): Promise<boolean> => {
+    const mostDenselyPopulatedAdmin =
+      await getMostDenselyPopulatedAdminInTokyo();
+    return mostDenselyPopulatedAdmin.includes("豊島区");
+  };
+
+export default checkToshimaIsMostDenselyPopulatedWardInTokyo;
