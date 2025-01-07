@@ -1,5 +1,5 @@
-// description: 東京都において、人口あたりの公園の数が最も高い行政区が港区であることを確認する。
-// file_path: src/lib/skills/admins/Japan/Tokyo/checkMinatoIsMostParksPerPopulationWardInTokyo.ts
+// description: 東京都において、人口あたりの図書館の数が最も多い行政区が文京区であることを確認する。
+// file_path: src/lib/skills/admins/Japan/Tokyo/checkBunkyoIsMostLibrariesPerPopulationWardInTokyo.ts
 
 import fs from "fs";
 import { Md5 } from "ts-md5";
@@ -18,7 +18,7 @@ const fetchOverpassData = async (query: string): Promise<any> => {
     const cache = await fs.readFileSync(cachePath, "utf-8");
     return JSON.parse(cache);
   } catch (e) {
-    console.debug("Cache not found. Call Overpass API...");
+    console.debug("Cache not found. Calling Overpass API...");
   }
   const endpoint = "https://overpass-api.de/api/interpreter";
   const res = await fetch(endpoint, {
@@ -32,21 +32,15 @@ const fetchOverpassData = async (query: string): Promise<any> => {
     throw new Error(`HTTP error! status: ${res.status}`);
   }
   const data = await res.json();
-  // cache the data
-  await fs.mkdirSync("./tmp/cache/overpass", { recursive: true });
+  // Cache the response
   await fs.writeFileSync(cachePath, JSON.stringify(data, null, 2));
-  if (!data.elements || data.elements.length === 0) {
-    throw new Error(
-      `Overpass API returned no data without errors. Try to fix this query:\n${query}`
-    );
-  }
   return data;
 };
 
 /**
  * @returns A list of names of all admin areas in Tokyo.
  */
-const getAllAdminNamesInTokyo = async (): Promise<string> => {
+const getAllAdminNamesInTokyo = async (): Promise<string[]> => {
   const overpassQuery = `
 [out:json];
 area["name"="東京都"]->.tokyo;
@@ -56,23 +50,22 @@ area["name"="東京都"]->.tokyo;
 out tags;
 `;
   const response = await fetchOverpassData(overpassQuery);
-  const adminNames = response.elements.map((element: any) => element.tags.name);
-  return adminNames.join("\n");
+  return response.elements.map((element: any) => element.tags.name);
 };
 
 /**
- * Fetches the number of parks in a specified admin area using Overpass API.
+ * Fetches the number of libraries in a specified admin area using Overpass API.
  * @param adminName - The name of the admin area to query.
- * @returns The total count of parks in the admin area.
+ * @returns The total count of libraries in the admin area.
  */
-async function getParksCountInAdminInsideTokyo(
+async function getLibrariesCountInAdminInsideTokyo(
   adminName: string
 ): Promise<number> {
   const overpassQuery = `
 [out:json];
 area["name"="${adminName}"]->.a;
 (
-  nwr["leisure"="park"](area.a);
+  nwr["amenity"="library"](area.a);
 );
 out count;
 `;
@@ -105,49 +98,48 @@ out tags;
 }
 
 /**
- * Calculates the number of parks per population in a specified admin area.
+ * Calculates the number of libraries per population in a specified admin area.
  * @param adminName - The name of the admin area to query.
- * @returns The number of parks per population.
+ * @returns The number of libraries per population.
  */
-async function getParksPerPopulationInAdminInsideTokyo(
+async function getLibrariesPerPopulationInAdminInsideTokyo(
   adminName: string
 ): Promise<number> {
-  const parkCount = await getParksCountInAdminInsideTokyo(adminName);
+  const libraryCount = await getLibrariesCountInAdminInsideTokyo(adminName);
   const population = await getPopulationInAdminInsideTokyo(adminName);
   if (population === 0) {
     return 0;
   }
-  return parkCount / population;
+  return libraryCount / population;
 }
 
-const getMostParksPerPopulationAdminInTokyo = async (): Promise<string> => {
-  const adminAreas = (await getAllAdminNamesInTokyo()).split("\n");
-  let maxParksPerPopulation = 0;
-  let mostParksPerPopulationAdmin = "";
+const getMostLibrariesPerPopulationAdminInTokyo = async (): Promise<string> => {
+  const adminAreas = await getAllAdminNamesInTokyo();
+  let maxLibrariesPerPopulation = 0;
+  let mostLibrariesPerPopulationAdmin = "";
 
   for (const admin of adminAreas) {
     if (admin === "") continue; // Skip empty lines
-    const parksPerPopulation = await getParksPerPopulationInAdminInsideTokyo(
-      admin
-    );
-    if (parksPerPopulation > maxParksPerPopulation) {
-      maxParksPerPopulation = parksPerPopulation;
-      mostParksPerPopulationAdmin = admin;
+    const librariesPerPopulation =
+      await getLibrariesPerPopulationInAdminInsideTokyo(admin);
+    if (librariesPerPopulation > maxLibrariesPerPopulation) {
+      maxLibrariesPerPopulation = librariesPerPopulation;
+      mostLibrariesPerPopulationAdmin = admin;
     }
   }
 
-  return mostParksPerPopulationAdmin;
+  return mostLibrariesPerPopulationAdmin;
 };
 
-const checkMinatoIsMostParksPerPopulationWardInTokyo =
+const checkBunkyoIsMostLibrariesPerPopulationWardInTokyo =
   async (): Promise<boolean> => {
-    const mostParksPerPopulationAdmin =
-      await getMostParksPerPopulationAdminInTokyo();
+    const mostLibrariesPerPopulationAdmin =
+      await getMostLibrariesPerPopulationAdminInTokyo();
     console.info(
-      "Most parks per population admin in Tokyo:",
-      mostParksPerPopulationAdmin
+      "Most libraries per population admin in Tokyo:",
+      mostLibrariesPerPopulationAdmin
     );
-    return mostParksPerPopulationAdmin.includes("港区");
+    return mostLibrariesPerPopulationAdmin.includes("文京区");
   };
 
-export default checkMinatoIsMostParksPerPopulationWardInTokyo;
+export default checkBunkyoIsMostLibrariesPerPopulationWardInTokyo;
