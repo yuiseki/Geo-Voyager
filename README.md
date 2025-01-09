@@ -1,41 +1,116 @@
 # Geo-Voyager: An Open-Ended Autonomous AI Agent Mining Uncharted Real-World Geospatial Insights
 
-Geo-Voyager は、生成 AI によって反復的に疑問を生成し、その疑問に対する仮説を立案・検証することで、現実世界の地理空間的洞察（Geospatial Insights）を最大化する、自律的 AI エージェントシステムです。
+[English](./README.md) | [日本語](./README.ja.md)
 
-## 主要な機能
+Geo-Voyager is an autonomous AI agent system that maximizes geospatial insights about the real world by iteratively generating questions, formulating hypotheses, and verifying them using generative AI.
 
-- **疑問生成**: 現実世界の地理空間に関する興味深い疑問を生成します。
-- **仮説立案・検証**: 生成された疑問に対する仮説を立案し、データ収集と分析を通じて検証します。
-- **データ収集**: OpenStreetMap Overpass API などのデータソースから、仮説検証に必要なデータを収集します。
-- **スキルライブラリ**: 仮説検証に成功した API クエリやコードをスキルとして蓄積し、再利用します。
-- **仮説・洞察ライブラリ**: 生成された仮説と検証結果を記録し、洞察を蓄積します。
+## Overview
 
-## システムフロー
+Geo-Voyager uses LangChain and Ollama to drive an autonomous cycle of:
+- Generating interesting questions about real-world geospatial patterns
+- Formulating testable hypotheses
+- Collecting and analyzing data from OpenStreetMap and other sources
+- Building a library of verified insights and reusable analysis skills
 
-Geo-Voyager は、以下のステップを反復的に実行することで、地理空間的洞察を発見します。
+## Features
 
-1. **疑問生成**: 生成 AI を用いて、現実世界の地理空間に関する疑問を生成します。
-2. **仮説立案**: 生成された疑問に対し、検証可能な仮説を立案します。
-3. **仮説検証**: データ収集と分析を行い、仮説の真偽を検証します。
-4. **洞察記録**: 検証に成功した仮説を洞察として記録します。
-5. **スキル改善**: 検証に用いたデータ収集や分析のプロセスをスキルとして蓄積し、改善します。
+- **Question Generation**: Generates interesting questions about real-world geospatial patterns
+- **Hypothesis Creation & Verification**: Formulates hypotheses and verifies them through data collection and analysis
+- **Data Collection**: Gathers necessary data from OpenStreetMap Overpass API and other sources
+- **Skills Library**: Accumulates successful API queries and analysis code as reusable skills
+- **Hypothesis & Insight Library**: Records generated hypotheses and verification results as accumulated insights
 
-詳細なシステムフローは、[フローチャート](./docs/flowchart-overview.md)をご覧ください。
+## Prerequisites
 
-## ドキュメント
+- Node.js (v18 or later)
+- npm or pnpm
+- Ollama with qwen2.5:14b model installed
+- SQLite
 
-- [Requirements](./docs/requirements.md)
+## Installation
 
-## 実行方法
-
-このプロジェクトを実行するには、まず以下のコマンドを実行して必要な準備をします。
-
+1. Clone the repository:
 ```bash
+gh repo clone yuiseki/Geo-Voyager
+cd Geo-Voyager
+```
+
+2. Install dependencies:
+```bash
+npm install
+# or if using pnpm
+pnpm install
+```
+
+3. Set up the database:
+```bash
+# Create .env file with SQLite database URL
+echo "DATABASE_URL=\"file:./prisma/dev.db\"" > .env
+
+# Initialize the database
 make clean
 ```
 
-その後、以下のコマンドを実行してプロジェクトを実行します。
+## Usage
 
+Run the system:
 ```bash
 make
 ```
+
+## System Flow
+
+Geo-Voyager discovers geospatial insights through these iterative steps:
+
+1. **Question Generation**: Uses generative AI to create questions about real-world geospatial patterns
+2. **Hypothesis Formulation**: Creates testable hypotheses for generated questions
+3. **Hypothesis Verification**: Collects and analyzes data to verify hypothesis validity
+4. **Insight Recording**: Records successful hypotheses as verified insights
+5. **Skill Improvement**: Accumulates and improves data collection and analysis processes as reusable skills
+
+For detailed system flow, see the [flowchart](./docs/flowchart-overview.md).
+
+## Documentation
+
+- [Requirements and Architecture](./docs/requirements.md)
+- [Skills Development Guide](./src/lib/skills/README.md)
+- [Issues Analysis](./docs/analysis/issues-analysis.md)
+
+## Development
+
+### Project Structure
+
+- `src/` - Main source code
+  - `lib/skills/` - Reusable analysis skills
+- `prisma/` - Database schema and migrations
+- `docs/` - Project documentation
+
+### Database Schema
+
+The project uses Prisma with SQLite for:
+- Questions and their states
+- Hypotheses and verification results
+- Tasks for hypothesis verification
+- Reusable skills library
+
+See [schema.prisma](./prisma/schema.prisma) for details.
+
+### Contributing
+
+1. Create a new branch for your changes
+2. Follow the coding conventions in [Skills README](./src/lib/skills/README.md)
+3. Ensure all skills are independent and self-contained
+4. Add appropriate documentation for new features
+5. Submit a pull request with a clear description of changes
+
+## License
+
+WTFPL
+
+## Technical Details
+
+- Built with TypeScript and Node.js
+- Uses LangChain with Ollama (qwen2.5:14b model) for AI operations
+- Prisma ORM with SQLite for data management
+- OpenStreetMap Overpass API for geospatial data
+- Additional data sources: World Bank, UN OCHA HDX
