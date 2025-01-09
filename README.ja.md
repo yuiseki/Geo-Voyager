@@ -23,9 +23,26 @@ Geo-Voyagerは、LangChainとOllamaを使用して以下のような自律的な
 ## 前提条件
 
 - Node.js (v18以降)
-- npmまたはpnpm
-- Ollama（qwen2.5:14bモデルがインストールされていること）
+- npm
 - SQLite
+- Ollama（qwen2.5:14bモデル）
+
+### Ollamaのインストール
+
+1. Ollamaのインストール:
+```bash
+curl -fsSL https://ollama.com/install.sh | sh
+```
+
+2. Ollamaの起動:
+```bash
+ollama serve
+```
+
+3. qwen2.5:14bモデルの取得:
+```bash
+ollama pull qwen2.5:14b
+```
 
 ## インストール
 
@@ -38,8 +55,6 @@ cd Geo-Voyager
 2. 依存関係のインストール:
 ```bash
 npm install
-# または pnpmを使用する場合
-pnpm install
 ```
 
 3. データベースのセットアップ:
@@ -53,9 +68,23 @@ make clean
 
 ## 使用方法
 
-システムの実行:
+プロジェクトでは以下のmakeコマンドを使用します：
+
+### Makeコマンド
+
+- `make all` - データベースを初期化してシステムを起動（推奨）
+- `make main` - システムを起動（必要に応じてデータベースの確認とマイグレーションを実行）
+- `make migrate` - データベースの初期化とマイグレーションの実行
+- `make clean` - データベースをクリーンアップして再初期化
+
+新規データベースでシステムを起動する場合:
 ```bash
-make
+make all
+```
+
+既存のデータベースでシステムを起動する場合:
+```bash
+make main
 ```
 
 ## システムフロー

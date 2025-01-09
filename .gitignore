@@ -4,3 +4,4 @@ node_modules
 prisma/dev.db
 prisma/dev.db-journal
 tmp
+prisma/prisma/
