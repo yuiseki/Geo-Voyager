@@ -1,85 +1,93 @@
 // src/main.ts
-import { getAllQuestionsByStatus, QuestionStatus } from "./db/question";
-import {
-  getAllRejectedHypothesesByQuestionId,
-  getFirstPendingHypothesisByQuestionId,
-} from "./db/hypothesis";
-import { findAndExecuteTasksByHypothesis } from "./utils/findAndExecuteTasksByHypothesis";
-import { formulateNewHypothesis } from "./utils/formulateNewHypothesis";
-import { listUpAllSolvedQuestions } from "./utils/listUpAllSolvedQuestions";
-import { getAllExecutedTasksByHypothesisId, TaskStatus } from "./db/task";
+import { PrismaClient } from '@prisma/client';
+import { QueryResponse, QueryResult } from './lib/skills/direct_query/utils/types';
+import { countryPopulationDensityQuery } from './lib/skills/direct_query/getCountryPopulationDensity';
+import { tokyoWardHospitalStatisticsQuery } from './lib/skills/direct_query/getTokyoWardHospitalStatistics';
+import { tokyoWardSchoolStatisticsQuery } from './lib/skills/direct_query/getTokyoWardSchoolStatistics';
+import { tokyoWardPopulationDensityQuery } from './lib/skills/direct_query/getTokyoWardPopulationDensity';
+import { tokyoWardParkStatisticsQuery } from './lib/skills/direct_query/getTokyoWardParkStatistics';
+import { tokyoWardLibraryStatisticsQuery } from './lib/skills/direct_query/getTokyoWardLibraryStatistics';
 
-(async () => {
-  console.log("🗺️  Initializing Geo-Voyager...");
+const prisma = new PrismaClient();
 
-  await listUpAllSolvedQuestions();
+interface QueryConfig<T> {
+  name: string;
+  type: string;
+  execute: () => Promise<QueryResponse<T>>;
+  formatResult: (result: QueryResult<T>) => string;
+}
 
-  // すべてのOPENなQuestionを取得
-  const openQuestions = await getAllQuestionsByStatus(QuestionStatus.OPEN);
-  if (openQuestions.length === 0) {
-    console.log("⚠️  No OPEN questions found.");
-    console.log("🗺️  Geo-Voyager has finished his journey.");
-    return;
-  }
+const executeQueries = async () => {
+  console.log("🗺️  Initializing Geo-Voyager Direct Query System...");
 
-  for (const question of openQuestions) {
-    console.log(`\n❓️ Question: ${question.description}`);
+  try {
+    const queries: QueryConfig<any>[] = [
+      {
+        name: '📊 Global Population Density',
+        type: 'country_population_density',
+        execute: () => countryPopulationDensityQuery.execute(),
+        formatResult: (result) => `Most densely populated country: ${result.data.mostDense.country}`
+      },
+      {
+        name: '🏥 Tokyo Ward Hospital Statistics',
+        type: 'tokyo_ward_hospitals',
+        execute: () => tokyoWardHospitalStatisticsQuery.execute(),
+        formatResult: (result) => `Ward with most hospitals: ${result.data.mostHospitals.ward}`
+      },
+      {
+        name: '🏫 Tokyo Ward School Statistics',
+        type: 'tokyo_ward_schools',
+        execute: () => tokyoWardSchoolStatisticsQuery.execute(),
+        formatResult: (result) => `Ward with most schools: ${result.data.mostSchools.ward}`
+      },
+      {
+        name: '👥 Tokyo Ward Population Density',
+        type: 'tokyo_ward_density',
+        execute: () => tokyoWardPopulationDensityQuery.execute(),
+        formatResult: (result) => `Most densely populated ward: ${result.data.mostDense.ward}`
+      },
+      {
+        name: '🌳 Tokyo Ward Park Statistics',
+        type: 'tokyo_ward_parks',
+        execute: () => tokyoWardParkStatisticsQuery.execute(),
+        formatResult: (result) => `Ward with most parks: ${result.data.mostParks.ward}`
+      },
+      {
+        name: '📚 Tokyo Ward Library Statistics',
+        type: 'tokyo_ward_libraries',
+        execute: () => tokyoWardLibraryStatisticsQuery.execute(),
+        formatResult: (result) => `Ward with most libraries: ${result.data.mostLibraries.ward}`
+      }
+    ];
 
-    // 棄却された仮説を表示
-    const rejectedHypotheses = await getAllRejectedHypothesesByQuestionId(
-      question.id
-    );
-    if (rejectedHypotheses.length > 0) {
-      const rejectedHypothesesWithTasks = await Promise.all(
-        rejectedHypotheses.map(async (hypothesis) => {
-          const tasks = await getAllExecutedTasksByHypothesisId(hypothesis.id);
-          return {
-            description: hypothesis.description,
-            tasks: tasks.map((task) => {
-              if (task.status === TaskStatus.COMPLETED) {
-                return `    - ✅ Task: ${task.description} [${task.status}]`;
-              } else if (task.status === TaskStatus.FAILED) {
-                return `    - ❌ Task: ${task.description} [${task.status}]`;
-              }
-            }),
-          };
-        })
-      );
-      console.log("🚫 Rejected hypotheses:");
-      for (const rejectedHypothesis of rejectedHypothesesWithTasks) {
-        console.log(`  - 🚫 ${rejectedHypothesis.description} [REJECTED]`);
-        for (const task of rejectedHypothesis.tasks) {
-          console.log(task);
+    for (const query of queries) {
+      console.log(`\nExecuting ${query.name}...`);
+      try {
+        const result = await query.execute();
+        if ('data' in result) {
+          await prisma.directQueryResult.create({
+            data: {
+              queryType: query.type,
+              result: JSON.parse(JSON.stringify(result.data)),
+              metadata: JSON.parse(JSON.stringify(result.metadata))
+            }
+          });
+          console.log(`✅ ${query.formatResult(result)}`);
+        } else {
+          console.error(`❌ Query failed: ${result.error}`);
         }
+      } catch (error) {
+        console.error(`❌ Error executing ${query.name}:`, error);
+        continue; // Continue with next query even if this one fails
       }
     }
 
-    // PENDINGな仮説を処理
-    let hypothesis = await getFirstPendingHypothesisByQuestionId(question.id);
-    while (true) {
-      if (!hypothesis) {
-        console.log("⚠️  No PENDING hypotheses found for this question.");
-        hypothesis = await formulateNewHypothesis(question);
-        if (!hypothesis) {
-          console.log("⚠️  Failed to formulate a new hypothesis.");
-          break; // 次の質問へ
-        }
-      }
-
-      console.log(`💡 Hypothesis: ${hypothesis.description}`);
-      
-      // 仮説に関連するTaskを探して実行
-      await findAndExecuteTasksByHypothesis(hypothesis);
-
-      // 次のPENDING仮説を確認
-      const nextHypothesis = await getFirstPendingHypothesisByQuestionId(question.id);
-      if (!nextHypothesis || nextHypothesis.id === hypothesis.id) {
-        // 新しいPENDING仮説がない場合は次の質問へ
-        break;
-      }
-      hypothesis = nextHypothesis;
-    }
+    console.log("\n🗺️  Geo-Voyager has completed all direct queries.");
+  } catch (error) {
+    console.error("❌ Fatal error executing queries:", error);
+  } finally {
+    await prisma.$disconnect();
   }
+};
 
-  console.log("\n🗺️  Geo-Voyager has finished his journey.");
-})();
+executeQueries().catch(console.error);
