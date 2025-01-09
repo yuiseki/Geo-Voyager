@@ -1,4 +1,4 @@
-// description: 東京都のすべての行政区の中で、最も多くの病院がある行政区を見つける
+// description: 東京都において、病院の数が最も多い行政区を探す。
 // file_path: src/lib/skills/numberOfSchools/Japan/Tokyo/findWardWithMostHospitals.ts
 
 import fs from "fs";

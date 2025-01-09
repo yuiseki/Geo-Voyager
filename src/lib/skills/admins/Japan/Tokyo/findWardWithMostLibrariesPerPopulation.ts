@@ -1,4 +1,4 @@
-// description: 東京都において、人口あたりの図書館の数が最も多い行政区を探す
+// description: 東京都において、人口あたりの図書館の数が最も多い行政区を探す。
 // file_path: src/lib/skills/admins/Japan/Tokyo/findWardWithMostLibrariesPerPopulation.ts
 
 import fs from "fs";

@@ -1,5 +1,5 @@
-// description: 東京都において、人口あたりの公園の数が最も高い行政区を探す
-// file_path: src/lib/skills/admins/Japan/Tokyo/getWardWithMostHospitals.ts
+// description: 東京都において、人口あたりの公園の数が最も高い行政区を探す。
+// file_path: src/lib/skills/admins/Japan/Tokyo/findWardWithMostParksPerPopulation.ts
 
 import fs from "fs";
 import { Md5 } from "ts-md5";

@@ -1,4 +1,4 @@
-// description: 東京都のすべての行政区の中で、最も人口密度が高い行政区を探す。
+// description: 東京都において、人口密度が最も高い行政区を探す。
 // file_path: src/lib/skills/admins/Japan/Tokyo/findMostDenselyPopulatedWard.ts
 
 import * as turf from "@turf/turf";
