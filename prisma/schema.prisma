@@ -63,3 +63,11 @@ model Skill {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+model DirectQueryResult {
+  id          Int      @id @default(autoincrement())
+  queryType   String   // e.g., "population_density", "tokyo_ward_hospitals"
+  result      Json     // Store complete result set
+  timestamp   DateTime @default(now())
+  metadata    Json?    // Optional metadata about the query (source, cache status, etc.)
+}
