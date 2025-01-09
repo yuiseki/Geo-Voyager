@@ -1,5 +1,5 @@
-// description: 東京都において、人口あたりの病院の数が最も多い行政区が中央区であることを確認する。
-// file_path: src/lib/skills/admins/Japan/Tokyo/checkChuoIsMostHospitalsPerPopulationWardInTokyo.ts
+// description: 東京都において、人口あたりの病院の数が最も多い行政区を探す。
+// file_path: src/lib/skills/admins/Japan/Tokyo/findWardWithMostHospitalsPerPopulation.ts
 
 import fs from "fs";
 import { Md5 } from "ts-md5";
@@ -44,9 +44,9 @@ const fetchOverpassData = async (query: string): Promise<any> => {
 };
 
 /**
- * @returns A list of name of all admin areas in Tokyo.
+ * @returns A list of name of all wards in Tokyo.
  */
-const getAllAdminNamesInTokyo = async (): Promise<string> => {
+const getAllWardsInTokyo = async (): Promise<string[]> => {
   const overpassQuery = `
 [out:json];
 area["name"="東京都"]->.tokyo;
@@ -56,22 +56,25 @@ area["name"="東京都"]->.tokyo;
 out tags;
 `;
   const response = await fetchOverpassData(overpassQuery);
-  const adminNames = response.elements.map((element: any) => element.tags.name);
-  return adminNames.join("\n");
+  const wards = response.elements.map((element: any) => element.tags.name);
+  return wards;
 };
 
 /**
- * Fetches the number of hospitals in a specified admin area using Overpass API.
- * @param adminName - The name of the admin area to query.
- * @returns The total count of hospitals in the admin area.
+ * Fetches the number of hospitals in a specified ward using Overpass API.
+ * @param wardName - The name of the ward to query.
+ * @returns The total count of hospitals of the ward.
  */
-async function getHospitalsCountInAdminInsideTokyo(
-  adminName: string
+async function getHospitalsCountOfWard(
+  wardName: string
 ): Promise<number> {
   const overpassQuery = `
 [out:json];
-area["name"="${adminName}"]->.a;
-nwr["amenity"="hospital"](area.a);
+area["name"="東京都"]->.out;
+area["name"="${wardName}"]->.in;
+(
+  nwr["amenity"="hospital"](area.in)(area.out);
+);
 out count;
 `;
   const response = await fetchOverpassData(overpassQuery);
@@ -79,18 +82,18 @@ out count;
 }
 
 /**
- * Fetches the population of a specified admin area using Overpass API.
- * @param adminName - The name of the admin area to query.
- * @returns The population of the admin area.
+ * Fetches the population of a specified ward using Overpass API.
+ * @param wardName - The name of the ward to query.
+ * @returns The population of the ward.
  */
-async function getPopulationInAdminInsideTokyo(
-  adminName: string
+async function getPopulationOfWard(
+  wardName: string
 ): Promise<number> {
   const overpassQuery = `
 [out:json];
 area["name"="東京都"]->.tokyo;
 (
-  relation["name"="${adminName}"]["admin_level"="7"](area.tokyo);
+  relation["admin_level"="7"]["name"="${wardName}"](area.tokyo);
 );
 out tags;
 `;
@@ -103,38 +106,39 @@ out tags;
 }
 
 /**
- * Calculates the number of hospitals per population in a specified admin area.
- * @param adminName - The name of the admin area to query.
- * @returns The number of hospitals per population.
+ * Calculates the number of hospitals per population in a specified ward.
+ * @param wardName - The name of the ward to query.
+ * @returns The number of hospitals per population of the ward.
  */
-async function getHospitalsPerPopulationInAdminInsideTokyo(
-  adminName: string
+async function getHospitalsPerPopulationOfWard(
+  wardName: string
 ): Promise<number> {
-  const hospitalCount = await getHospitalsCountInAdminInsideTokyo(adminName);
-  const population = await getPopulationInAdminInsideTokyo(adminName);
+  const hospitalCount = await getHospitalsCountOfWard(wardName);
+  const population = await getPopulationOfWard(wardName);
   if (population === 0) {
     return 0;
   }
   return population > 0 ? hospitalCount / population : 0;
 }
 
-const checkChuoIsMostHospitalsPerPopulationWardInTokyo =
-  async (): Promise<boolean> => {
-    const adminAreas = await getAllAdminNamesInTokyo();
+const findWardWithMostHospitalsPerPopulation =
+  async (): Promise<string> => {
+    const wards = await getAllWardsInTokyo();
     let maxHospitalsPerPopulation = 0;
-    let wardWithMaxHospitalsPerPopulation = "";
-    for (const adminArea of adminAreas.split("\n")) {
+    let mostHospitalsPerPopulationWard = "";
+    for (const ward of wards) {
       const hospitalsPerPopulation =
-        await getHospitalsPerPopulationInAdminInsideTokyo(adminArea);
+        await getHospitalsPerPopulationOfWard(ward);
+      console.log(`findWardWithMostHospitalsPerPopulation: ${ward} has ${hospitalsPerPopulation} hospitals per population`);
       if (hospitalsPerPopulation > maxHospitalsPerPopulation) {
         maxHospitalsPerPopulation = hospitalsPerPopulation;
-        wardWithMaxHospitalsPerPopulation = adminArea;
+        mostHospitalsPerPopulationWard = ward;
       }
     }
     console.info(
-      `Ward with most hospitals per population in Tokyo: ${wardWithMaxHospitalsPerPopulation}`
+      `Ward with most hospitals per population in Tokyo: ${mostHospitalsPerPopulationWard}`
     );
-    return wardWithMaxHospitalsPerPopulation.includes("中央区");
+    return mostHospitalsPerPopulationWard;
   };
 
-export default checkChuoIsMostHospitalsPerPopulationWardInTokyo;
+export default findWardWithMostHospitalsPerPopulation;

@@ -1,5 +1,5 @@
-// description: 東京都において、面積が最も広い行政区が江東区であることを確認する。
-// file_path: src/lib/skills/admins/Japan/Tokyo/checkKotoIsLargestWardInTokyo.ts
+// description: 東京都において、面積が最も広い行政区を探す。
+// file_path: src/lib/skills/admins/Japan/Tokyo/findLargestWard.ts
 
 import * as turf from "@turf/turf";
 import fs from "fs";
@@ -45,9 +45,9 @@ const fetchOverpassData = async (query: string): Promise<any> => {
 };
 
 /**
- * @returns A list of name of all admin areas in Tokyo.
+ * @returns A list of name of all wards in Tokyo.
  */
-const getAllAdminNamesInTokyo = async (): Promise<string> => {
+const getAllWardsInTokyo = async (): Promise<string[]> => {
   const overpassQuery = `
 [out:json];
 area["name"="東京都"]->.tokyo;
@@ -57,48 +57,44 @@ area["name"="東京都"]->.tokyo;
 out tags;
 `;
   const response = await fetchOverpassData(overpassQuery);
-  const adminNames = response.elements.map((element: any) => element.tags.name);
-  return adminNames;
+  const wards = response.elements.map((element: any) => element.tags.name);
+  return wards;
 };
 
-const getAreaOfWardInTokyo = async (wardName: string): Promise<number> => {
+/**
+ * Fetches the area of a specified ward using Overpass API.
+ * @param wardName - The name of the ward to query.
+ * @returns The area of the ward in square kilometers.
+ */
+const getAreaOfWard = async (wardName: string): Promise<number> => {
   const overpassQuery = `
 [out:json];
 area["name"="東京都"]->.tokyo;
-area["name"="${wardName}"]->.ward;
 (
-  relation["admin_level"="7"](area.ward)(area.tokyo);
+  relation["admin_level"="7"]["name"="${wardName}"](area.tokyo);
 );
 out geom;
 `;
   const response = await fetchOverpassData(overpassQuery);
   const geoJson = osmtogeojson(response);
   const area = turf.area(geoJson);
-  return area;
+  const areaInKm2 = area / 1000000;
+  return areaInKm2;
 };
 
-const getAdminWithLargestAreaInTokyo = async (): Promise<string> => {
-  const adminNames = await getAllAdminNamesInTokyo();
+const findLargestWard = async (): Promise<string> => {
+  const wards = await getAllWardsInTokyo();
   let maxArea = 0;
-  let adminWithLargestArea = "";
-  for (const admin of adminNames) {
-    const area = await getAreaOfWardInTokyo(admin);
+  let wardWithLargestArea = "";
+  for (const ward of wards) {
+    const area = await getAreaOfWard(ward);
+    console.log(`findLargestWard: ${ward} has an area of ${area} km²`);
     if (area > maxArea) {
       maxArea = area;
-      adminWithLargestArea = admin;
+      wardWithLargestArea = ward;
     }
   }
-  return adminWithLargestArea;
+  return wardWithLargestArea;
 };
 
-const checkKotoIsLargestWardInTokyo = async (): Promise<boolean> => {
-  const wardWithLargestArea = await getAdminWithLargestAreaInTokyo();
-  if (!wardWithLargestArea) {
-    console.error("wardWithLargestArea is undefined!!");
-    return false;
-  }
-  console.info(`Ward with largest area in Tokyo: ${wardWithLargestArea}`);
-  return wardWithLargestArea.includes("江東区");
-};
-
-export default checkKotoIsLargestWardInTokyo;
+export default findLargestWard;

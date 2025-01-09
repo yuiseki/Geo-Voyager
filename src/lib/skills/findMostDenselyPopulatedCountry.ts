@@ -17,7 +17,7 @@ const fetchWorldBankPopulationDensity = async (
     const cache = await fs.readFileSync(cachePath, "utf-8");
     data = JSON.parse(cache);
   } catch (e) {
-    console.debug("Cache not found. Call World Bank EN.POP.DNST API...");
+    console.debug(`Cache not found. Call World Bank API, country, ${countryCode}, EN.POP.DNST,...`);
     const endpoint = `https://api.worldbank.org/v2/country/${countryCode}/indicator/EN.POP.DNST?format=json`;
     const res = await fetch(endpoint);
     if (!res.ok) {
@@ -51,7 +51,7 @@ const fetchAllCountriesAlpha2Codes = async (): Promise<string[]> => {
     const cache = await fs.readFileSync(cachePath, "utf-8");
     result = JSON.parse(cache);
   } catch (e) {
-    console.debug("Cache not found. Call World Bank country API...");
+    console.debug("Cache not found. Call World Bank countries API...");
     let page = 1;
     let pages = 100;
     let data = [];
@@ -96,7 +96,7 @@ const getCountryNameByAlpha2Codes = async (
     const cache = await fs.readFileSync(cachePath, "utf-8");
     data = JSON.parse(cache);
   } catch (e) {
-    console.debug("Cache not found. Call World Bank API...");
+    console.debug(`Cache not found. Call World Bank API, country, ${alpha2Code}...`);
     const endpoint = `https://api.worldbank.org/v2/country/${alpha2Code}?format=json`;
     const res = await fetch(endpoint);
     if (!res.ok) {
@@ -144,14 +144,14 @@ const getWorldsMostDenselyPopulatedCountry = async (): Promise<string> => {
   return mostDenselyPopulatedCountry;
 };
 
-const checkSingaporeIsMostDenselyPopulatedCountryInWorld =
-  async (): Promise<boolean> => {
+const findMostDenselyPopulatedCountry =
+  async (): Promise<string> => {
     const mostDenselyPopulatedCountry =
       await getWorldsMostDenselyPopulatedCountry();
     console.info(
       `The most densely populated country is ${mostDenselyPopulatedCountry}.`
     );
-    return mostDenselyPopulatedCountry.includes("Singapore");
+    return mostDenselyPopulatedCountry;
   };
 
-export default checkSingaporeIsMostDenselyPopulatedCountryInWorld;
+export default findMostDenselyPopulatedCountry;

@@ -1,5 +1,5 @@
-// description: 日本で最も人口密度が高い都道府県を取得する。
-// file_path: src/lib/skills/admins/Japan/getMostDenselyPopulatedAdminInJapan.ts
+// description: 日本で最も人口密度が高い都道府県を探す。
+// file_path: src/lib/skills/admins/Japan/findMostDenselyPopulatedPref.ts
 
 import * as turf from "@turf/turf";
 import osmtogeojson from "osmtogeojson";
@@ -55,12 +55,12 @@ const fetchOverpassData = async (query: string): Promise<any> => {
 
 /**
  * Fetches the land mask data of a specified admin area and region.
- * @param adminName - The name of the admin area to query.
+ * @param prefName - The name of the admin area to query.
  * @param regionName - The name of the region to query.
  * @returns The land mask GeoJSON data of the specified admin area and region.
  */
 const fetchLandMaskGeoJson = async (
-  adminName: string,
+  prefName: string,
   regionName: string
 ): Promise<FeatureCollection<Polygon | MultiPolygon, GeoJsonProperties>> => {
   // 全世界の道州・都道府県レベルのGeoJSONデータを取得
@@ -89,7 +89,7 @@ const fetchLandMaskGeoJson = async (
     features: data.features
       .filter(
         (feature: Feature) =>
-          feature.properties?.admin === adminName &&
+          feature.properties?.admin === prefName &&
           (regionName.includes(feature.properties["name"]) ||
             regionName.includes(feature.properties["name_en"]) ||
             regionName.includes(feature.properties["name_ja"]))
@@ -109,16 +109,16 @@ const fetchLandMaskGeoJson = async (
  * @param population - The population of the pref area.
  * @returns The population density of the pref area.
  */
-const getPopulationDensityOfPrefInsideJapan = async (
-  adminName: string,
+const getPopulationDensityOfPref = async (
+  prefName: string,
   population: number
 ): Promise<number> => {
-  const landMaskGeoJson = await fetchLandMaskGeoJson("Japan", adminName);
+  const landMaskGeoJson = await fetchLandMaskGeoJson("Japan", prefName);
   const overpassQuery = `
 [out:json];
 area["name"="日本"]->.tokyo;
 (
-  relation["name"="${adminName}"]["admin_level"="4"](area.tokyo);
+  relation["name"="${prefName}"]["admin_level"="4"](area.tokyo);
 );
 out geom;
 `;
@@ -168,14 +168,14 @@ out geom;
 };
 
 type AreaPopulation = {
-  [areaName: string]: number;
+  [prefName: string]: number;
 };
 
 /**
  * Fetches the population of each pref in Japan using e-Stat API.
  * @returns The population of each pref in Japan.
  */
-async function getLatestPopulationOfPrefsInJapan(): Promise<AreaPopulation> {
+async function getLatestPopulationOfPrefs(): Promise<AreaPopulation> {
   if (!process.env.E_STAT_APP_ID) {
     throw new Error("process.env.E_STAT_APP_ID is not set!");
   }
@@ -249,14 +249,14 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
  * Get the name of the most densely populated pref in Japan.
  * @returns The name of the most densely populated pref in Japan.
  */
-const getMostDenselyPopulatedPrefInJapan = async (): Promise<string> => {
-  const prefs = await getLatestPopulationOfPrefsInJapan();
+const findMostDenselyPopulatedPref = async (): Promise<string> => {
+  const prefs = await getLatestPopulationOfPrefs();
   let maxPopulationDensity = 0;
   let prefWithMaxPopulationDensity = "";
   for (const prefName of Object.keys(prefs)) {
     await sleep(5000);
     const latestPopulation = prefs[prefName];
-    const populationDensity = await getPopulationDensityOfPrefInsideJapan(
+    const populationDensity = await getPopulationDensityOfPref(
       prefName,
       latestPopulation
     );
@@ -271,4 +271,4 @@ const getMostDenselyPopulatedPrefInJapan = async (): Promise<string> => {
   return prefWithMaxPopulationDensity;
 };
 
-export default getMostDenselyPopulatedPrefInJapan;
+export default findMostDenselyPopulatedPref;
