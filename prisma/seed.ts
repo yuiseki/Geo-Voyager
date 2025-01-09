@@ -1,195 +1,53 @@
-import { Hypothesis, PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import fs from "fs";
 import path from "path";
 import { glob } from "glob";
 
 const prisma = new PrismaClient();
 
-type HypothesisAndTasks = {
-  hypothesis: string;
-  tasks: string;
-};
-
 const dict: {
   question: string;
-  hypothesesWrong: HypothesisAndTasks[];
-  hypothesesAnswer?: HypothesisAndTasks[];
+  tasks: string[];
 }[] = [
   {
     question: "世界で最も人口密度が高い国はどこだろう？",
-    hypothesesWrong: [
-      {
-        hypothesis: "世界で最も人口密度が高い国はシンガポールである。",
-        tasks: "世界で最も人口密度の高い国がシンガポールであることを確認する。",
-      },
-    ],
-    hypothesesAnswer: [
-      {
-        hypothesis: "世界で最も人口密度が高い国はマカオである。",
-        tasks: "世界で最も人口密度の高い国がマカオであることを確認する。",
-      },
-    ],
+    tasks: ["世界で人口密度が最も高い国を探す。"]
+  },
+  {
+    question: "東京都において、面積が最も広い行政区はどこだろう？",
+    tasks: ["東京都において、面積が最も広い行政区を探す。"]
   },
   {
     question: "東京都において、人口密度が最も高い行政区はどこだろう？",
-    hypothesesWrong: [
-      {
-        hypothesis:
-          "東京都において、人口密度が最も高い行政区は千代田区である。",
-        tasks:
-          "東京都において、人口密度が最も高い行政区が千代田区であることを確認する。",
-      },
-    ],
-    hypothesesAnswer: [
-      {
-        hypothesis: "東京都において、人口密度が最も高い行政区は豊島区である。",
-        tasks:
-          "東京都において、人口密度が最も高い行政区が豊島区であることを確認する。",
-      },
-    ],
+    tasks: ["東京都において、人口密度が最も高い行政区を探す。"]
   },
   {
     question: "東京都において、病院が最も多い行政区はどこだろう？",
-    hypothesesWrong: [
-      {
-        hypothesis: "東京都において、病院が最も多い行政区は江東区である。",
-        tasks:
-          "東京都において、病院が最も多い行政区が江東区であることを確認する。",
-      },
-    ],
-    hypothesesAnswer: [
-      {
-        hypothesis: "東京都において、病院が最も多い行政区は多摩市である。",
-        tasks:
-          "東京都において、病院が最も多い行政区が多摩市であることを確認する。",
-      },
-    ],
+    tasks: ["東京都において、病院が最も多い行政区を探す。"]
   },
   {
     question: "東京都において、学校が最も多い行政区はどこだろう？",
-    hypothesesWrong: [
-      {
-        hypothesis: "東京都において、学校が最も多い行政区は渋谷区である。",
-        tasks:
-          "東京都において、学校が最も多い行政区が渋谷区であることを確認する。",
-      },
-    ],
-    hypothesesAnswer: [
-      {
-        hypothesis: "東京都において、学校が最も多い行政区は江東区である。",
-        tasks:
-          "東京都において、学校が最も多い行政区が江東区であることを確認する。",
-      },
-    ],
+    tasks: ["東京都において、学校が最も多い行政区を探す。"]
   },
   {
     question:
       "東京都において、人口あたりの病院の数が最も多い行政区はどこだろう？",
-    hypothesesWrong: [
-      {
-        hypothesis:
-          "東京都において、人口あたりの病院の数が最も多い行政区は千代田区である。",
-        tasks:
-          "東京都において、人口あたりの病院の数が最も多い行政区が千代田区であることを確認する。",
-      },
-    ],
-    hypothesesAnswer: [
-      {
-        hypothesis:
-          "東京都において、人口あたりの病院の数が最も多い行政区は中央区である。",
-        tasks:
-          "東京都において、人口あたりの病院の数が最も多い行政区が中央区であることを確認する。",
-      },
-    ],
-  },
-  {
-    question:
-      "東京都において、人口あたりの学校の数が最も多い行政区はどこだろう？",
-    hypothesesWrong: [
-      {
-        hypothesis:
-          "東京都において、人口あたりの学校の数が最も多い行政区は千代田区である。",
-        tasks:
-          "東京都において、人口あたりの学校の数が最も多い行政区が千代田区であることを確認する。",
-      },
-      {
-        hypothesis:
-          "東京都において、人口あたりの学校の数が最も多い行政区は港区である。",
-        tasks:
-          "東京都において、人口あたりの学校の数が最も多い行政区が港区であることを確認する。",
-      },
-    ],
-    hypothesesAnswer: [
-      {
-        hypothesis:
-          "東京都において、人口あたりの学校の数が最も多い行政区は中央区である。",
-        tasks:
-          "東京都において、人口あたりの学校の数が最も多い行政区が中央区であることを確認する。",
-      },
-    ],
+    tasks: ["東京都において、人口あたりの病院の数が最も多い行政区を探す。"]
   },
   {
     question:
       "東京都において、人口あたりの公園の数が最も高い行政区はどこだろう？",
-    hypothesesWrong: [
-      {
-        hypothesis:
-          "東京都において、人口あたりの公園の数が最も高い行政区は千代田区である。",
-        tasks:
-          "東京都において、人口あたりの公園の数が最も高い行政区が千代田区であることを確認する。",
-      },
-    ],
-    hypothesesAnswer: [
-      {
-        hypothesis:
-          "東京都において、人口あたりの公園の数が最も高い行政区は稲城市である。",
-        tasks:
-          "東京都において、人口あたりの公園の数が最も高い行政区が稲城市であることを確認する。",
-      },
-    ],
-  },
-  {
-    question: "東京都において、面積が最も広い行政区はどこだろう？",
-    hypothesesWrong: [
-      {
-        hypothesis: "東京都において、面積が最も広い行政区は江東区である。",
-        tasks:
-          "東京都において、面積が最も広い行政区が江東区であることを確認する。",
-      },
-    ],
-    hypothesesAnswer: [
-      {
-        hypothesis: "東京都において、面積が最も広い行政区は小笠原村である。",
-        tasks:
-          "東京都において、面積が最も広い行政区が小笠原村であることを確認する。",
-      },
-    ],
+    tasks: ["東京都において、人口あたりの公園の数が最も高い行政区を探す。"]
   },
   {
     question:
       "東京都において、人口あたりの図書館の数が最も多い行政区はどこだろう？",
-    hypothesesWrong: [
-      {
-        hypothesis:
-          "東京都において、人口あたりの図書館の数が最も多い行政区は千代田区である。",
-        tasks:
-          "東京都において、人口あたりの図書館の数が最も多い行政区が千代田区であることを確認する。",
-      },
-      {
-        hypothesis:
-          "東京都において、人口あたりの図書館の数が最も多い行政区は文京区である。",
-        tasks:
-          "東京都において、人口あたりの図書館の数が最も多い行政区が文京区であることを確認する。",
-      },
-    ],
-    hypothesesAnswer: [
-      {
-        hypothesis:
-          "東京都において、人口あたりの図書館の数が最も多い行政区は中央区である。",
-        tasks:
-          "東京都において、人口あたりの図書館の数が最も多い行政区が中央区であることを確認する。",
-      },
-    ],
+    tasks: ["東京都において、人口あたりの図書館の数が最も多い行政区を探す。"]
+  },
+  {
+    question:
+      "東京都において、人口あたりの学校の数が最も多い行政区はどこだろう？",
+    tasks: ["東京都において、人口あたりの学校の数が最も多い行政区を探す。"]
   },
 ];
 
@@ -213,8 +71,8 @@ const dict: {
 東京都において、大学の数が最も多い行政区はどこだろう？
 */
 
-const seedQuestionAndHypothesesWithTasks = async () => {
-  for (const { question, hypothesesWrong, hypothesesAnswer } of dict) {
+const seedQuestionWithTasks = async () => {
+  for (const { question, tasks } of dict) {
     // Questionの作成
     const questionRecord = await prisma.question.create({
       data: {
@@ -222,60 +80,13 @@ const seedQuestionAndHypothesesWithTasks = async () => {
         status: "OPEN",
       },
     });
-
-    for (const { hypothesis, tasks } of hypothesesWrong) {
-      // HypothesisWrongの作成
-      const hypothesisRecord = await prisma.hypothesis.create({
-        data: {
-          description: hypothesis,
-          status: "PENDING",
-          questionId: questionRecord.id,
-        },
-      });
-
+    for (const task of tasks) {
       // Taskの作成
       const taskRecord = await prisma.task.create({
         data: {
-          description: tasks,
+          description: task,
           status: "PENDING",
-        },
-      });
-
-      // HypothesisとTasksの関連付け
-      await prisma.hypothesisTask.create({
-        data: {
-          hypothesisId: hypothesisRecord.id,
-          taskId: taskRecord.id,
-        },
-      });
-    }
-
-    if (!hypothesesAnswer) {
-      continue;
-    }
-    for (const { hypothesis, tasks } of hypothesesAnswer) {
-      // HypothesisAnswerの作成
-      const hypothesisRecord = await prisma.hypothesis.create({
-        data: {
-          description: hypothesis,
-          status: "PENDING",
-          questionId: questionRecord.id,
-        },
-      });
-
-      // Taskの作成
-      const taskRecord = await prisma.task.create({
-        data: {
-          description: tasks,
-          status: "PENDING",
-        },
-      });
-
-      // HypothesisとTasksの関連付け
-      await prisma.hypothesisTask.create({
-        data: {
-          hypothesisId: hypothesisRecord.id,
-          taskId: taskRecord.id,
+          questionId: questionRecord.id
         },
       });
     }
@@ -316,7 +127,7 @@ const seedSkills = async () => {
 async function main() {
   console.log("Seeding...");
 
-  await seedQuestionAndHypothesesWithTasks();
+  await seedQuestionWithTasks();
   await seedSkills();
 }
 

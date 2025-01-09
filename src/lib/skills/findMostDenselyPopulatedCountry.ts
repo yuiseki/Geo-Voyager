@@ -1,4 +1,4 @@
-// description: 世界で最も人口密度の高い国がシンガポールであることを確認する。
+// description: 世界で人口密度が最も高い国を探す。
 // file_path: src/lib/skills/checkSingaporeIsMostDenselyPopulatedCountryInWorld.ts
 
 import fs from "fs";

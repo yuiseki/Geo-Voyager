@@ -17,20 +17,7 @@ model Question {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  hypotheses  Hypothesis[] // 疑問に関連する仮説（1対多のリレーション）
-}
-
-model Hypothesis {
-  id          Int      @id @default(autoincrement())
-  description String   // 仮説の説明
-  status      String   @default("PENDING") // 仮説の状態: PENDING, VERIFIED, REJECTED, UNVERIFIABLE_FETCH, UNVERIFIABLE_ANALYZE
-  details     String?  // 検証の結果や付随情報
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  tasks       HypothesisTask[] // 仮説を検証するためのタスク（1対多のリレーション）
-  question    Question?        @relation(fields: [questionId], references: [id])
-  questionId  Int?             // 疑問との外部キー（オプション）
+  tasks  Task[] // 疑問に関連するタスク（1対多のリレーション）
 }
 
 model Task {
@@ -41,19 +28,8 @@ model Task {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  hypotheses  HypothesisTask[] // タスクによって検証される仮説（1対多のリレーション）
-}
-
-model HypothesisTask {
-  id           Int        @id @default(autoincrement())
-  hypothesisId Int
-  taskId       Int
-
-  hypothesis   Hypothesis @relation(fields: [hypothesisId], references: [id])
-  task         Task       @relation(fields: [taskId], references: [id])
-
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  questionId  Int      // Foreign key pointing to Question
+  question    Question @relation(fields: [questionId], references: [id])
 }
 
 model Skill {
