@@ -24,8 +24,25 @@ Geo-Voyager uses LangChain and Ollama to drive an autonomous cycle of:
 
 - Node.js (v18 or later)
 - npm or pnpm
-- Ollama with qwen2.5:14b model installed
 - SQLite
+- Ollama with qwen2.5:14b model
+
+### Installing Ollama
+
+1. Install Ollama:
+```bash
+curl -fsSL https://ollama.com/install.sh | sh
+```
+
+2. Start Ollama:
+```bash
+ollama serve
+```
+
+3. Pull the qwen2.5:14b model:
+```bash
+ollama pull qwen2.5:14b
+```
 
 ## Installation
 
@@ -53,9 +70,23 @@ make clean
 
 ## Usage
 
-Run the system:
+The project uses make commands for common operations:
+
+### Make Commands
+
+- `make all` - Initialize database and start the system (recommended)
+- `make main` - Start the system (checks for database and runs migrations if needed)
+- `make migrate` - Initialize/reset the database and run migrations
+- `make clean` - Clean the database and reinitialize it
+
+To start the system with a fresh database:
 ```bash
-make
+make all
+```
+
+To start the system with existing database:
+```bash
+make main
 ```
 
 ## System Flow
