@@ -23,7 +23,7 @@ Geo-Voyagerは、LangChainとOllamaを使用して以下のような自律的な
 ## 前提条件
 
 - Node.js (v18以降)
-- npmまたはpnpm
+- npm
 - SQLite
 - Ollama（qwen2.5:14bモデル）
 
@@ -55,8 +55,6 @@ cd Geo-Voyager
 2. 依存関係のインストール:
 ```bash
 npm install
-# または pnpmを使用する場合
-pnpm install
 ```
 
 3. データベースのセットアップ:

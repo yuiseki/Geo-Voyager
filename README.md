@@ -23,7 +23,7 @@ Geo-Voyager uses LangChain and Ollama to drive an autonomous cycle of:
 ## Prerequisites
 
 - Node.js (v18 or later)
-- npm or pnpm
+- npm
 - SQLite
 - Ollama with qwen2.5:14b model
 
@@ -55,8 +55,6 @@ cd Geo-Voyager
 2. Install dependencies:
 ```bash
 npm install
-# or if using pnpm
-pnpm install
 ```
 
 3. Set up the database:
