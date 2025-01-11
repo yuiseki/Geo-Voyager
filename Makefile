@@ -1,5 +1,5 @@
 
-all: migrate main
+all: main
 
 .SILENT: main
 main:

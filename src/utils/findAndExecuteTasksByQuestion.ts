@@ -30,20 +30,10 @@ export const findAndExecuteTasksByQuestion = async (question: Question) => {
   // すべてのタスクがCOMPLETEDの場合
   if (tasks.every((task) => task.status === "COMPLETED")) {
     console.log("🎉 All tasks for this question has completed.");
-    if (tasks.length < 1) {
-      // タスクの計画を再度行う
-      tasks = await planNewTasksForQuestion(question);
-    } else {
-      console.log("🎉 Question has been solved.");
-      // 仮説をACCEPTEDに更新
-      await updateQuestionStatus(question.id, QuestionStatus.SOLVED);
-      // 疑問をSOLVEDに更新
-      if (question.id) {
-        await updateQuestionStatus(question.id, QuestionStatus.SOLVED);
-        console.log("🎉 Question has been solved.");
-      }
-      return;
-    }
+    // 疑問をSOLVEDに更新
+    await updateQuestionStatus(question.id, QuestionStatus.SOLVED);
+    console.log("🎉 Question has been solved.");
+    return;
   }
 
   console.log("📋 Associated Tasks:");
@@ -77,7 +67,7 @@ export const findAndExecuteTasksByQuestion = async (question: Question) => {
     if (task.status === "PENDING") {
       console.log(`  - 🔨 Starting task: ${task.description}`);
 
-      // 仮説検証タスクを実行するためのスキルを取得
+      // タスクを実行するためのスキルを取得
       let skill = await getFirstSkillByDescription(task.description);
 
       if (skill === null) {
@@ -148,11 +138,6 @@ export const findAndExecuteTasksByQuestion = async (question: Question) => {
                   `      - ❌ Result: ${result}, hypothesis rejected.`
                 );
                 status = TaskStatus.FAILED;
-                // questionのstatusをUNRESOLVABLEに更新
-                await updateQuestionStatus(
-                  question.id,
-                  QuestionStatus.UNRESOLVABLE
-                );
                 break;
               }
             } else {

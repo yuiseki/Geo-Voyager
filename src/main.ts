@@ -2,6 +2,7 @@
 import { getAllQuestionsByStatus, QuestionStatus } from "./db/question";
 import { listUpAllSolvedQuestions } from "./utils/listUpAllSolvedQuestions";
 import { getAllExecutedTasksByQuestionId, TaskStatus } from "./db/task";
+import { findAndExecuteTasksByQuestion } from "./utils/findAndExecuteTasksByQuestion";
 
 (async () => {
   console.log("🗺️  Initializing Geo-Voyager...");
@@ -18,6 +19,8 @@ import { getAllExecutedTasksByQuestionId, TaskStatus } from "./db/task";
 
   for (const question of openQuestions) {
     console.log(`\n❓️ Question: ${question.description}`);
+
+    await findAndExecuteTasksByQuestion(question);
 
     const executedTasks = await getAllExecutedTasksByQuestionId(question.id);
     if (executedTasks.length > 0) {
