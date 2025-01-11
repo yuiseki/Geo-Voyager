@@ -1,7 +1,6 @@
 // src/main.ts
 import { getAllQuestionsByStatus, QuestionStatus } from "./db/question";
 import { listUpAllSolvedQuestions } from "./utils/listUpAllSolvedQuestions";
-import { getAllExecutedTasksByQuestionId, TaskStatus } from "./db/task";
 import { findAndExecuteTasksByQuestion } from "./utils/findAndExecuteTasksByQuestion";
 
 (async () => {
@@ -21,20 +20,6 @@ import { findAndExecuteTasksByQuestion } from "./utils/findAndExecuteTasksByQues
     console.log(`\n❓️ Question: ${question.description}`);
 
     await findAndExecuteTasksByQuestion(question);
-
-    const executedTasks = await getAllExecutedTasksByQuestionId(question.id);
-    if (executedTasks.length > 0) {
-      console.log("📚 Executed tasks:");
-      for (const task of executedTasks) {
-        if (task.status === TaskStatus.COMPLETED) {
-          console.log(
-            `  - ✅ Task: ${task.description} - ${task.result} [${task.status}]`
-          );
-        } else {
-          console.log(`  - ❌ Task: ${task.description} [${task.status}]`);
-        }
-      }
-    }
   }
 
   console.log("\n🗺️  Geo-Voyager has finished his journey.");
