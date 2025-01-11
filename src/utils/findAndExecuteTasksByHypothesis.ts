@@ -1,16 +1,14 @@
 // src/utils/findAndExecuteTasksByHypothesis.ts
 import { promises as fs } from "fs";
 import path from "path";
-import { Hypothesis } from "@prisma/client";
+import { Question } from "@prisma/client";
 import {
-  deleteTaskById,
-  getAllTasksByHypothesisId,
+  getAllTasksByQuestionId,
   TaskStatus,
   updateTaskStatusAndResult,
 } from "../db/task";
 import { getFirstSkillByDescription, saveSkillToDatabase } from "../db/skill";
-import { HypothesisStatus, updateHypothesisStatus } from "../db/hypothesis";
-import { planNewTasksForHypothesis } from "./planNewTasksForHypothesis";
+import { planNewTasksForHypothesis as planNewTasksForQuestion } from "./planNewTasksForQuestion";
 import { generateNewSkillForTask } from "./generateSkillForTask";
 import {
   getQuestionById,
@@ -20,33 +18,28 @@ import {
 import { glob } from "glob";
 import { prisma } from "../db";
 
-export const findAndExecuteTasksByHypothesis = async (
-  hypothesis: Hypothesis
-) => {
-  // Hypothesisに結びついているすべてのTaskを取得
-  let tasks = await getAllTasksByHypothesisId(hypothesis.id);
+export const findAndExecuteTasksByQuestion = async (question: Question) => {
+  // question に結びついているすべてのTaskを取得
+  let tasks = await getAllTasksByQuestionId(question.id);
   if (tasks.length === 0) {
-    console.log("⚠️  No tasks associated with this hypothesis.");
+    console.log("⚠️  No tasks associated with this question.");
     // タスクが無かったら新しいタスクを計画する
-    tasks = await planNewTasksForHypothesis(hypothesis);
+    tasks = await planNewTasksForQuestion(question);
   }
 
   // すべてのタスクがCOMPLETEDの場合
   if (tasks.every((task) => task.status === "COMPLETED")) {
-    console.log("🎉 All tasks for this hypothesis has completed.");
+    console.log("🎉 All tasks for this question has completed.");
     if (tasks.length < 1) {
       // タスクの計画を再度行う
-      tasks = await planNewTasksForHypothesis(hypothesis);
+      tasks = await planNewTasksForQuestion(question);
     } else {
-      console.log("🎉 Hypothesis has been verified.");
+      console.log("🎉 Question has been solved.");
       // 仮説をACCEPTEDに更新
-      await updateHypothesisStatus(hypothesis.id, HypothesisStatus.VERIFIED);
+      await updateQuestionStatus(question.id, QuestionStatus.SOLVED);
       // 疑問をSOLVEDに更新
-      if (hypothesis.questionId) {
-        const question = await getQuestionById(hypothesis.questionId);
-        if (question) {
-          await updateQuestionStatus(question.id, QuestionStatus.SOLVED);
-        }
+      if (question.id) {
+        await updateQuestionStatus(question.id, QuestionStatus.SOLVED);
         console.log("🎉 Question has been solved.");
       }
       return;
@@ -57,10 +50,6 @@ export const findAndExecuteTasksByHypothesis = async (
   for (const task of tasks) {
     if (task.description.includes("蓬爾")) {
       console.log("🚫 Task contains 蓬爾, invalid!");
-      // hypothesisTaskを削除
-      await prisma.hypothesisTask.deleteMany({
-        where: { taskId: task.id },
-      });
       // Taskを削除
       await prisma.task.delete({
         where: { id: task.id },
@@ -159,10 +148,10 @@ export const findAndExecuteTasksByHypothesis = async (
                   `      - ❌ Result: ${result}, hypothesis rejected.`
                 );
                 status = TaskStatus.FAILED;
-                // hypothesisのstatusをREJECTEDに更新
-                await updateHypothesisStatus(
-                  hypothesis.id,
-                  HypothesisStatus.REJECTED
+                // questionのstatusをUNRESOLVABLEに更新
+                await updateQuestionStatus(
+                  question.id,
+                  QuestionStatus.UNRESOLVABLE
                 );
                 break;
               }

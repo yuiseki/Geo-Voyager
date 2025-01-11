@@ -1,13 +1,13 @@
-import { Hypothesis } from "@prisma/client";
-import { createTaskByHypothesisId, getAllExecutedTasks } from "../db/task";
+import { Question } from "@prisma/client";
+import { createTaskByQuestionId, getAllExecutedTasks } from "../db/task";
 import { ChatOllama } from "@langchain/ollama";
 
 /**
  * 仮説に関連付けられた新しいタスクを計画・作成
- * @param hypothesis 新しい仮説
+ * @param question 新しい仮説
  */
-export const planNewTasksForHypothesis = async (hypothesis: Hypothesis) => {
-  console.log("🤖 Planning new tasks for the hypothesis...");
+export const planNewTasksForHypothesis = async (question: Question) => {
+  console.log("🤖 Planning new tasks for the question...");
   const model = new ChatOllama({
     model: "qwen2.5:7b",
     temperature: 0.1,
@@ -19,7 +19,7 @@ export const planNewTasksForHypothesis = async (hypothesis: Hypothesis) => {
   const executedTasks = await getAllExecutedTasks();
 
   const prompt = `Given the hypothesis: "${
-    hypothesis.description
+    question.description
   }", plan new executable tasks to test the hypothesis in Japanese.
 
 The task must be answerable with a "true" or "false" response.
@@ -93,10 +93,7 @@ Reply with only a list of possible new executable tasks, separated by newlines.`
       continue;
     }
     console.log(`💾 Saving new task: ${taskDescription}`);
-    const newTask = await createTaskByHypothesisId(
-      hypothesis.id,
-      taskDescription
-    );
+    const newTask = await createTaskByQuestionId(question.id, taskDescription);
     tasks.push(newTask);
   }
 

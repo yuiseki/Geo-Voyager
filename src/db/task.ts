@@ -8,20 +8,16 @@ export enum TaskStatus {
   ERROR = "ERROR",
 }
 
-export const deleteTaskById = async (id: number) => {
+export const deleteTaskById = async (taskId: number) => {
   return await prisma.task.delete({
-    where: { id },
+    where: { id: taskId },
   });
 };
 
-export const getAllTasksByHypothesisId = async (hypothesisId: number) => {
+export const getAllTasksByQuestionId = async (questionId: number) => {
   return await prisma.task.findMany({
     where: {
-      hypotheses: {
-        some: {
-          hypothesisId,
-        },
-      },
+      questionId,
     },
   });
 };
@@ -36,16 +32,10 @@ export const getAllExecutedTasks = async () => {
   });
 };
 
-export const getAllExecutedTasksByHypothesisId = async (
-  hypothesisId: number
-) => {
+export const getAllExecutedTasksByQuestionId = async (questionId: number) => {
   return await prisma.task.findMany({
     where: {
-      hypotheses: {
-        some: {
-          hypothesisId,
-        },
-      },
+      questionId,
       status: {
         in: [TaskStatus.COMPLETED, TaskStatus.FAILED],
       },
@@ -54,29 +44,25 @@ export const getAllExecutedTasksByHypothesisId = async (
 };
 
 export const updateTaskStatusAndResult = async (
-  id: number,
+  taskId: number,
   status: TaskStatus,
   result: string
 ) => {
   return await prisma.task.update({
-    where: { id },
+    where: { id: taskId },
     data: { status, result },
   });
 };
 
-export const createTaskByHypothesisId = async (
-  hypothesisId: number,
+export const createTaskByQuestionId = async (
+  questionId: number,
   description: string
 ) => {
   const task = await prisma.task.create({
     data: {
       description,
       status: TaskStatus.PENDING,
-      hypotheses: {
-        create: {
-          hypothesisId,
-        },
-      },
+      questionId,
     },
   });
   return task;
