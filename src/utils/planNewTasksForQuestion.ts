@@ -53,6 +53,11 @@ Reply with only a list of possible new executable tasks, separated by newlines.`
   const tasks = [];
   // タスクをデータベースに作成
   for (let taskDescription of taskList) {
+    // 蓬爾問題
+    if (taskDescription.includes("蓬爾")) {
+      console.log("🚫 Task contains 蓬爾, invalid!");
+      continue;
+    }
     // 先頭に "- " がある場合には、除去する
     if (taskDescription.startsWith("- ")) {
       taskDescription = taskDescription.slice(2);
@@ -72,24 +77,9 @@ Reply with only a list of possible new executable tasks, separated by newlines.`
       console.error(`⚠️  Ignoring task: ${taskDescription}`);
       continue;
     }
-    // 「すべて」が含まれている場合は無視する
-    if (taskDescription.includes("すべて")) {
-      console.error(`⚠️  Ignoring task: ${taskDescription}`);
-      continue;
-    }
-    // 「全て」が含まれている場合は無視する
-    if (taskDescription.includes("全て")) {
-      console.error(`⚠️  Ignoring task: ${taskDescription}`);
-      continue;
-    }
     // 「低い」が含まれている場合は無視する
     if (taskDescription.includes("低い")) {
       console.error(`⚠️  Ignoring task: ${taskDescription}`);
-      continue;
-    }
-    // 蓬爾問題
-    if (taskDescription.includes("蓬爾")) {
-      console.log("🚫 Task contains 蓬爾, invalid!");
       continue;
     }
     console.log(`💾 Saving new task: ${taskDescription}`);
