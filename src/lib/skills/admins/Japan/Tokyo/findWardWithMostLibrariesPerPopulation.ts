@@ -58,9 +58,7 @@ out tags;
  * @param wardName - The name of the ward to query.
  * @returns The total count of libraries of the ward.
  */
-async function getLibrariesCountOfWard(
-  wardName: string
-): Promise<number> {
+async function getLibrariesCountOfWard(wardName: string): Promise<number> {
   const overpassQuery = `
 [out:json];
 area["name"="東京都"]->.out;
@@ -79,9 +77,7 @@ out count;
  * @param wardName - The name of the ward to query.
  * @returns The population of the ward.
  */
-async function getPopulationOfWard(
-  wardName: string
-): Promise<number> {
+async function getPopulationOfWard(wardName: string): Promise<number> {
   const overpassQuery = `
 [out:json];
 area["name"="東京都"]->.tokyo;
@@ -121,8 +117,7 @@ const findWardWithMostLibrariesPerPopulation = async (): Promise<string> => {
 
   for (const ward of wards) {
     if (ward === "") continue; // Skip empty lines
-    const librariesPerPopulation =
-      await getLibrariesPerPopulationOfWard(ward);
+    const librariesPerPopulation = await getLibrariesPerPopulationOfWard(ward);
     console.log(
       `findWardWithMostLibrariesPerPopulation: ${ward} has ${librariesPerPopulation} libraries per population`
     );

@@ -88,9 +88,7 @@ out geom;
  * @param wardName - The name of the ward to query.
  * @returns The population of the ward.
  */
-async function getPopulationOfWard(
-  wardName: string
-): Promise<number> {
+async function getPopulationOfWard(wardName: string): Promise<number> {
   const overpassQuery = `
 [out:json];
 area["name"="東京都"]->.tokyo;
@@ -107,15 +105,12 @@ out tags;
   return population;
 }
 
-
 /**
  * Get the population density of a ward in Tokyo.
  * @param wardName - The name of the ward to calculate the population density.
  * @returns The population density of the ward.
  */
-async function getPopulationDensityOfWards(
-  wardName: string
-): Promise<number> {
+async function getPopulationDensityOfWards(wardName: string): Promise<number> {
   const population = await getPopulationOfWard(wardName);
   const areaKm2 = await getAreaOfWard(wardName);
   return population / areaKm2;
@@ -126,9 +121,7 @@ const findMostDenselyPopulatedWard = async (): Promise<string> => {
   let maxPopulationDensity = 0;
   let mostDenselyPopulatedWard = "";
   for (const ward of wards) {
-    const populationDensity = await getPopulationDensityOfWards(
-      ward
-    );
+    const populationDensity = await getPopulationDensityOfWards(ward);
     console.info(
       `findMostDenselyPopulatedWard: ${ward} has ${populationDensity} people / km^2`
     );

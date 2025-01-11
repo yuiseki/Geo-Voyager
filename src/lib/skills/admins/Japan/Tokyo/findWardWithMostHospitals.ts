@@ -86,7 +86,9 @@ const findWardWithMostHospitals = async (): Promise<string> => {
   let wardWithMostHospitals = "";
   for (const ward of wards) {
     const hospitalCount = await getHospitalCountByWard(ward);
-    console.log(`findWardWithMostHospitals: ${ward} has ${hospitalCount} hospitals`);
+    console.log(
+      `findWardWithMostHospitals: ${ward} has ${hospitalCount} hospitals`
+    );
     if (hospitalCount > maxHospitals) {
       maxHospitals = hospitalCount;
       wardWithMostHospitals = ward;

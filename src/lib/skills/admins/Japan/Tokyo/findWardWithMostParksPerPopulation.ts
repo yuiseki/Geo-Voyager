@@ -65,9 +65,7 @@ out tags;
  * @param wardName - The name of the ward to query.
  * @returns The total count of parks of the ward.
  */
-async function getParkCountOfWard(
-  wardName: string
-): Promise<number> {
+async function getParkCountOfWard(wardName: string): Promise<number> {
   const overpassQuery = `
 [out:json];
 area["name"="東京都"]->.out;
@@ -86,9 +84,7 @@ out count;
  * @param wardName - The name of the ward to query.
  * @returns The population of the ward.
  */
-async function getPopulationOfWard(
-  wardName: string
-): Promise<number> {
+async function getPopulationOfWard(wardName: string): Promise<number> {
   const overpassQuery = `
 [out:json];
 area["name"="東京都"]->.tokyo;
@@ -110,9 +106,7 @@ out tags;
  * @param wardName - The name of the ward to query.
  * @returns The number of parks per population of the ward.
  */
-async function getParksPerPopulationOfWard(
-  wardName: string
-): Promise<number> {
+async function getParksPerPopulationOfWard(wardName: string): Promise<number> {
   const parkCount = await getParkCountOfWard(wardName);
   const population = await getPopulationOfWard(wardName);
   if (population === 0) {
@@ -126,9 +120,7 @@ const findWardWithMostParksPerPopulation = async (): Promise<string> => {
   let maxParksPerPopulation = 0;
   let mostPerksPerPopulationWard = "";
   for (const ward of wards) {
-    const parksPerPopulation = await getParksPerPopulationOfWard(
-      ward
-    );
+    const parksPerPopulation = await getParksPerPopulationOfWard(ward);
     console.log(
       `findWardWithMostParksPerPopulation: ${ward} has ${parksPerPopulation} parks per population`
     );

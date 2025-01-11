@@ -65,9 +65,7 @@ out tags;
  * @param wardName - The name of the ward to query.
  * @returns The total count of hospitals of the ward.
  */
-async function getHospitalsCountOfWard(
-  wardName: string
-): Promise<number> {
+async function getHospitalsCountOfWard(wardName: string): Promise<number> {
   const overpassQuery = `
 [out:json];
 area["name"="東京都"]->.out;
@@ -86,9 +84,7 @@ out count;
  * @param wardName - The name of the ward to query.
  * @returns The population of the ward.
  */
-async function getPopulationOfWard(
-  wardName: string
-): Promise<number> {
+async function getPopulationOfWard(wardName: string): Promise<number> {
   const overpassQuery = `
 [out:json];
 area["name"="東京都"]->.tokyo;
@@ -121,24 +117,24 @@ async function getHospitalsPerPopulationOfWard(
   return population > 0 ? hospitalCount / population : 0;
 }
 
-const findWardWithMostHospitalsPerPopulation =
-  async (): Promise<string> => {
-    const wards = await getAllWardsInTokyo();
-    let maxHospitalsPerPopulation = 0;
-    let mostHospitalsPerPopulationWard = "";
-    for (const ward of wards) {
-      const hospitalsPerPopulation =
-        await getHospitalsPerPopulationOfWard(ward);
-      console.log(`findWardWithMostHospitalsPerPopulation: ${ward} has ${hospitalsPerPopulation} hospitals per population`);
-      if (hospitalsPerPopulation > maxHospitalsPerPopulation) {
-        maxHospitalsPerPopulation = hospitalsPerPopulation;
-        mostHospitalsPerPopulationWard = ward;
-      }
-    }
-    console.info(
-      `Ward with most hospitals per population in Tokyo: ${mostHospitalsPerPopulationWard}`
+const findWardWithMostHospitalsPerPopulation = async (): Promise<string> => {
+  const wards = await getAllWardsInTokyo();
+  let maxHospitalsPerPopulation = 0;
+  let mostHospitalsPerPopulationWard = "";
+  for (const ward of wards) {
+    const hospitalsPerPopulation = await getHospitalsPerPopulationOfWard(ward);
+    console.log(
+      `findWardWithMostHospitalsPerPopulation: ${ward} has ${hospitalsPerPopulation} hospitals per population`
     );
-    return mostHospitalsPerPopulationWard;
-  };
+    if (hospitalsPerPopulation > maxHospitalsPerPopulation) {
+      maxHospitalsPerPopulation = hospitalsPerPopulation;
+      mostHospitalsPerPopulationWard = ward;
+    }
+  }
+  console.info(
+    `Ward with most hospitals per population in Tokyo: ${mostHospitalsPerPopulationWard}`
+  );
+  return mostHospitalsPerPopulationWard;
+};
 
 export default findWardWithMostHospitalsPerPopulation;
