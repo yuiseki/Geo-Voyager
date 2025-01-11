@@ -132,13 +132,11 @@ export const findAndExecuteTasksByQuestion = async (question: Question) => {
               if (result) {
                 console.log(`      - ✅ Result: ${result}`);
                 status = TaskStatus.COMPLETED;
-                break;
               } else {
                 console.log(
                   `      - ❌ Result: ${result}, hypothesis rejected.`
                 );
                 status = TaskStatus.FAILED;
-                break;
               }
             } else {
               console.error("      - 🚫 No default export found in skill.");
@@ -150,7 +148,6 @@ export const findAndExecuteTasksByQuestion = async (question: Question) => {
             if (attempts === maxAttempts) {
               status = TaskStatus.ERROR;
               result = (error as Error).message;
-              break;
             } else {
               console.log("      - 🔁 Retrying in 5 seconds...");
               attempts++;
@@ -170,11 +167,8 @@ export const findAndExecuteTasksByQuestion = async (question: Question) => {
                 result.toString()
               );
             }
+            break;
           }
-        }
-        if (result === false) {
-          console.log("🚫 Hypothesis rejected.");
-          break;
         }
       }
     }

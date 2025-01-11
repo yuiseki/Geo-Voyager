@@ -1,4 +1,4 @@
-// description: 日本で最も人口密度が高い都道府県を探す。
+// description: 日本で人口密度が最も高い都道府県を探す。
 // file_path: src/lib/skills/admins/Japan/findMostDenselyPopulatedPref.ts
 
 import * as turf from "@turf/turf";
@@ -160,11 +160,11 @@ out geom;
   // area in square meters
   const area = turf.area(clipped);
   // area in square kilometers
-  const areaKm2 = area / 1000000;
+  const areaInKm2 = area / 1000000;
   if (isNaN(population)) {
     population = 0;
   }
-  return population / areaKm2;
+  return population / areaInKm2;
 };
 
 type AreaPopulation = {

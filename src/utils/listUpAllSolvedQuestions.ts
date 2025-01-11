@@ -8,12 +8,10 @@ export const listUpAllSolvedQuestions = async () => {
     console.log(`- ✨️ ${question.description}`);
     const executedTasks = await getAllExecutedTasksByQuestionId(question.id);
     if (executedTasks.length > 0) {
-      console.log("📚 Executed tasks:");
       for (const task of executedTasks) {
         if (task.status === TaskStatus.COMPLETED) {
-          console.log(
-            `  - ✅ Task: ${task.description} - ${task.result} [${task.status}]`
-          );
+          console.log(`  - ✅ Task: ${task.description}[${task.status}]`);
+          console.log(`    - 📝️ Result: ${task.result}`);
         } else {
           console.log(`  - ❌ Task: ${task.description} [${task.status}]`);
         }
