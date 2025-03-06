@@ -1,5 +1,6 @@
 import { promises as fs } from "fs";
 import path from "path";
+
 import { ChatOllama, OllamaEmbeddings } from "@langchain/ollama";
 import { getAllSkills, saveSkillToDatabase } from "../db/skill";
 import { SemanticSimilarityExampleSelector } from "@langchain/core/example_selectors";
@@ -29,7 +30,7 @@ export const generateNewSkillForTask = async (
   // await sleep(120000);
 
   const model = new ChatOllama({
-    model: "qwen2.5-coder:14b",
+    model: "qwen2.5-coder:32b",
     temperature: 0,
     numCtx: 4096,
   });
