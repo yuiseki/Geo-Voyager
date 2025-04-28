@@ -8,7 +8,7 @@ export const getAllWardsInTokyo = async (): Promise<string[]> => {
 [out:json];
 area["name"="東京都"]->.tokyo;
 (
-  relation["admin_level"="7"](area.tokyo);
+  relation["admin_level"="7"]["place"="city"](area.tokyo);
 );
 out tags;
 `;

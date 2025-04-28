@@ -2,6 +2,13 @@ import fs from "fs";
 import { Md5 } from "ts-md5";
 
 /**
+ * Sleeps for the specified duration in milliseconds.
+ * @param ms - The number of milliseconds to sleep.
+ * @returns A promise that resolves after the specified time.
+ */
+const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
  * Fetches data from the Overpass API.
  * @param query - The Overpass QL query string.
  * @returns Promise resolving to JSON data from the Overpass API.
@@ -17,6 +24,10 @@ export const fetchOverpassData = async (query: string): Promise<any> => {
   } catch (e) {
     console.log("Cache not found. Calling Overpass API...");
   }
+  
+  // APIリクエスト前に1秒待機
+  await sleep(1000);
+  
   const endpoint = "https://overpass-api.de/api/interpreter";
   const res = await fetch(endpoint, {
     method: "POST",

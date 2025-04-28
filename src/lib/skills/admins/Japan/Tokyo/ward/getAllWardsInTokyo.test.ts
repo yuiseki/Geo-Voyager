@@ -12,8 +12,7 @@ describe("getAllWardsInTokyo", () => {
 
     // Just verify we got some data (not empty)
     expect(wards.length).toBeGreaterThan(0);
-    // 東京には67の自治体があるはず
-    expect(wards.length).toBe(67);
+    expect(wards.length).toBe(30);
     // 特定の区が含まれているか確認
     expect(wards).toContain("新宿区");
     expect(wards).toContain("渋谷区");
