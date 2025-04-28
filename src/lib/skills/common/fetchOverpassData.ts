@@ -15,7 +15,7 @@ export const fetchOverpassData = async (query: string): Promise<any> => {
     const cache = await fs.promises.readFile(cachePath, "utf-8");
     return JSON.parse(cache);
   } catch (e) {
-    console.debug("Cache not found. Calling Overpass API...");
+    console.log("Cache not found. Calling Overpass API...");
   }
   const endpoint = "https://overpass-api.de/api/interpreter";
   const res = await fetch(endpoint, {
@@ -26,6 +26,7 @@ export const fetchOverpassData = async (query: string): Promise<any> => {
     body: `data=${encodeURIComponent(query)}`,
   });
   if (!res.ok) {
+    console.log("Error fetching data from Overpass API:", res.status);
     throw new Error(`HTTP error! status: ${res.status}`);
   }
   const data = await res.json();
