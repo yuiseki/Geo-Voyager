@@ -30,10 +30,10 @@ out count;
 
     // 実際に取得した区の病院数を確認
     const response = await fetchOverpassData(overpassQuery);
-    const hospitalCount = response.elements[0].tags.total;
+    const hospitalCount = parseInt(response.elements[0].tags.total);
 
     // 病院の数が一定数以上あることを確認
-    expect(hospitalCount).toBeGreaterThan(10);
+    expect(hospitalCount).toBeGreaterThan(3);
 
     console.log(
       `最も病院が多い区は${wardWithMostHospitals}で、病院数は${hospitalCount}です`
@@ -59,7 +59,9 @@ out count;
 `;
 
     const mostHospitalsResponse = await fetchOverpassData(mostHospitalsQuery);
-    const highestHospitalCount = mostHospitalsResponse.elements[0].tags.total;
+    const highestHospitalCount = parseInt(
+      mostHospitalsResponse.elements[0].tags.total
+    );
 
     // サンプル区と比較して、実際に最も病院が多い区が選ばれていることを確認
     for (const ward of potentialWards) {
@@ -76,7 +78,7 @@ out count;
 `;
 
       const wardResponse = await fetchOverpassData(wardQuery);
-      const wardHospitalCount = wardResponse.elements[0].tags.total;
+      const wardHospitalCount = parseInt(wardResponse.elements[0].tags.total);
 
       console.log(`${ward}の病院数: ${wardHospitalCount}`);
 

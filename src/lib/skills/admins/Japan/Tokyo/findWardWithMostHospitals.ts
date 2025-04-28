@@ -21,7 +21,7 @@ out count;
 `;
 
   const response = await fetchOverpassData(overpassQuery);
-  return response.elements[0].tags.total;
+  return parseInt(response.elements[0].tags.total);
 }
 
 export const findWardWithMostHospitals = async (): Promise<string> => {
