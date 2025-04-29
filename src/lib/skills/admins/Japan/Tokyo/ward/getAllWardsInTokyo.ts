@@ -1,4 +1,4 @@
-import { fetchOverpassData } from "../../../../common/fetchOverpassData";
+import { fetchOverpassData } from "../../../../../common/fetchOverpassData";
 
 /**
  * @returns A list of name of all wards in Tokyo.

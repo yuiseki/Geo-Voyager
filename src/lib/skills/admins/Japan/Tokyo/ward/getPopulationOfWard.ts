@@ -1,4 +1,4 @@
-import { fetchOverpassData } from "../../../../common/fetchOverpassData";
+import { fetchOverpassData } from "../../../../../common/fetchOverpassData";
 
 /**
  * Fetches the population of a specified ward using Overpass API.

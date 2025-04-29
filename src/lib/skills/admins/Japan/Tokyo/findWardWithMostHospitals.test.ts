@@ -1,5 +1,5 @@
 import { findWardWithMostHospitals } from "./findWardWithMostHospitals";
-import { fetchOverpassData } from "../../../common/fetchOverpassData";
+import { fetchOverpassData } from "../../../../common/fetchOverpassData";
 
 describe("findWardWithMostHospitals", () => {
   beforeEach(() => {

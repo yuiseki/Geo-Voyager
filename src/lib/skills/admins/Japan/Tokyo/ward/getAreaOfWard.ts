@@ -1,5 +1,5 @@
 import osmtogeojson from "osmtogeojson";
-import { fetchOverpassData } from "../../../../common/fetchOverpassData";
+import { fetchOverpassData } from "../../../../../common/fetchOverpassData";
 import * as turf from "@turf/turf";
 
 /**
