@@ -2,6 +2,8 @@ import { findLeastDenselyPopulatedCountry } from "./findLeastDenselyPopulatedCou
 import { getWorldBankPopulationDensityByCountryCode } from "../common/getWorldBankPopulationDensityByCountryCode";
 import { getWorldBankCountryNameByAlpha2Codes } from "../common/getWorldBankCountryNameByAlpha2Codes";
 import { getWorldBankAllCountriesAlpha2Codes } from "../common/getWorldBankAllCountriesAlpha2Codes";
+import { getWorldBankPopulationByCountryCode } from "../common/getWorldBankPopulationByCountryCode";
+import { getWorldBankAreaByCountryCode } from "../common/getWorldBankAreaByCountryCode";
 
 describe("findLeastDenselyPopulatedCountry", () => {
   it("should find the least densely populated country in the world", async () => {
@@ -36,6 +38,12 @@ describe("findLeastDenselyPopulatedCountry", () => {
       countryCode
     );
 
+    // 人口データを取得
+    const population = await getWorldBankPopulationByCountryCode(countryCode);
+
+    // 面積データを計算
+    const area = await getWorldBankAreaByCountryCode(countryCode);
+
     // 人口密度が低いことを検証
     expect(populationDensity).toBeLessThan(10); // 1平方km当たり10人以下が期待される
 
@@ -43,7 +51,9 @@ describe("findLeastDenselyPopulatedCountry", () => {
     console.log(
       `世界で最も人口密度が低い国は${result}で、人口密度は${populationDensity.toFixed(
         2
-      )}人/km²です`
+      )}人/km²です（人口: ${population.toLocaleString()}人、面積: ${area.toFixed(
+        2
+      )}km²）`
     );
   }, 60000); // タイムアウトを60秒に設定
 });
