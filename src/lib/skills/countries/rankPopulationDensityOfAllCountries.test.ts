@@ -38,18 +38,6 @@ describe("rankPopulationDensityOfAllCountries", () => {
     for (let i = 0; i < result.length - 1; i++) {
       expect(result[i].density).toBeGreaterThanOrEqual(result[i + 1].density);
     }
-
-    // 結果を表示
-    console.log(`世界の人口密度ランキング（上位${result.length}カ国）:`);
-    result.forEach((country, index) => {
-      console.log(
-        `${index + 1}. ${country.name}: ${country.density.toFixed(
-          2
-        )}人/km²（人口: ${country.population.toLocaleString()}人、面積: ${country.area.toFixed(
-          2
-        )}km²）`
-      );
-    });
   });
 
   it("should respect the limit parameter", async () => {
