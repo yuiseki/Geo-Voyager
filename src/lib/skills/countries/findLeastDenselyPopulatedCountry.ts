@@ -1,9 +1,9 @@
 // filepath: /home/yuiseki/src/github.com/yuiseki/Geo-Voyager/src/lib/skills/findLeastDenselyPopulatedCountry.ts
 // description: 世界で人口密度が最も低い国を探す。
 
-import { getWorldBankAllCountriesAlpha2Codes } from "../common/getWorldBankAllCountriesAlpha2Codes";
-import { getWorldBankCountryNameByAlpha2Codes } from "../common/getWorldBankCountryNameByAlpha2Codes";
-import { getWorldBankPopulationDensityByCountryCode } from "../common/getWorldBankPopulationDensityByCountryCode";
+import { getWorldBankAllCountriesAlpha2Codes } from "../../common/getWorldBankAllCountriesAlpha2Codes";
+import { getWorldBankCountryNameByAlpha2Codes } from "../../common/getWorldBankCountryNameByAlpha2Codes";
+import { getWorldBankPopulationDensityByCountryCode } from "../../common/getWorldBankPopulationDensityByCountryCode";
 
 /**
  * @returns The name of the least densely populated country.

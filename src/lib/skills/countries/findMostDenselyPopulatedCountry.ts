@@ -1,9 +1,9 @@
 // description: 世界で人口密度が最も高い国を探す。
 // file_path: src/lib/skills/checkSingaporeIsMostDenselyPopulatedCountryInWorld.ts
 
-import { getWorldBankAllCountriesAlpha2Codes } from "../common/getWorldBankAllCountriesAlpha2Codes";
-import { getWorldBankCountryNameByAlpha2Codes } from "../common/getWorldBankCountryNameByAlpha2Codes";
-import { getWorldBankPopulationDensityByCountryCode } from "../common/getWorldBankPopulationDensityByCountryCode";
+import { getWorldBankAllCountriesAlpha2Codes } from "../../common/getWorldBankAllCountriesAlpha2Codes";
+import { getWorldBankCountryNameByAlpha2Codes } from "../../common/getWorldBankCountryNameByAlpha2Codes";
+import { getWorldBankPopulationDensityByCountryCode } from "../../common/getWorldBankPopulationDensityByCountryCode";
 
 /**
  * @returns The ISO3166-1 alpha-2 country code of the most densely populated country.

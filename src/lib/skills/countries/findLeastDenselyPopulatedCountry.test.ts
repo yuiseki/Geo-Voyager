@@ -1,9 +1,9 @@
 import { findLeastDenselyPopulatedCountry } from "./findLeastDenselyPopulatedCountry";
-import { getWorldBankPopulationDensityByCountryCode } from "../common/getWorldBankPopulationDensityByCountryCode";
-import { getWorldBankCountryNameByAlpha2Codes } from "../common/getWorldBankCountryNameByAlpha2Codes";
-import { getWorldBankAllCountriesAlpha2Codes } from "../common/getWorldBankAllCountriesAlpha2Codes";
-import { getWorldBankPopulationByCountryCode } from "../common/getWorldBankPopulationByCountryCode";
-import { getWorldBankAreaByCountryCode } from "../common/getWorldBankAreaByCountryCode";
+import { getWorldBankPopulationDensityByCountryCode } from "../../common/getWorldBankPopulationDensityByCountryCode";
+import { getWorldBankCountryNameByAlpha2Codes } from "../../common/getWorldBankCountryNameByAlpha2Codes";
+import { getWorldBankAllCountriesAlpha2Codes } from "../../common/getWorldBankAllCountriesAlpha2Codes";
+import { getWorldBankPopulationByCountryCode } from "../../common/getWorldBankPopulationByCountryCode";
+import { getWorldBankAreaByCountryCode } from "../../common/getWorldBankAreaByCountryCode";
 
 describe("findLeastDenselyPopulatedCountry", () => {
   it("should find the least densely populated country in the world", async () => {

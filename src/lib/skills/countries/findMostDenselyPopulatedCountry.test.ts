@@ -1,9 +1,9 @@
 import { findMostDenselyPopulatedCountry } from "./findMostDenselyPopulatedCountry";
-import { getWorldBankPopulationDensityByCountryCode } from "../common/getWorldBankPopulationDensityByCountryCode";
-import { getWorldBankCountryNameByAlpha2Codes } from "../common/getWorldBankCountryNameByAlpha2Codes";
-import { getWorldBankAllCountriesAlpha2Codes } from "../common/getWorldBankAllCountriesAlpha2Codes";
-import { getWorldBankPopulationByCountryCode } from "../common/getWorldBankPopulationByCountryCode";
-import { getWorldBankAreaByCountryCode } from "../common/getWorldBankAreaByCountryCode";
+import { getWorldBankPopulationDensityByCountryCode } from "../../common/getWorldBankPopulationDensityByCountryCode";
+import { getWorldBankCountryNameByAlpha2Codes } from "../../common/getWorldBankCountryNameByAlpha2Codes";
+import { getWorldBankAllCountriesAlpha2Codes } from "../../common/getWorldBankAllCountriesAlpha2Codes";
+import { getWorldBankPopulationByCountryCode } from "../../common/getWorldBankPopulationByCountryCode";
+import { getWorldBankAreaByCountryCode } from "../../common/getWorldBankAreaByCountryCode";
 
 describe("findMostDenselyPopulatedCountry", () => {
   it("should find the most densely populated country in the world", async () => {
