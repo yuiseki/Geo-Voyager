@@ -1,4 +1,4 @@
-import findWardWithMostLibrariesPerPopulation from "./findWardWithMostLibrariesPerPopulation";
+import { findWardWithMostLibrariesPerPopulation } from "./findWardWithMostLibrariesPerPopulation";
 import { getLibrariesCountByWard } from "./ward/getLibrariesCountByWard";
 import { getPopulationOfWard } from "./ward/getPopulationOfWard";
 

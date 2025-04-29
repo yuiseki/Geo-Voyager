@@ -43,7 +43,7 @@ describe("findWardWithMostSchoolsPerPopulation", () => {
 
   it("should validate that the result actually has the most schools per population", async () => {
     // 学校が多いと予想される区のリスト（テスト用）
-    const potentialWards = ["千代田区", "中央区", "港区"];
+    const potentialWards = ["文京区", "中央区", "港区"];
 
     // 実際に最も人口あたりの学校数が多い区を取得
     const wardWithMostSchoolsPerPopulation =

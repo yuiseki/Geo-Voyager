@@ -21,20 +21,21 @@ async function getLibrariesPerPopulationOfWard(
   return libraryCount / population;
 }
 
-const findWardWithMostLibrariesPerPopulation = async (): Promise<string> => {
-  const wards = await getAllWardsInTokyo();
-  let maxLibrariesPerPopulation = 0;
-  let mostLibrariesPerPopulationWard = "";
+export const findWardWithMostLibrariesPerPopulation =
+  async (): Promise<string> => {
+    const wards = await getAllWardsInTokyo();
+    let maxLibrariesPerPopulation = 0;
+    let mostLibrariesPerPopulationWard = "";
 
-  for (const ward of wards) {
-    if (ward === "") continue; // Skip empty lines
-    const librariesPerPopulation = await getLibrariesPerPopulationOfWard(ward);
-    if (librariesPerPopulation > maxLibrariesPerPopulation) {
-      maxLibrariesPerPopulation = librariesPerPopulation;
-      mostLibrariesPerPopulationWard = ward;
+    for (const ward of wards) {
+      if (ward === "") continue; // Skip empty lines
+      const librariesPerPopulation = await getLibrariesPerPopulationOfWard(
+        ward
+      );
+      if (librariesPerPopulation > maxLibrariesPerPopulation) {
+        maxLibrariesPerPopulation = librariesPerPopulation;
+        mostLibrariesPerPopulationWard = ward;
+      }
     }
-  }
-  return mostLibrariesPerPopulationWard;
-};
-
-export default findWardWithMostLibrariesPerPopulation;
+    return mostLibrariesPerPopulationWard;
+  };

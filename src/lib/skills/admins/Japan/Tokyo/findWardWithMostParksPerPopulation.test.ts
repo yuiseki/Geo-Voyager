@@ -20,9 +20,7 @@ describe("findWardWithMostParksPerPopulation", () => {
     expect(wardWithMostParksPerPopulation.length).toBeGreaterThan(0);
 
     // 人口あたりの公園数を計算して検証
-    const parkCount = await getParkCountByWard(
-      wardWithMostParksPerPopulation
-    );
+    const parkCount = await getParkCountByWard(wardWithMostParksPerPopulation);
     const population = await getPopulationOfWard(
       wardWithMostParksPerPopulation
     );
@@ -43,16 +41,14 @@ describe("findWardWithMostParksPerPopulation", () => {
 
   it("should validate that the result actually has the most parks per population", async () => {
     // 公園が多いと予想される区のリスト（テスト用）
-    const potentialWards = ["世田谷区", "大田区", "練馬区"];
+    const potentialWards = ["世田谷区", "大田区", "文京区"];
 
     // 実際に最も人口あたりの公園数が多い区を取得
     const wardWithMostParksPerPopulation =
       await findWardWithMostParksPerPopulation();
 
     // 選ばれた区の人口あたりの公園数を計算
-    const parkCount = await getParkCountByWard(
-      wardWithMostParksPerPopulation
-    );
+    const parkCount = await getParkCountByWard(wardWithMostParksPerPopulation);
     const population = await getPopulationOfWard(
       wardWithMostParksPerPopulation
     );
