@@ -30,16 +30,10 @@ export const findWardWithMostHospitalsPerPopulation =
       const hospitalsPerPopulation = await getHospitalsPerPopulationOfWard(
         ward
       );
-      console.log(
-        `findWardWithMostHospitalsPerPopulation: ${ward} has ${hospitalsPerPopulation} hospitals per population`
-      );
       if (hospitalsPerPopulation > maxHospitalsPerPopulation) {
         maxHospitalsPerPopulation = hospitalsPerPopulation;
         mostHospitalsPerPopulationWard = ward;
       }
     }
-    console.info(
-      `Ward with most hospitals per population in Tokyo: ${mostHospitalsPerPopulationWard}`
-    );
     return mostHospitalsPerPopulationWard;
   };
