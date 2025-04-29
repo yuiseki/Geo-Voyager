@@ -13,6 +13,9 @@ import { getAllWardsInTokyo } from "./ward/getAllWardsInTokyo";
 async function getPopulationDensityOfWards(wardName: string): Promise<number> {
   const population = await getPopulationOfWard(wardName);
   const areaKm2 = await getAreaOfWard(wardName);
+  if (areaKm2 === 0) {
+    return 0;
+  }
   return population / areaKm2;
 }
 
@@ -29,4 +32,3 @@ export const findMostDenselyPopulatedWard = async (): Promise<string> => {
   }
   return mostDenselyPopulatedWard;
 };
-

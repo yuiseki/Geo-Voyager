@@ -54,12 +54,6 @@ describe("findMostDenselyPopulatedWard", () => {
       const wardArea = await getAreaOfWard(ward);
       const wardDensity = wardPopulation / wardArea;
 
-      console.log(
-        `${ward}の人口密度: ${wardDensity.toFixed(
-          2
-        )}人/km²（人口: ${wardPopulation}人、面積: ${wardArea.toFixed(2)}km²）`
-      );
-
       // 最も人口密度が高い区の方が、比較対象より人口密度が高いことを確認
       expect(highestDensity).toBeGreaterThanOrEqual(wardDensity);
     }

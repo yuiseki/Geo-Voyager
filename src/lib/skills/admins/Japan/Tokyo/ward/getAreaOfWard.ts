@@ -12,7 +12,7 @@ export const getAreaOfWard = async (wardName: string): Promise<number> => {
 [out:json];
 area["name"="東京都"]->.tokyo;
 (
-  relation["admin_level"="7"]["name"="${wardName}"](area.tokyo);
+  relation["admin_level"="7"]["place"="city"]["name"="${wardName}"](area.tokyo);
 );
 out geom;
 `;
