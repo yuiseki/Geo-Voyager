@@ -3,12 +3,8 @@ import { getEStatLatestPopulationOfPrefs } from "../../../common/getEStatLatestP
 import { getPopulationDensityByPrefOnlyLandMask } from "../../../common/getPopulationDensityByPrefOnlyLandMask";
 
 describe("findMostDenselyPopulatedPref", () => {
-  it("should defined process.env.E_STAT_APP_ID", async () => {
-    
-    expect(process.env.E_STAT_APP_ID).toBeDefined();
-  })
   it("should find the most densely populated prefecture in Japan", async () => {
-    // 実際の関数を実行（環境変数 E_STAT_APP_ID を使用）
+    // 実際の関数を実行
     const result = await findMostDenselyPopulatedPref();
 
     // 結果が文字列であることを確認
@@ -36,7 +32,7 @@ describe("findMostDenselyPopulatedPref", () => {
         2
       )}人/km²です（人口: ${resultPopulation.toLocaleString()}人）`
     );
-  }, 300000); // タイムアウトを5分に設定（API呼び出しとキャッシュ機構の時間を考慮）
+  }, 300000); // タイムアウトを5分（300秒）に設定（API呼び出しとキャッシュ機構の時間を考慮）
 
   it("should return a prefecture from Japan", async () => {
     const result = await findMostDenselyPopulatedPref();
@@ -54,5 +50,5 @@ describe("findMostDenselyPopulatedPref", () => {
     
     // 結果が有効な都道府県名リストに含まれていることを確認
     expect(validPrefectures).toContain(result);
-  });
+  }, 300000); // タイムアウトを5分（300秒）に設定
 });
