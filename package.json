@@ -21,7 +21,7 @@
     "@types/node": "^22.10.3",
     "dotenv": "^17.0.0",
     "fastest-levenshtein": "^1.0.16",
-    "glob": "^11.0.0",
+    "glob": "^11.1.0",
     "langchain": "^0.3.9",
     "osmtogeojson": "^3.0.0-beta.5",
     "ts-md5": "^2.0.0",
