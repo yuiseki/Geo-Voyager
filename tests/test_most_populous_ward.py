@@ -2,11 +2,12 @@ from contextlib import redirect_stdout
 from io import StringIO
 from unittest.mock import Mock, patch
 
-from geo_voyager.skills import load_skill_library
+from geo_voyager.skills import POPULATION_SKILL_ID
+from geo_voyager.skill import SkillLibrary
 
 
 def test_population_skill_uses_primitives_and_computes_result_without_hardcoded_ward():
-    skill = load_skill_library().get('most_populous_admin_unit')
+    skill = SkillLibrary().get(POPULATION_SKILL_ID)
     relation = Mock()
     relation.filter.return_value.order.return_value.limit.return_value.fetchone.return_value = ('13101', 'テスト区', 123)
     with patch('geo_voyager.control_primitives.connect_duckdb') as connect, \
