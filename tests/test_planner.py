@@ -2,6 +2,8 @@ from unittest.mock import Mock
 
 import pytest
 
+from geo_voyager.dataset_graph import DatasetGraph
+from geo_voyager.datasets import load_dataset_graph
 from geo_voyager.hypothesis import Hypothesis
 from geo_voyager.intent import Intent
 from geo_voyager.observation import Observation
@@ -46,7 +48,7 @@ def test_planner_returns_intents_for_hypothesis(response, expected):
     client = Mock()
     client.generate.return_value = response
 
-    intents = Planner(client).plan_intents(hypothesis)
+    intents = Planner(client).plan_intents(hypothesis, load_dataset_graph())
 
     assert isinstance(intents, list)
     assert intents == [Intent(text) for text in expected]
@@ -60,7 +62,9 @@ def test_planner_rejects_empty_intent_response(response):
     client.generate.return_value = response
 
     with pytest.raises(ValueError):
-        Planner(client).plan_intents(Hypothesis("コンビニ密度には区ごとの差がある"))
+        Planner(client).plan_intents(
+            Hypothesis("コンビニ密度には区ごとの差がある"), load_dataset_graph()
+        )
 
 
 def test_planner_returns_verdict_for_hypothesis_and_observations():
@@ -80,3 +84,29 @@ def test_planner_rejects_empty_llm_response(response):
 
     with pytest.raises(ValueError):
         Planner(client).plan(Question("東京23区でコンビニの分布はどうなっている？"))
+
+
+def test_intent_prompt_includes_registered_dataset_metadata():
+    client = Mock()
+    client.generate.return_value = "登録済みデータのコンビニ件数を調べる"
+    graph = load_dataset_graph()
+
+    intents = Planner(client).plan_intents(Hypothesis("コンビニ密度には差がある"), graph)
+
+    assert intents == [Intent("登録済みデータのコンビニ件数を調べる")]
+    client.generate.assert_called_once()
+    prompt = client.generate.call_args.args[0]
+    for dataset in graph.all():
+        assert dataset.id in prompt
+        assert dataset.description in prompt
+    assert "利用可能な Dataset の範囲内" in prompt
+    assert "登録外のデータセットを仮定しない" in prompt
+
+
+def test_planner_rejects_empty_dataset_graph_before_calling_llm():
+    client = Mock()
+
+    with pytest.raises(ValueError, match="Dataset Graph"):
+        Planner(client).plan_intents(Hypothesis("コンビニ密度には差がある"), DatasetGraph())
+
+    client.generate.assert_not_called()

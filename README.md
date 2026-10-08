@@ -10,7 +10,10 @@ Python 3.12 以降を使用します。実行時の外部依存関係はあり�
 接続先は `http://10.108.45.102:8080/v1/chat/completions`
 （`knative-pool/llama-server`、モデル名 `gvt-llm`）です。
 HTTP には標準ライブラリを使用し、structured output は使用しません。
-`Planner().plan_intents(hypothesis)` は、同じ llama.cpp に仮説を送り、
+`Planner().plan_intents(hypothesis, dataset_graph)` は、同じ llama.cpp に仮説と
+登録済み Dataset の id・description を短いテキストで送り、
+利用可能な Dataset の範囲内で調査を作るよう依頼します。
+空の Dataset Graph は LLM 呼び出し前に拒否します。Dataset の選択ロジックはありません。
 1行につき1つ、3〜5件程度の調査内容を自由文で返すよう依頼します。
 返答を改行で分割して `strip()` し、空行を除いた `list[Intent]` を返します。
 全行が空なら拒否します。Intent の実行可能性は検証しません。
@@ -21,13 +24,14 @@ Worker は固定実装で、実際のデータ取得は行いません。
 「仮説はまだ十分に検証されていない」という Verdict 1件を返します。
 
 ```python
+from geo_voyager.datasets import load_dataset_graph
 from geo_voyager.planner import Planner
 from geo_voyager.question import Question
 from geo_voyager.worker import Worker
 
 planner = Planner()
 hypotheses = planner.plan(Question("東京23区でコンビニの分布はどうなっている？"))
-intents = planner.plan_intents(hypotheses[0])
+intents = planner.plan_intents(hypotheses[0], load_dataset_graph())
 observations = Worker().execute(intents[0])
 verdict = planner.judge(hypotheses[0], observations)
 print(verdict.text)
@@ -51,7 +55,7 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -q -W error
 `<URL>/blob/<SHA>/README.md` と `<URL>/tree/<SHA>` で調査根拠を確認できます。
 由来は description、収録内容は contents に記載しています。
 データ本体は読み込まず、Hugging Face API の実行時呼び出しもありません。
-LLM・Planner には接続していません。
+`plan_intents()` のプロンプトに id・description を渡します。Worker は変更していません。
 
 ```python
 from geo_voyager.datasets import load_dataset_graph

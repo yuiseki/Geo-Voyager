@@ -1,3 +1,4 @@
+from .dataset_graph import DatasetGraph
 from .hypothesis import Hypothesis
 from .intent import Intent
 from .llama_client import LlamaClient
@@ -18,14 +19,25 @@ class Planner:
         )
         return [Hypothesis(self.llm_client.generate(prompt).strip())]
 
-    def plan_intents(self, hypothesis: Hypothesis) -> list[Intent]:
+    def plan_intents(
+        self, hypothesis: Hypothesis, dataset_graph: DatasetGraph
+    ) -> list[Intent]:
+        datasets = dataset_graph.all()
+        if not datasets:
+            raise ValueError("Dataset Graph must not be empty")
+        dataset_text = "\n".join(
+            f"- {dataset.id}: {dataset.description}" for dataset in datasets
+        )
         prompt = (
             "次の仮説を検証するために必要な調査を、具体的な実行単位に分解してください。\n\n"
             "- 1行につき1つ\n"
             "- 調査内容だけを書く\n"
             "- 3〜5件程度\n"
             "- 結論は書かない\n"
-            "- まだ利用可能なデータセットを仮定しない\n\n"
+            "- 利用可能な Dataset の範囲内で Intent を作る\n"
+            "- 登録外のデータセットを仮定しない\n"
+            "- 各調査で参照する Dataset の id を明記する\n\n"
+            f"利用可能な Dataset:\n{dataset_text}\n\n"
             f"仮説:\n{hypothesis.text}"
         )
         lines = self.llm_client.generate(prompt).splitlines()
