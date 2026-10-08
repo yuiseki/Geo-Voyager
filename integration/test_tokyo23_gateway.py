@@ -71,6 +71,14 @@ def test_tokyo23_parquet_through_gateway():
         assert 'rows=23\n' in output
         total = int(output.split('population_total=')[1].strip())
         assert total > 0
+        area_counts = docker('exec', names['worker'], 'python', '-I', '-B', '-c',
+            "from geo_voyager.control_primitives import connect_duckdb, load_admin_units; "
+            "c=connect_duckdb(); "
+            "all_count=load_admin_units('yuiseki/jp-admin-2026-09',c,area=None).count('*').fetchone()[0]; "
+            "tokyo_count=load_admin_units('yuiseki/jp-admin-2026-09',c,area='東京都23区').count('*').fetchone()[0]; "
+            "assert all_count>23 and tokyo_count==23; print('all / Tokyo23:',all_count,tokyo_count)",
+            timeout=60)
+        print(area_counts, end='')
         logs = docker('logs', names['gateway'])
         assert 'GET 206 Range: bytes=' in logs, logs
         print(output, end='')

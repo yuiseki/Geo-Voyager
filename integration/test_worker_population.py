@@ -2,10 +2,12 @@
 
 import subprocess
 import time
+from uuid import UUID
 
 from geo_voyager.intent import Intent
 from geo_voyager.observation import Observation
 from geo_voyager.worker import Worker
+from geo_voyager.skill import SkillLibrary
 from integration.network_topology import network_topology
 from integration.test_tokyo23_gateway import docker, gateway_code
 from integration.test_worker_image import WORKER_IMAGE
@@ -33,6 +35,13 @@ def test_worker_execute_returns_most_populous_tokyo_ward():
         assert observations == [Observation(
             '東京都23区で人口が最も多い区は世田谷区で、人口は943664人である',
         )]
+        minimum_skill = SkillLibrary().get(UUID('e722f367-1ff1-4796-89a3-48cfd1dfcb68'))
+        minimum = Worker(network=names['internal'])._execute_code(
+            Intent('東京都23区で人口が最も少ない区と人口を求める', ('yuiseki/jp-admin-2026-09',)),
+            minimum_skill.code,
+        )
+        assert '千代田区' in minimum[0].text and '66680' in minimum[0].text
+        print('minimum:', minimum[0].text)
         logs = docker('logs', names['gateway'])
         assert 'GET 206 Range: bytes=' in logs
         print(repr(intent))

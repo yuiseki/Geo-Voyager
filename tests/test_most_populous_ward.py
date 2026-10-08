@@ -1,23 +1,31 @@
 from contextlib import redirect_stdout
 from io import StringIO
 from unittest.mock import Mock, patch
+from uuid import UUID
+
+import pytest
 
 from geo_voyager.skills import POPULATION_SKILL_ID
 from geo_voyager.skill import SkillLibrary
 
 
-def test_population_skill_uses_primitives_and_computes_result_without_hardcoded_ward():
-    skill = SkillLibrary().get(POPULATION_SKILL_ID)
+@pytest.mark.parametrize(('skill_id', 'direction'), [
+    (POPULATION_SKILL_ID, 'DESC'),
+    (UUID('e722f367-1ff1-4796-89a3-48cfd1dfcb68'), 'ASC'),
+])
+def test_population_skill_uses_primitives_and_computes_result_without_hardcoded_ward(skill_id, direction):
+    skill = SkillLibrary().get(skill_id)
     relation = Mock()
-    relation.filter.return_value.order.return_value.limit.return_value.fetchone.return_value = ('13101', 'テスト区', 123)
+    relation.order.return_value.limit.return_value.fetchone.return_value = ('test-code', 'テスト区', 123)
     with patch('geo_voyager.control_primitives.connect_duckdb') as connect, \
          patch('geo_voyager.control_primitives.load_admin_units', return_value=relation) as load:
         output = StringIO()
         with redirect_stdout(output):
             exec(skill.code, {'dataset_id': 'yuiseki/jp-admin-2026-09'})
-    load.assert_called_once_with('yuiseki/jp-admin-2026-09', connect.return_value.__enter__.return_value)
-    relation.filter.assert_called_once_with("code5 BETWEEN '13101' AND '13123'")
-    relation.filter.return_value.order.assert_called_once_with('population DESC')
-    relation.filter.return_value.order.return_value.limit.assert_called_once_with(1)
-    assert output.getvalue() == '東京都23区で人口が最も多い区はテスト区で、人口は123人である\n'
+    load.assert_called_once_with('yuiseki/jp-admin-2026-09', connect.return_value.__enter__.return_value, area='東京都23区')
+    relation.filter.assert_not_called()
+    relation.order.assert_called_once_with(f'population {direction}')
+    relation.order.return_value.limit.assert_called_once_with(1)
+    assert 'テスト区' in output.getvalue() and '123' in output.getvalue()
+    assert '13101' not in skill.code + skill.description and '13123' not in skill.code + skill.description
     assert '世田谷' not in skill.code and '943664' not in skill.code

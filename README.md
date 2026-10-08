@@ -201,7 +201,7 @@ Gateway はこの登録済み URL のみ使用し、redirect の自動追跡は�
 
 Worker は isolated internal network のみ、Gateway は internal + external に接続します。
 固定スクリプト `scripts/analyze_tokyo23.py` の接続先は Gateway だけです。
-`read_parquet()` で code5、name、population のみを取得し、13101〜13123が23行で
+AOI指定の Primitive で code5、name、population のみを取得し、東京23区が23行で
 population が整数であることを確認して行数・人口合計を stdout に出します。
 geometry は取得しません。LLM は変更していません。
 
@@ -232,7 +232,7 @@ print(observations[0].text)
 ```
 
 `skill_library/72c549dd-e449-4bef-97f1-e3a2eab27d64/code.py` の Skill は Control Primitives から行政区域 relation を取得し、
-code5 が13101〜13123の行を population 降順・LIMIT 1で取得します。
+`area="東京都23区"` で取得した行を population 降順・LIMIT 1で選択します。
 Intent の dataset_ids は固定分析の対象確認と Gateway URL の組み立てに使用します。
 
 ```bash
@@ -252,9 +252,12 @@ integration test は実験用の Gateway / internal network を作り、実際�
 
 - `connect_duckdb()`: sandbox 用の DuckDB 接続。既存の extension 設定・LOAD を維持します。
 - `dataset_url(dataset_id)`: 対応する行政区 Dataset id を Gateway URL に変換します。
-- `load_admin_units(dataset_id, connection)`: Gateway の Parquet を読み、code5・name・population の relation を返します。
+- `load_admin_units(dataset_id, connection, *, area=None)`: Gateway の Parquet を読み、code5・name・population の relation を返します。
 
-Primitive は23区の絞り込みや人口最大の選択をしません。
+Primitive が意味的な AOI を解決します。`area=None`（既定値）は全行政区域、
+`area="東京都23区"` は23区の relation を返します。未対応 area は読み込み前に `ValueError` です。
+東京23区を特定する行政コード知識は `load_admin_units.py` の内部だけに保持しています。
+人口最大・最小の選択は Skill が行います。
 DuckDB 接続を引数で渡すことで、Skill が接続の終了まで管理します。
 
 Control Primitives は各機能を `connect_duckdb.py`、`dataset_url.py`、
@@ -286,7 +289,7 @@ skill_library/
 
 `vectordb/` は Git でディレクトリを保持するための空の `.gitkeep` のみです。
 最初の Skill の description は「行政区域の集合から人口が最も多い区域と人口を求める」です。
-code は東京23区への絞り込み、人口降順で1件の選択、stdout の生成を行います。
+code は AOI指定済みの relation から人口降順で1件を選択し、stdout を生成します。
 区名・人口の答えは埋め込まず、取得した行から生成します。
 
 Worker は `geo_voyager/skills.py` に固定した UUID を `SkillLibrary.get()` に渡し、
@@ -360,6 +363,9 @@ Candidate に対する LLM コード生成、description 生成、検索、Vecto
 `SkillCandidateGenerator.generate(intent) -> SkillCandidate` は既存のローカル
 `LlamaClient` を使い、Intent.text、dataset_ids、利用可能な3つの Control Primitives の
 名前・シグネチャ・説明を渡します。DuckDB relation の列と API、必要な import も提示します。
+AOIには `load_admin_units(dataset_id, connection, area="東京都23区")` を提示し、
+行政コードを推測・生成せず Primitive に地域解決を任せるよう指示します。
+prompt と既存の人口最大・最小 Skill は行政コード範囲を持ちません。
 Dataset の読み込みは Primitive のみに限定するよう指示し、外部 URL の直接利用を禁止します。
 `dataset_id` は実行環境に定義済みの変数を参照し、最終結果を stdout に出すコードを生成します。
 既存 Skill の内容は prompt に渡しません。
@@ -392,3 +398,9 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest integration/test_generated_pop
 リポジトリの Library にも保存しています。これは登録 Dataset の2020年国勢調査人口です。
 自動 retry、self-repair、複数 Candidate の生成、Skill retrieval、Vector DB、
 Planner 全体との E2E 接続は実装していません。
+
+AOI対応後の実データ確認では、`area=None` は1,918行政区域、
+`area="東京都23区"` は23区域を返しました。
+既存の最大人口 Skill は世田谷区・943,664人、最小人口 Skill は千代田区・66,680人を維持しています。
+実 LLM の生成 Candidate も AOI指定を使用し、行政コード範囲を含まずに人口最小を取得して
+Critic の成功判定まで確認しました。この確認で生成された Skill は一時 Library のみに保存しています。

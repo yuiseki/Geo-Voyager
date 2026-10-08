@@ -29,12 +29,14 @@ def test_generator_passes_intent_and_primitive_contracts_and_parses_candidate(re
     client.generate.assert_called_once()
     prompt = client.generate.call_args.args[0]
     for text in (intent.text, intent.dataset_ids[0], 'connect_duckdb()',
-                 'dataset_url(dataset_id)', 'load_admin_units(dataset_id, connection)',
+                 'dataset_url(dataset_id)', 'load_admin_units(dataset_id, connection, area=None)',
+                 'load_admin_units(dataset_id, connection, area="東京都23区")',
                  '外部URLを直接使わない', 'stdout', 'dataset_id は実行環境から与えられる',
                  '再利用可能',
                  'from geo_voyager.control_primitives import connect_duckdb, load_admin_units',
-                 'pandas DataFrame ではない', 'filter(expression)', 'order(expression)', 'fetchone()', 'dataset_id = ... という代入を書かない', 'stdout に選択・集計の意味', 'トップレベル'):
+                 'pandas DataFrame ではない', 'order(expression)', 'fetchone()', 'dataset_id = ... という代入を書かない', 'stdout に選択・集計の意味', 'トップレベル'):
         assert text in prompt
+    assert "13101" not in prompt and "13123" not in prompt
 
 
 @pytest.mark.parametrize('reply', [

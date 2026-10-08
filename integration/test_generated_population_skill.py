@@ -23,10 +23,17 @@ def test_generated_least_populous_ward_skill(tmp_path):
     print('description:', candidate.description, flush=True)
     print('code:\n' + candidate.code, flush=True)
     assert 'load_admin_units' in candidate.code
+    assert '13101' not in candidate.code + candidate.description
+    assert '13123' not in candidate.code + candidate.description
     tree = ast.parse(candidate.code)
     assert not any(isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store)
                    and node.id == 'dataset_id' for node in ast.walk(tree))
     assert 'https://' not in candidate.code and 'http://' not in candidate.code
+    assert any(isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+               and node.func.id == 'load_admin_units'
+               and any(keyword.arg == 'area' and isinstance(keyword.value, ast.Constant)
+                       and keyword.value.value == '東京都23区' for keyword in node.keywords)
+               for node in ast.walk(tree))
     library = SkillLibrary(tmp_path)
     assert library.all() == []
     with network_topology(isolated=True, gateway_code=gateway_code(),
