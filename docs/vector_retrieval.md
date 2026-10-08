@@ -55,3 +55,19 @@ DuckDB 1.5.6、granite-embedding 384次元。初期6 Skill を一時 Library に
 ## テスト結果
 
 unit は222件成功。integration 初回は15件成功し、6 Intent 評価だけが追加した Selector 完全正答の assertion で失敗しました。今回対象の Retriever recall@4=6/6 を必須にし、変更対象外の Selector 精度は従来どおり報告するテストへ修正。その評価テストの再実行は成功し、Retriever=6/6、Selector=6/6でした。これにより現コードの全16 integration の成功を確認しました。初回の Selector 誤選択は上記記録に残しています。
+
+## 現在の同期タイミング
+
+上記は sync-per-query 時点の検証記録です。現在は SkillRetriever constructor で startup full sync を1回行い、通常 retrieval は query embedding → HNSW search → SkillLibrary.get だけです。学習成功後は SkillLibrary.add → retriever.upsert → description cache 取得/生成 → store.upsert で1件だけ反映します。
+
+既存vectorの更新後に永続HNSWの古い行が候補に残り検索結果が不足するケースを回帰テストで確認したため、既存UUIDの更新・削除がある場合だけindexを再作成します。新UUIDの学習はincremental INSERTのみです。
+
+## startup sync + incremental upsert の実検証
+
+unit 227件、integration全16件成功。最後のschema初期化変更後にも実persistent DBのintegrationを再確認し成功しました。
+
+起動時の full sync は1回、初期6 Skill のdescription embeddingは6件。その後の正常再利用2件・未知平均人口の学習・同一Intent再利用・言い換え再利用の5 queryでは、query embedding 5件と学習description 1件だけを呼びました。full syncは1回のまま、upsertは1回。
+
+平均人口Skill `2759d3cd-f0a4-416b-99d0-0e29c6234dd9` は保存直後にindexへ入り、次の同一・言い換えIntentで選択されました。平均人口423185.9130434783人、Critic成功、生成・保存回数は1回のままです。意図的な誤選択からのfallback学習ではfull syncは1回のまま、upsertだけ2回になりました。
+
+通常 retrieval で Library.all / sync / cache.get / schema作成を呼ばないことと、Critic失敗・正常既存Skill再利用ではupsertを呼ばないこともunit testで確認しました。

@@ -19,6 +19,8 @@ from geo_voyager.intent_executor import IntentExecutor
 from geo_voyager.skill import SkillLibrary
 from geo_voyager.skill_candidate_generator import SkillCandidateGenerator
 from geo_voyager.skill_retriever import SkillRetriever
+from geo_voyager.skill_embedding_cache import SkillEmbeddingCache
+from geo_voyager.skill_vector_store import SkillVectorStore
 from geo_voyager.skill_selector import SkillSelector
 from geo_voyager.worker import Worker
 from integration.network_topology import network_topology
@@ -68,8 +70,16 @@ def test_reuse_admin_and_station_then_learn_average_population(tmp_path):
         assert set(worker_container['NetworkSettings']['Networks']) == {names['internal']}
         assert worker_container['Mounts'] == []
         worker = Mock(wraps=Worker(names['internal']))
+        embedding_client = Mock(wraps=EmbeddingClient(base_url, model), model=model)
+        cache = Mock(wraps=SkillEmbeddingCache(embedding_client, root=library.root), model=model)
+        store = Mock(wraps=SkillVectorStore(library.root / 'vectordb' / 'skills.duckdb'))
+        retriever = SkillRetriever(library, embedding_client, store=store, cache=cache)
+        store.sync.assert_called_once_with(library, cache)
+        assert embedding_client.embed.call_count == 6
+        embedding_client.reset_mock()
+        cache.reset_mock()
         executor = IntentExecutor(
-            SkillRetriever(library, EmbeddingClient(base_url, model)),
+            retriever,
             SkillSelector(), worker, generator, critic, library_spy,
         )
         for text, dataset_id, expected in (
@@ -85,6 +95,9 @@ def test_reuse_admin_and_station_then_learn_average_population(tmp_path):
             assert result.selected_skill_id in result.retrieved_skill_ids
             assert len(result.observations) == 1 and result.observations[0].text.strip()
             assert len(library.all()) == 6
+            store.sync.assert_called_once_with(library, cache)
+            store.upsert.assert_not_called()
+            cache.get.assert_not_called()
             generator.generate.assert_not_called()
             critic.check.assert_called_with(intent, result.observations)
             library_spy.add.assert_not_called()
@@ -107,6 +120,11 @@ def test_reuse_admin_and_station_then_learn_average_population(tmp_path):
         worker.execute_candidate.assert_called_once()
         learned = library.get(result.learned_skill_id)
         assert learned == library_spy.add.call_args.args[0]
+        cache.get.assert_called_once_with(learned)
+        assert store.upsert.call_count == 1
+        store.sync.assert_called_once_with(library, cache)
+        with store._connect() as connection:
+            assert connection.execute('SELECT count(*) FROM skill_embeddings WHERE skill_id=?', [learned.id]).fetchone()[0] == 1
         assert learned.id not in {skill.id for skill in initial_skills}
         assert 'load_admin_units' in learned.code
         assert 'aggregate(' in learned.code
@@ -141,6 +159,10 @@ with connect_duckdb() as connection:
             assert reused.selected_skill_critique == reused.critique
             assert reused.observations == result.observations
             assert len(library.all()) == 7
+            # Query-only retrieval: neither startup sync nor description cache is called again.
+            store.sync.assert_called_once_with(library, cache)
+            assert store.upsert.call_count == 1
+            cache.get.assert_called_once_with(learned)
             # Generation and save counts remain unchanged; every reuse is checked.
             generator.generate.assert_called_once_with(intent)
             critic.check.assert_called_with(reuse_intent, reused.observations)
@@ -149,11 +171,14 @@ with connect_duckdb() as connection:
             report = {'intent': text, **asdict(reused), 'phase': 'learned_skill_reuse',
                       'generator_called': False, 'library_before': 7, 'library_count': len(library.all()),
                       'generator_call_count': generator.generate.call_count,
-                      'save_call_count': library_spy.add.call_count}
+                      'save_call_count': library_spy.add.call_count,
+                      'full_sync_call_count': store.sync.call_count,
+                      'upsert_call_count': store.upsert.call_count}
             reports.append(report)
             print(json.dumps(report, ensure_ascii=False, default=str), flush=True)
         assert worker.execute_skill.call_count == 4
         assert critic.check.call_count == 5
+        assert embedding_client.embed.call_count == 6  # five queries and one learned description
         # Force an incorrect real Skill selection; execution, Critic and generation remain real.
         wrong_skill = library.get('72c549dd-e449-4bef-97f1-e3a2eab27d64')
         executor.selector = Mock()
@@ -171,12 +196,16 @@ with connect_duckdb() as connection:
         assert fallback.selected_skill_critique == critiques[0]
         assert fallback.critique == critiques[1]
         assert fallback.learned_skill_id is not None and fallback.critique.success
+        store.sync.assert_called_once_with(library, cache)
+        assert store.upsert.call_count == 2 and cache.get.call_count == 2
+        assert embedding_client.embed.call_count == 8
         assert len(library.all()) == 8 and library_spy.add.call_count == 2
         assert generator.generate.call_count == 2 and worker.execute_candidate.call_count == 2
         fallback_skill = library.get(fallback.learned_skill_id)
         report = {'intent': intent.text, **asdict(fallback), 'phase': 'incorrect_selection_fallback',
                   'existing_critique': asdict(critiques[0]), 'library_count': len(library.all()),
-                  'learned_description': fallback_skill.description, 'learned_code': fallback_skill.code}
+                  'learned_description': fallback_skill.description, 'learned_code': fallback_skill.code,
+                  'full_sync_call_count': store.sync.call_count, 'upsert_call_count': store.upsert.call_count}
         reports.append(report)
         print(json.dumps(report, ensure_ascii=False, default=str), flush=True)
         logs = docker('logs', names['gateway'])

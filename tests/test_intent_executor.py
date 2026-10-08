@@ -64,6 +64,7 @@ def test_validation_and_learning_order(tmp_path, selected, existing_success, can
             worker.execute_candidate.assert_not_called()
             promotion.assert_not_called()
             executor.skill_library.add.assert_not_called()
+            retriever.upsert.assert_not_called()
             assert library.all() == []
         else:
             expected_events += ['generator.generate', 'worker.execute_candidate', 'critic.check']
@@ -72,9 +73,10 @@ def test_validation_and_learning_order(tmp_path, selected, existing_success, can
             assert result.observations == generated
             assert result.critique == candidate_critique
             if candidate_success:
-                expected_events += ['promote', 'library.add']
+                expected_events += ['promote', 'library.add', 'retriever.upsert']
                 promotion.assert_called_once_with(candidate)
                 executor.skill_library.add.assert_called_once()
+                retriever.upsert.assert_called_once_with(executor.skill_library.add.call_args.args[0])
                 saved = library.get(result.learned_skill_id)
                 assert saved.code == candidate.code and saved.description == candidate.description
                 assert library.all() == [saved]
@@ -82,6 +84,7 @@ def test_validation_and_learning_order(tmp_path, selected, existing_success, can
                 assert result.learned_skill_id is None
                 promotion.assert_not_called()
                 executor.skill_library.add.assert_not_called()
+                retriever.upsert.assert_not_called()
                 assert list(tmp_path.iterdir()) == []
         assert [call[0] for call in events.mock_calls] == expected_events
         assert critic.check.call_args.args == (intent, result.observations)

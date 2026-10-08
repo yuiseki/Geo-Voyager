@@ -472,8 +472,11 @@ dimensions=384 と非空・有限・非ゼロのベクトルを検証します�
 code と description の原本を変更しません。
 
 `SkillVectorStore(path=None)` の既定パスは `skill_library/vectordb/skills.duckdb` です。
-`sync(library, cache)` は UUID / description SHA / model の差分だけ INSERT / UPDATE し、
+`sync(library, cache)` は起動時の full sync として UUID / description SHA / model の差分だけ INSERT / UPDATE し、
 Library にない UUID は DELETE します。初回は全行投入後に HNSW index を作ります。
+新 UUID の `upsert(skill, embedding, model)` は1件だけ INSERT します。既存 UUID の更新は1件だけ UPDATE しますが、
+永続 HNSW の古い行が検索候補に残るケースを実テストで確認したため、更新・削除時だけ index を再作成します。
+通常の新規学習は incremental INSERT で、全件 embedding や index 再作成は行いません。
 
 ```sql
 CREATE TABLE skill_embeddings (
@@ -491,10 +494,17 @@ USING HNSW (embedding) WITH (metric = 'cosine');
 HNSW の同点順位は保証しません。
 
 `SkillRetriever(library, embedding_client).retrieve(intent, k=1)` は API を維持し、
-まず sync してから Intent.text を1回だけ embedding し、store.search → library.get で Skill を返します。
-変更がない検索では description を embedding しません。新 Skill は次回 retrieval の sync で対象になります。
-空の Library は index の削除差分を sync したうえで、query embedding を呼ばず空リストを返します。
-Selector / Critic / IntentExecutor の制御は変更していません。
+constructor で1回 full sync し、起動後は Intent.text を1回だけ embedding して、store.search → library.get で Skill を返します。
+retrieve() は Library 全件列挙・sync・description cache 取得・schema 作成を行いません。
+空の index でも query を1回 embedding し、検索結果は空リストになります。
+
+学習成功時は IntentExecutor が `SkillLibrary.add(learned)` の後に `retriever.upsert(learned)` を呼びます。
+upsert はその Skill の cache を取得・生成し、`store.upsert(skill, embedding, model)` に渡します。
+学習した Skill は次の検索で即座に対象になり、正常再利用・Critic 失敗時には upsert を呼びません。
+Selector / Critic / 1回だけの fallback と判定 provenance は維持しています。
+
+原本の手動変更・削除は次の起動時 full sync か明示的な `store.sync(library, cache)` で反映します。
+起動後の外部ファイル変更を各 query で検出する仕組みはありません。
 
 #### 明示セットアップ
 
@@ -571,13 +581,13 @@ Critic の成功を確認しています。駅数は収録全レコード数で�
 ## IntentExecutor: 既知なら再利用、未知なら学習
 
 `IntentExecutor(retriever, selector, worker, generator, critic, skill_library)` に
-同じ filesystem Library を検索・保存先として渡します。派生 cache / index は Retriever が同期します。
+同じ filesystem Library を検索・保存先として渡します。派生 cache / index は Retriever の起動時 sync と学習時 upsert で反映します。
 `execute(intent, k=4) -> IntentExecution` は次の順で処理します。
 
 1. Retriever の top-k Skill を取得し、UUID の順序を保持する。
 2. Selector が Intent を完遂できる Skill または None を返す。
 3. Skill があれば Worker.execute_skill → Critic と進み、成功なら生成・昇格・保存せず結果を採用する。
-4. Skill が None、または既存 Skill の Critic が失敗なら、Generator → Worker.execute_candidate → Critic と進む。Candidate 成功後だけ新 UUID Skill を保存する。fallback は1回だけ。
+4. Skill が None、または既存 Skill の Critic が失敗なら、Generator → Worker.execute_candidate → Critic と進む。Candidate 成功後だけ新 UUID Skill を保存し、cache 生成・単一 Skill upsert へ進む。fallback は1回だけ。
 
 `IntentExecution` は frozen dataclass で、次を保持します。
 

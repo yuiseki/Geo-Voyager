@@ -43,6 +43,7 @@ class IntentExecutor:
         if critique.success:
             learned = promote(candidate)
             self.skill_library.add(learned)
+            self.retriever.upsert(learned)
         return IntentExecution(
             observations, retrieved_ids, selected.id if selected else None,
             learned.id if learned else None, critique, selected_skill_critique,
