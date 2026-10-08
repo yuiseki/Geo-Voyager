@@ -17,6 +17,7 @@ class Critic:
         prompt = (
             'Observation が Intent の要求した調査結果を実際に答えているか判定してください。\n'
             '仮説が正しいか、結果が望ましいかは判定しない。\n'
+            '入力の Intent と Observation だけで要求した出力が得られたか判定する。外部知識で答えを推測・追加しない。Intent にない期待件数を仮定しない。\n'
             'データを取得したという報告だけでは、要求された調査結果を答えたことにはなりません。\n'
             '要求された具体的な回答があれば成功、回答が不足していれば失敗としてください。\n'
             '返答は次の2行だけにし、前置き・コードフェンスを付けないでください。\n'
@@ -24,4 +25,4 @@ class Critic:
             '失敗の場合は1行目を「判定: 失敗」にしてください。理由も1行にしてください。\n\n'
             f'Intent:\n{intent.text}\n\nObservation:\n{observation_text}'
         )
-        return Critique.from_text(self.llm_client.generate(prompt))
+        return Critique.from_text(self.llm_client.generate(prompt, temperature=0.0))

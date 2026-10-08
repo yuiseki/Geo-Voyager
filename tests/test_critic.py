@@ -58,3 +58,24 @@ def test_critic_rejects_malformed_llm_output():
     client.generate.return_value = 'おそらく成功です'
     with pytest.raises(ValueError):
         Critic(client).check(intent(), [Observation('世田谷区、943664人')])
+
+
+def test_critic_does_not_invent_missing_answers_from_external_knowledge():
+    client = Mock()
+    client.generate.return_value = '判定: 成功\n理由: 要求された名前一覧が回答されている'
+    Critic(client).check(Intent('隣接する区域の名前を取得する', service_ids=('yuisekin-geosparql',)), [Observation('隣接する区域: 区域A、区域B')])
+    assert '外部知識で答えを推測・追加しない' in client.generate.call_args.args[0]
+
+
+def test_critic_does_not_assume_an_unspecified_expected_count():
+    client = Mock()
+    client.generate.return_value = '判定: 成功\n理由: 名前一覧を回答している'
+    Critic(client).check(Intent('隣接する区域の名前を取得する', service_ids=('yuisekin-geosparql',)), [Observation('隣接する区域: 区域A、区域B')])
+    assert 'Intent にない期待件数を仮定しない' in client.generate.call_args.args[0]
+
+
+def test_critic_uses_zero_temperature_for_completion_judgement():
+    client = Mock()
+    client.generate.return_value = '判定: 成功\n理由: 回答されている'
+    Critic(client).check(intent(), [Observation('世田谷区、943664人')])
+    assert client.generate.call_args.kwargs['temperature'] == 0.0

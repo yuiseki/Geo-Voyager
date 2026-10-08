@@ -77,9 +77,11 @@ class SkillCandidateGenerator:
             '返答の1行目は必ず「説明:」のみ。説明本文を同じ行に書かない。2行目から説明を書き、必須ラベルを省略しない。\n'
             '続けて「---」「コード:」「```python」、Pythonコード、最後に「```」をそれぞれ独立した行に書く。'
         )
+        graph = load_service_graph()
+        available = [graph.get(service_id) for service_id in intent.service_ids] if intent.service_ids else graph.all()
         services = '\n'.join(
             f'- id: {service.id}; protocol: {service.protocol}; description: {service.description}'
-            for service in load_service_graph().all()
+            for service in available
         )
         service_contract = (
             '\n利用可能な登録済み Service（URL は Gateway が解決する）:\n'
@@ -92,16 +94,48 @@ class SkillCandidateGenerator:
             '返答の JSON は json.loads で解析する。サービス固有のリクエストは Intent に応じて生成する。\n'
             'Service へのアクセスも call_service のみ使う。任意 URL や直接 HTTP は使わない。\n'
             'タグ探索の要求では辞書サービスから実行時にキー・値を調べ、得た結果を後続検索に使う。'
-            'タグの答えを事前にコードへ固定しない。\n'
+            'キー・値をコードに固定しない。返された data の key/value を変数として使う。'
+            '辞書が空なら失敗させ、既知のタグへ fallback しない。\n'
+            'コードは短くする。複雑な三重引用符は避け、クエリ文字列の引用符を正しく閉じる。\n'
             f'Intent の Service ids: {", ".join(intent.service_ids)}\n'
         )
         if not intent.dataset_ids:
-            start = prompt.index('出力形式と接続部分')
-            end = prompt.index('Intent:\n', start)
-            prompt = prompt[:start] + (
-                '出力形式（サービスだけの調査には DuckDB 接続は不要）:\n'
+            prompt = (
+                'Generate one short executable Python script that fulfills the Intent. Use precise API syntax, no speculation or unfinished code.\n'
+                'description に対象・使用サービス・出力内容を含める。Intent の範囲を説明で省略しない。答えを説明へ固定しない。\n'
+                'For tag discovery, choose one relevant dictionary result. Use its key and value together as variables in one equality filter, not a key-existence filter.\n'
+                'Do not guess tags or use a hardcoded tag fallback. Do not make broad unfiltered geographic queries.\n'
+                'Every call_service call must explicitly supply path, chosen from the registered endpoint paths above. Never omit path.\n'
+                'call_service is not a global: you MUST import it with from geo_voyager.control_primitives import call_service.\n'
+                'Print discovered keys/values, resolved object IDs and a count or readable final results. Do not only print a list without the discovery result.\n'
+                'Write at most 40 lines of code. No comments, no function definitions, no speculation or alternative approaches.\n'
+                'Before returning, check imports, every endpoint path, balanced square brackets in tag filters, and the protocol grammar.\n'
+                '標準ライブラリと call_service のみで実装する。直接 HTTP や外部 URL を使わない。\n'
+                'call_service の params は dict[str, str] をそのまま渡す。params を urlencode しない。\n'
+                'body は str。フォーム本文を送る場合だけ urllib.parse.urlencode を使う。\n'
+                '返答は JSON 本文の文字列なので json.loads で解析する。HTTP status_code フィールドを仮定しない。\n'
+                '探索結果を変数に取り、後続サービスの問い合わせに使う。答えやタグを事前に固定しない。\n'
+                '無駄なコメント・仮定・未実装の分岐は書かない。最終結果の具体的な回答を stdout に出す。\n'
+                '結果が空なら例外にする。UUID や Skill 保存処理を書かない。\n'
+                f'Intent:\n{intent.text}\n\n'
+                '出力形式は厳密に次の形式。前置きや追記は禁止。返答の1行目は必ず「説明:」だけ。説明本文を同じ行に書かない。説明本文は2行目から。\n'
                 '説明:\n調査コードの簡潔な説明\n---\nコード:\n```python\n'
                 'from geo_voyager.control_primitives import call_service\n'
-                '# Intent に必要なリクエスト、解析、print をここに書く\n```\n\n'
-            ) + prompt[end:]
+                '# サービスの結果を解析し print する短いコード\n```\n'
+            )
+        if not intent.dataset_ids:
+            return _parse_candidate(self.llm_client.generate(
+                service_contract + prompt, temperature=0.2, enable_thinking=True,
+                max_tokens=3072, reasoning_budget_tokens=1024, assistant_prefix="説明:\n",
+                system_prompt=(
+                    'You are a precise Python programmer. Return exactly one description and executable script '
+                    'in the requested format. Description must be one sentence. '
+                    'Code must be short, with no comments, no speculation, no unfinished branches. '
+                    'First line must be exactly 説明:, with description on the next line. '
+                    'Use only the Service ids declared by the Intent. '
+                    'Use the supplied API contracts literally. Explicitly import primitives. '
+                    'Discover answers from service responses, never invent them. Print the concrete results. '
+                    'Exact layout, with every label on a separate line:\n説明:\n<description>\n---\nコード:\n```python\n<executable code>\n```'
+                ),
+            ))
         return _parse_candidate(self.llm_client.generate(service_contract + prompt))

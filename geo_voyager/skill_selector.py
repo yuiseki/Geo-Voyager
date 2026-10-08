@@ -29,7 +29,7 @@ class SkillSelector:
             '選択: なし\n理由: Intentをそのまま完遂できるSkillが候補に存在しないため。\n\n'
             f'Intent:\n{intent.text}\n\n候補 Skill:\n{candidates}'
         )
-        lines = self.llm_client.generate(prompt).strip().splitlines()
+        lines = self.llm_client.generate(prompt, temperature=0.0).strip().splitlines()
         if (
             len(lines) != 2
             or not lines[0].startswith('選択: ')

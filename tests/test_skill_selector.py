@@ -63,3 +63,10 @@ def test_selector_prompt_requires_direct_execution_and_explicit_none_format():
     prompt = client.generate.call_args.args[0]
     assert 'コードの変更や追加計算が必要なら「なし」' in prompt
     assert '選択: なし\n理由:' in prompt
+
+
+def test_selector_uses_zero_temperature_for_candidate_judgement():
+    client = Mock()
+    client.generate.return_value = f'選択: {MAX.id}\n理由: 一致する'
+    SkillSelector(client).select(Intent('人口最大', ('admin',)), [MAX])
+    assert client.generate.call_args.kwargs['temperature'] == 0.0
