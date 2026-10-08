@@ -656,3 +656,11 @@ Observation の一致を確認します。Library は6→7→7→7でした。
 `*.yuiseki.net` wildcard は許可しません。HTTP User-Agent は
 `Geo-Voyager/0.1.0 (+https://github.com/yuiseki/Geo-Voyager)` です。
 この登録は探索用 metadata であり、Worker からの通信許可は別途 Gateway で制御します。
+
+Service Gateway は `GET/POST /services/{service_id}/{path}?query` を提供します。
+登録 origin を service_id から解決し、protocol ごとの read-only API path/method だけを許可します。
+Nominatim / Taginfo は GET、Overpass interpreter・Valhalla route/locate・GeoSPARQL query は GET/POSTです。
+任意URL・URL override・path traversal・PUT/PATCH/DELETE・administrative endpoint・SPARQL update media typeを拒否します。
+User-Agent は Gateway 側で固定し、Worker の Host/Authorization 等は転送しません。
+redirect は追跡もLocation転送もしません。upstream timeout 15秒、request body 64KiB、response 4MiBです。
+既存 Dataset GET/HEAD も同じhandlerに渡せます。
