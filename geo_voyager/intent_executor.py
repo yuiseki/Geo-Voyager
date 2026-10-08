@@ -1,6 +1,7 @@
 from .critic import Critic
 from .critique import Critique
 from .execution_failure import ExecutionFailure
+from .execution_attempt import ExecutionAttempt
 from .skill_candidate_repairer import SkillCandidateRepairer
 from .intent import Intent
 from .intent_execution import IntentExecution
@@ -33,25 +34,29 @@ class IntentExecutor:
         retrieved_ids = tuple(skill.id for skill in skills)
         selected = self.selector.select(intent, skills)
         selected_skill_critique = None
+        attempts = []
         if selected is not None:
             observations = self.worker.execute_skill(intent, selected)
+            attempts.append(self._attempt(selected.code, observations))
             if not isinstance(observations, ExecutionFailure):
                 selected_skill_critique = self.critic.check(intent, observations)
             if selected_skill_critique is not None and selected_skill_critique.success:
                 return IntentExecution(
                     observations, retrieved_ids, selected.id, None,
                     selected_skill_critique, selected_skill_critique,
+                    attempts=tuple(attempts),
                 )
         candidate = self.generator.generate(intent)
         for repair_count in range(3):
             observations = self.worker.execute_candidate(intent, candidate)
+            attempts.append(self._attempt(candidate.code, observations))
             if not isinstance(observations, ExecutionFailure):
                 break
             if repair_count == 2:
                 return IntentExecution(
                     [], retrieved_ids, selected.id if selected else None, None,
                     Critique(False, observations.message), selected_skill_critique,
-                    failure=observations,
+                    failure=observations, attempts=tuple(attempts),
                 )
             candidate = self.repairer.repair(intent, candidate, observations)
         critique = self.critic.check(intent, observations)
@@ -63,4 +68,11 @@ class IntentExecutor:
         return IntentExecution(
             observations, retrieved_ids, selected.id if selected else None,
             learned.id if learned else None, critique, selected_skill_critique,
+            attempts=tuple(attempts),
         )
+
+    @staticmethod
+    def _attempt(code: str, result: list | ExecutionFailure) -> ExecutionAttempt:
+        if isinstance(result, ExecutionFailure):
+            return ExecutionAttempt(code, [], result)
+        return ExecutionAttempt(code, result, None)

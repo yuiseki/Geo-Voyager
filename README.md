@@ -738,3 +738,8 @@ registered resources and Primitive contracts, Candidate and bounded diagnostics.
 Critic only checks executable Observations. Exhaustion returns `failure` with an
 unsuccessful critique and never promotes or saves the Candidate. Infrastructure
 exceptions remain exceptions. Existing Skill failures can fall back to generation.
+
+`IntentExecution.attempts` preserves original code, Observations and failure for
+all selected-Skill, initial-Candidate and repaired-Candidate executions in order.
+`selected_skill_critique` continues to describe the selected Skill only; `critique`
+describes the adopted/final result. Failed executions have no Critic verdict.
