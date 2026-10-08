@@ -42,3 +42,12 @@ def test_worker_rejects_zero_or_multiple_datasets_before_docker(dataset_ids, can
     sandbox.assert_not_called()
     critic.check.assert_not_called()
     library.add.assert_not_called()
+
+
+def test_worker_executes_service_only_code_without_injecting_dummy_dataset():
+    intent = Intent('地名を検索する', service_ids=('nominatim',))
+    skill = Skill(uuid4(), '地名検索', 'print("place")')
+    with patch('geo_voyager.worker.DockerSandbox') as sandbox:
+        sandbox.return_value.run.return_value = 'place'
+        assert Worker('internal').execute_skill(intent, skill) == [Observation('place')]
+        assert sandbox.return_value.run.call_args.args[0] == skill.code

@@ -664,3 +664,11 @@ Nominatim / Taginfo は GET、Overpass interpreter・Valhalla route/locate・Geo
 User-Agent は Gateway 側で固定し、Worker の Host/Authorization 等は転送しません。
 redirect は追跡もLocation転送もしません。upstream timeout 15秒、request body 64KiB、response 4MiBです。
 既存 Dataset GET/HEAD も同じhandlerに渡せます。
+
+Worker image は汎用 Primitive `call_service(service_id, *, path="", params=None, body=None, content_type=None) -> str`
+を持ちます。登録IDを検証して Gateway にだけ HTTP request を送ります。bodyなしはGET、bodyありはPOSTです。
+Overpass / routing / OSM等のクエリの意味はPrimitiveへ埋め込んでいません。
+`Intent(text, service_ids=(...))` はDatasetなしで実行でき、Datasetとの併用も可能です。
+現在Datasetは最大1件です。Workerは実行のみ、Critic・保存・index upsertはExecutorが担当します。
+実DockerでGateway経由Taginfo成功と4公開サービスへの直接TCP接続不可を確認しました。
+GeoSPARQLへの直接接続拒否は、実pinned graphを起動するE2Eで確認します。

@@ -118,3 +118,18 @@ def test_intent_execution_is_frozen():
     result = IntentExecution([], (), None, None, Critique(False, "未実行"), None)
     with pytest.raises(FrozenInstanceError):
         result.learned_skill_id = uuid4()
+
+
+def test_service_only_intent_uses_existing_validation_flow():
+    executor, (retriever, selector, worker, generator, critic, library) = setup_executor()
+    skill = Skill(uuid4(), '地名検索', 'code')
+    retriever.retrieve.return_value = [skill]
+    selector.select.return_value = skill
+    observations = [Observation('位置とOSM object')]
+    worker.execute_skill.return_value = observations
+    critic.check.return_value = Critique(True, '要求に回答した')
+    intent = Intent('地名を検索する', service_ids=('nominatim',))
+    result = executor.execute(intent)
+    assert result.observations == observations and result.critique.success
+    generator.generate.assert_not_called()
+    library.add.assert_not_called()

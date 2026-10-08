@@ -4,13 +4,16 @@ from dataclasses import dataclass
 @dataclass
 class Intent:
     text: str
-    dataset_ids: tuple[str, ...]
+    dataset_ids: tuple[str, ...] = ()
+    service_ids: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.text.strip():
             raise ValueError("Intent text must not be empty")
-        if not self.dataset_ids or any(not item.strip() for item in self.dataset_ids):
-            raise ValueError("Intent dataset_ids must contain non-empty ids")
+        if (not self.dataset_ids and not self.service_ids) or any(not item.strip() for item in self.dataset_ids):
+            raise ValueError("Intent requires dataset_ids or service_ids with non-empty ids")
+        if any(not item.strip() for item in self.service_ids):
+            raise ValueError("Intent service_ids must contain non-empty ids")
 
     @classmethod
     def from_block(cls, block: str) -> "Intent":

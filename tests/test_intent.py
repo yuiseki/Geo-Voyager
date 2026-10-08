@@ -42,3 +42,13 @@ def test_intent_parses_dataset_list(dataset_ids):
 def test_intent_rejects_invalid_block(block):
     with pytest.raises(ValueError):
         Intent.from_block(block)
+
+
+def test_service_only_intent_needs_no_dummy_dataset():
+    intent = Intent('地名を検索する', service_ids=('nominatim',))
+    assert intent.dataset_ids == () and intent.service_ids == ('nominatim',)
+
+
+def test_intent_rejects_empty_service_ids():
+    with pytest.raises(ValueError):
+        Intent('調査', service_ids=('',))

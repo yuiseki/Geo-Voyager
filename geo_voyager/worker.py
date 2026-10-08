@@ -3,6 +3,7 @@ from .intent import Intent
 from .observation import Observation
 from .skill import Skill
 from .skill_candidate import SkillCandidate
+from .services import load_service_graph
 
 
 class Worker:
@@ -10,9 +11,12 @@ class Worker:
         self.network = network
 
     def _execute_code(self, intent: Intent, code: str) -> list[Observation]:
-        if len(intent.dataset_ids) != 1:
-            raise ValueError("Exactly one dataset_id is required")
-        code = f"dataset_id={intent.dataset_ids[0]!r}\n" + code
+        if len(intent.dataset_ids) > 1 or (not intent.dataset_ids and not intent.service_ids):
+            raise ValueError("At most one dataset_id or registered service_ids are required")
+        for service_id in intent.service_ids:
+            load_service_graph().get(service_id)
+        if intent.dataset_ids:
+            code = f"dataset_id={intent.dataset_ids[0]!r}\n" + code
         stdout = DockerSandbox(
             image="geo-voyager-worker:duckdb-1.5.6", network=self.network,
         ).run(code)
