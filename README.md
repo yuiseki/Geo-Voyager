@@ -42,3 +42,32 @@ unit test は LLM client または HTTP を mock にしており、実モデル�
 ```bash
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -q -W error
 ```
+
+## Dataset Graph
+
+公開 Dataset Card と Files を2026-10-08に調査し、5件のメタデータを
+`geo_voyager/datasets.py` の静的 catalog に登録しています。
+各項目は出典 Dataset URL を持ち、コメントのリビジョン SHA から
+`<URL>/blob/<SHA>/README.md` と `<URL>/tree/<SHA>` で調査根拠を確認できます。
+由来は description、収録内容は contents に記載しています。
+データ本体は読み込まず、Hugging Face API の実行時呼び出しもありません。
+LLM・Planner には接続していません。
+
+```python
+from geo_voyager.datasets import load_dataset_graph
+
+graph = load_dataset_graph()
+dataset = graph.get("yuiseki/jp-admin-2026-09")
+print(dataset.temporal_coverage)
+print([dataset.id for dataset in graph.all()])
+```
+
+`DatasetGraph.register(dataset)` で登録、`get(id)` で取得、`all()` で一覧を返します。
+未登録 id の取得は `KeyError` になります。同じ id の登録は置き換えます。
+登録した5件の間に公開 Card で派生関係は確認できなかったため、edge は持ちません。
+
+- [osm-japan-src-2026-08](https://huggingface.co/datasets/yuiseki/osm-japan-src-2026-08): 2026-08-31の日本OSM固定スナップショット。
+- [mlit-toshi-keikaku-jp](https://huggingface.co/datasets/yuiseki/mlit-toshi-keikaku-jp): 国交省の2025年度都市計画決定GIS。層別の収録範囲とCardの利用条件を記録。
+- [jp-admin-2026-09](https://huggingface.co/datasets/yuiseki/jp-admin-2026-09): 2026-09の行政名・コードと2020年国勢調査の境界・人口を結合。
+- [ekidata-jp](https://huggingface.co/datasets/yuiseki/ekidata-jp): 駅データ.jpの無料版。新幹線駅は未収録で、独自利用規約。
+- [worldpop-jp-2026-01](https://huggingface.co/datasets/yuiseki/worldpop-jp-2026-01): 2015〜2030年の日本人口推計・予測ラスターとCOG、ファイルメタデータ表。
