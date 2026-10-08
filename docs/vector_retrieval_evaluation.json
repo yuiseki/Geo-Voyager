@@ -1,0 +1,176 @@
+[
+  {
+    "intent": "東京都23区で人口が最も多い区と人口を求める",
+    "correct_uuid": "72c549dd-e449-4bef-97f1-e3a2eab27d64",
+    "top_four": [
+      {
+        "rank": 1,
+        "uuid": "e722f367-1ff1-4796-89a3-48cfd1dfcb68",
+        "similarity": 0.9540654421416708
+      },
+      {
+        "rank": 2,
+        "uuid": "f2d4785a-779a-4927-b75d-65d1e4852ab2",
+        "similarity": 0.9512225048149694
+      },
+      {
+        "rank": 3,
+        "uuid": "befbc141-baad-41bc-abdf-dc34311c3111",
+        "similarity": 0.9473640323959616
+      },
+      {
+        "rank": 4,
+        "uuid": "72c549dd-e449-4bef-97f1-e3a2eab27d64",
+        "similarity": 0.8732978004625008
+      }
+    ],
+    "correct_in_top_four": true,
+    "selected_uuid": "f2d4785a-779a-4927-b75d-65d1e4852ab2",
+    "correct_selection": false
+  },
+  {
+    "intent": "東京都23区で人口が最も少ない区と人口を求める",
+    "correct_uuid": "e722f367-1ff1-4796-89a3-48cfd1dfcb68",
+    "top_four": [
+      {
+        "rank": 1,
+        "uuid": "e722f367-1ff1-4796-89a3-48cfd1dfcb68",
+        "similarity": 0.9540894434182667
+      },
+      {
+        "rank": 2,
+        "uuid": "f2d4785a-779a-4927-b75d-65d1e4852ab2",
+        "similarity": 0.937655713440639
+      },
+      {
+        "rank": 3,
+        "uuid": "befbc141-baad-41bc-abdf-dc34311c3111",
+        "similarity": 0.9347424711583748
+      },
+      {
+        "rank": 4,
+        "uuid": "72c549dd-e449-4bef-97f1-e3a2eab27d64",
+        "similarity": 0.8657467610885679
+      }
+    ],
+    "correct_in_top_four": true,
+    "selected_uuid": "e722f367-1ff1-4796-89a3-48cfd1dfcb68",
+    "correct_selection": true
+  },
+  {
+    "intent": "東京都23区の人口合計を求める",
+    "correct_uuid": "befbc141-baad-41bc-abdf-dc34311c3111",
+    "top_four": [
+      {
+        "rank": 1,
+        "uuid": "befbc141-baad-41bc-abdf-dc34311c3111",
+        "similarity": 0.9747111322819833
+      },
+      {
+        "rank": 2,
+        "uuid": "e722f367-1ff1-4796-89a3-48cfd1dfcb68",
+        "similarity": 0.9421974580168935
+      },
+      {
+        "rank": 3,
+        "uuid": "f2d4785a-779a-4927-b75d-65d1e4852ab2",
+        "similarity": 0.933163172123098
+      },
+      {
+        "rank": 4,
+        "uuid": "72c549dd-e449-4bef-97f1-e3a2eab27d64",
+        "similarity": 0.8425165412571022
+      }
+    ],
+    "correct_in_top_four": true,
+    "selected_uuid": "befbc141-baad-41bc-abdf-dc34311c3111",
+    "correct_selection": true
+  },
+  {
+    "intent": "東京都23区で人口が多い上位5区を求める",
+    "correct_uuid": "f2d4785a-779a-4927-b75d-65d1e4852ab2",
+    "top_four": [
+      {
+        "rank": 1,
+        "uuid": "f2d4785a-779a-4927-b75d-65d1e4852ab2",
+        "similarity": 0.9682372195024509
+      },
+      {
+        "rank": 2,
+        "uuid": "e722f367-1ff1-4796-89a3-48cfd1dfcb68",
+        "similarity": 0.932846269911655
+      },
+      {
+        "rank": 3,
+        "uuid": "befbc141-baad-41bc-abdf-dc34311c3111",
+        "similarity": 0.9151162653562787
+      },
+      {
+        "rank": 4,
+        "uuid": "72c549dd-e449-4bef-97f1-e3a2eab27d64",
+        "similarity": 0.8571240076129412
+      }
+    ],
+    "correct_in_top_four": true,
+    "selected_uuid": "f2d4785a-779a-4927-b75d-65d1e4852ab2",
+    "correct_selection": true
+  },
+  {
+    "intent": "駅データに収録されている駅の総数を求める",
+    "correct_uuid": "ccd6a22b-d795-4359-a06a-f2ac214e6a28",
+    "top_four": [
+      {
+        "rank": 1,
+        "uuid": "ccd6a22b-d795-4359-a06a-f2ac214e6a28",
+        "similarity": 0.9102126742886103
+      },
+      {
+        "rank": 2,
+        "uuid": "fb0fb79f-10b3-424f-ae27-4d6292f474c4",
+        "similarity": 0.8711531869602923
+      },
+      {
+        "rank": 3,
+        "uuid": "befbc141-baad-41bc-abdf-dc34311c3111",
+        "similarity": 0.8416950303134448
+      },
+      {
+        "rank": 4,
+        "uuid": "e722f367-1ff1-4796-89a3-48cfd1dfcb68",
+        "similarity": 0.8188489118176012
+      }
+    ],
+    "correct_in_top_four": true,
+    "selected_uuid": "ccd6a22b-d795-4359-a06a-f2ac214e6a28",
+    "correct_selection": true
+  },
+  {
+    "intent": "駅データに収録されている最北端の駅を求める",
+    "correct_uuid": "fb0fb79f-10b3-424f-ae27-4d6292f474c4",
+    "top_four": [
+      {
+        "rank": 1,
+        "uuid": "fb0fb79f-10b3-424f-ae27-4d6292f474c4",
+        "similarity": 0.9328357191716643
+      },
+      {
+        "rank": 2,
+        "uuid": "ccd6a22b-d795-4359-a06a-f2ac214e6a28",
+        "similarity": 0.8392354992696333
+      },
+      {
+        "rank": 3,
+        "uuid": "e722f367-1ff1-4796-89a3-48cfd1dfcb68",
+        "similarity": 0.8291436836309211
+      },
+      {
+        "rank": 4,
+        "uuid": "f2d4785a-779a-4927-b75d-65d1e4852ab2",
+        "similarity": 0.8072492892264601
+      }
+    ],
+    "correct_in_top_four": true,
+    "selected_uuid": "fb0fb79f-10b3-424f-ae27-4d6292f474c4",
+    "correct_selection": true
+  }
+]

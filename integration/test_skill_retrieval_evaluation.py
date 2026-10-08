@@ -19,6 +19,7 @@ class RecordedEmbeddings:
 
     def __init__(self, client):
         self.client = client
+        self.model = client.model
         self.vectors = {}
 
     def embed(self, texts):
@@ -32,7 +33,9 @@ def test_six_intents_retriever_top_four_and_selector(tmp_path):
     model = os.environ.get('GEO_VOYAGER_EMBEDDING_MODEL')
     if not base_url or not model:
         pytest.skip('Embedding endpoint and model must be explicitly configured')
-    library = SkillLibrary()
+    library = SkillLibrary(tmp_path / 'skill_library')
+    for skill in SkillLibrary().all():
+        library.add(skill)
     assert len(library.all()) == 6
     embeddings = RecordedEmbeddings(EmbeddingClient(base_url, model))
     retriever = SkillRetriever(library, embeddings)
@@ -66,6 +69,7 @@ def test_six_intents_retriever_top_four_and_selector(tmp_path):
         results.append(result)
         print(json.dumps(result, ensure_ascii=False), flush=True)
     assert len(results) == 6
+    assert all(item['correct_in_top_four'] for item in results)
     print('retriever recall@4:', sum(item['correct_in_top_four'] for item in results), '/ 6', flush=True)
     print('selector accuracy:', sum(item['correct_selection'] for item in results), '/ 6', flush=True)
     report = tmp_path / 'skill_evaluation.json'

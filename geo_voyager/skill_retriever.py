@@ -1,33 +1,25 @@
-import math
-
-from geo_voyager.embedding_client import EmbeddingClient
-from geo_voyager.intent import Intent
-from geo_voyager.skill import Skill, SkillLibrary
+from .embedding_client import EmbeddingClient
+from .intent import Intent
+from .skill import Skill, SkillLibrary
+from .skill_embedding_cache import SkillEmbeddingCache
+from .skill_vector_store import SkillVectorStore
 
 
 class SkillRetriever:
-    def __init__(self, library: SkillLibrary, embedding_client: EmbeddingClient) -> None:
+    def __init__(self, library: SkillLibrary, embedding_client: EmbeddingClient, *,
+                 store: SkillVectorStore | None = None, cache: SkillEmbeddingCache | None = None) -> None:
         self.library = library
         self.embedding_client = embedding_client
+        self.store = store if store is not None else SkillVectorStore(library.root / 'vectordb' / 'skills.duckdb')
+        self.cache = cache
 
     def retrieve(self, intent: Intent, k: int = 1) -> list[Skill]:
         if k < 1:
             raise ValueError('k must be positive')
-        skills = self.library.all()
-        if not skills:
+        if self.cache is None:
+            self.cache = SkillEmbeddingCache(self.embedding_client, root=self.library.root)
+        self.store.sync(self.library, self.cache)
+        if not self.library.all():
             return []
-        vectors = self.embedding_client.embed([skill.description for skill in skills])
         query = self.embedding_client.embed([intent.text])[0]
-        query_norm = math.hypot(*query)
-        if query_norm == 0:
-            raise ValueError('Embedding norm must be nonzero')
-        scores = []
-        for vector in vectors:
-            if len(vector) != len(query):
-                raise ValueError('Embedding dimensions must match')
-            norm = math.hypot(*vector)
-            if norm == 0:
-                raise ValueError('Embedding norm must be nonzero')
-            scores.append(sum((a / norm) * (b / query_norm) for a, b in zip(vector, query)))
-        ranked = sorted(zip(skills, scores), key=lambda item: item[1], reverse=True)
-        return [skill for skill, _ in ranked[:k]]
+        return [self.library.get(skill_id) for skill_id in self.store.search(query, k)]

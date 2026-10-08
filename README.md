@@ -1,7 +1,7 @@
 # Geo-Voyager v0.1.0
 
-Python 3.12 以降を使用します。実行時の外部依存関係はありません。
-テストには pytest が必要です（`python -m pip install pytest`）。
+Python 3.12 以降を使用します。Skill 検索の実行時依存は DuckDB 1.5.6 です。
+テストには pytest と、明示セットアップ済みの DuckDB vss extension が必要です（下記参照）。
 
 `Question(text)`、`Hypothesis(text)`、`Observation(text)`、`Verdict(text)` は空文字列を拒否します。
 `Intent(text, dataset_ids)` は空の text と空の dataset_ids を拒否します。
@@ -302,7 +302,7 @@ skill_library/
     description.txt
 ```
 
-`vectordb/` は Git でディレクトリを保持するための空の `.gitkeep` のみです。
+`vectordb/` の Git 管理対象は `.gitkeep` のみです。実行時の `skills.duckdb` は再生成可能な派生物として Git 管理対象外です。
 最初の Skill の description は「行政区域の集合から人口が最も多い区域と人口を求める」です。
 code は AOI指定済みの relation から人口降順で1件を選択し、stdout を生成します。
 区名・人口の答えは埋め込まず、取得した行から生成します。
@@ -312,7 +312,7 @@ Skill.code を sandbox の stdin に送ります。固定 Skill の選択や Dat
 image には Control Primitives を配置しており、Skill は host 側の filesystem から
 読み込みます。host filesystem はコンテナに mount しません。
 23行・人口合計を確認する既存実験スクリプトも接続 Primitive を再利用します。
-検索・選択と Worker の接続は IntentExecutor が担当します。Vector DB は実装していません。
+検索・選択と Worker の接続は IntentExecutor が担当します。検索 index は DuckDB vss です。
 
 ## Critic
 
@@ -366,7 +366,7 @@ observations = worker.execute_candidate(intent, candidate)
 
 code と description は呼び出し側が与えるか SkillCandidateGenerator で生成します。
 既存 Skill を使う `Worker.execute_skill(intent, skill)` は昇格・保存を行いません。
-両経路とも Dataset は1件だけを許可し、既存 sandbox 制約を維持します。Vector DB は追加していません。
+両経路とも Dataset は1件だけを許可し、既存 sandbox 制約を維持します。検索用 DuckDB vss index を追加しています。
 
 ## SkillCandidateGenerator
 
@@ -405,7 +405,7 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest integration/test_generated_pop
 東京23区の人口最小として千代田区・66,680人を取得し Critic が成功と判定しました。
 承認済み Skill は同じ UUID `e722f367-1ff1-4796-89a3-48cfd1dfcb68` のまま
 リポジトリの Library にも保存しています。これは登録 Dataset の2020年国勢調査人口です。
-自動 retry、self-repair、複数 Candidate の生成、Vector DB、Planner 全体との E2E 接続は実装していません。
+自動 retry、self-repair、複数 Candidate の生成、Planner 全体との E2E 接続は実装していません。
 既存 Skill が適合しない場合の生成・実行・成功時保存は IntentExecutor が接続します。
 
 AOI対応後の実データ確認では、`area=None` は1,918行政区域、
@@ -425,7 +425,7 @@ constructor に server root または `/v1` までの base URL と model name �
 空の texts、data 件数の不一致、不正・重複・欠落 index、空 embedding、
 非数値・非有限値、次元数の不一致は `ValueError` です。
 HTTP error と不正 JSON の例外はそのまま呼び出し元へ伝えます。
-EmbeddingClient は SkillRetriever で利用します。vectordb には接続していません。
+EmbeddingClient は Skill の派生 cache と query embedding に利用します。検索 index は DuckDB vss です。
 
 ```python
 from geo_voyager.embedding_client import EmbeddingClient
@@ -452,24 +452,80 @@ GEO_VOYAGER_EMBEDDING_MODEL=granite-embedding \
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest integration/test_embedding_llama.py -q -s -W error
 ```
 
-### 最小 Skill 検索
+### Skill 検索の3層構成
 
-`SkillRetriever(library, embedding_client).retrieve(intent, k=1)` は
-`SkillLibrary.all()` の description をまとめて embedding し、続いて
-`Intent.text` を embedding して cosine similarity の降順で `list[Skill]` を返します。
-検索のたびに計算し、Retriever 自体は保存・実行を行いません。IntentExecutor が選択・実行につなぎます。Vector DB は追加していません。
-空の Library は空リスト、非正の k・ゼロベクトル・次元不一致は例外です。
-同点では Library の列挙順を維持します。
+```text
+skill_library/
+  {uuid}/
+    code.py                       # source of truth
+    description.txt               # source of truth
+    description_embedding.json    # derived cache / gitignore
+  vectordb/
+    .gitkeep
+    skills.duckdb                 # derived index / gitignore
+```
 
-実モデルの確認では人口最大・最小の両 Intent に対して人口最小 Skill が上位でした。
-embedding 類似度は Skill が要求に適合する保証ではありません。
+`SkillEmbeddingCache(embedding_client, root=library.root).get(skill)` は
+実際に embedding へ渡す description の UTF-8 SHA-256、model、format_version=1、
+dimensions=384 と非空・有限・非ゼロのベクトルを検証します。正常な cache は API を呼ばず返し、
+欠損・不正 JSON・不一致は再生成します。書き込みは同一ディレクトリの一時ファイルから atomic replace します。
+code と description の原本を変更しません。
 
-実モデルでの検索確認は通常の unit test と分離しています。
+`SkillVectorStore(path=None)` の既定パスは `skill_library/vectordb/skills.duckdb` です。
+`sync(library, cache)` は UUID / description SHA / model の差分だけ INSERT / UPDATE し、
+Library にない UUID は DELETE します。初回は全行投入後に HNSW index を作ります。
+
+```sql
+CREATE TABLE skill_embeddings (
+    skill_id UUID PRIMARY KEY,
+    description_sha256 VARCHAR NOT NULL,
+    model VARCHAR NOT NULL,
+    embedding FLOAT[384] NOT NULL
+);
+CREATE INDEX skill_embedding_hnsw ON skill_embeddings
+USING HNSW (embedding) WITH (metric = 'cosine');
+```
+
+`search(query_embedding, k)` は `ORDER BY array_cosine_distance(embedding, ?::FLOAT[384]) LIMIT ?`
+で近い順の UUID を返します。k<1、次元不一致、非有限値、ゼロベクトルを拒否します。
+HNSW の同点順位は保証しません。
+
+`SkillRetriever(library, embedding_client).retrieve(intent, k=1)` は API を維持し、
+まず sync してから Intent.text を1回だけ embedding し、store.search → library.get で Skill を返します。
+変更がない検索では description を embedding しません。新 Skill は次回 retrieval の sync で対象になります。
+空の Library は index の削除差分を sync したうえで、query embedding を呼ばず空リストを返します。
+Selector / Critic / IntentExecutor の制御は変更していません。
+
+#### 明示セットアップ
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install 'duckdb==1.5.6' 'pytest>=8'
+.venv/bin/python - <<'PYTHON'
+import duckdb
+with duckdb.connect() as connection:
+    connection.execute("SET custom_extension_repository='https://extensions.duckdb.org'")
+    connection.execute("INSTALL vss")
+    connection.execute("LOAD vss")
+PYTHON
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 .venv/bin/python -m pytest -q -W error \
+  --basetemp=/tmp/geo-voyager-unit-$(cat /proc/sys/kernel/random/uuid)
+```
+
+実行コードは extension の autoinstall / autoload を無効化し、`LOAD vss` だけを実行します。
+永続 DB を ATTACH する前に vss を LOAD し、`hnsw_enable_experimental_persistence=true` を設定します。
+この設定と検索形式は [DuckDB vss の公式文書](https://duckdb.org/docs/current/core_extensions/vss) に従います。
+DB は原本ではなく派生 index です。失った場合は sync で cache から再構築できます。
+同時書き込み・モデル移行・HNSW tuning は今回扱いません。
+
+実 embedding と EXPLAIN / 再構築・6 Intent 評価・学習後の再利用は明示実行します。
 
 ```bash
 GEO_VOYAGER_EMBEDDING_BASE_URL=http://10.105.167.163:8080 \
 GEO_VOYAGER_EMBEDDING_MODEL=granite-embedding \
-PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest integration/test_skill_retriever_llama.py -q -s
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 .venv/bin/python -m pytest -q -s -W error \
+  --import-mode=importlib integration \
+  --basetemp=/tmp/geo-voyager-integration-$(cat /proc/sys/kernel/random/uuid)
 ```
 
 ### Skill の適合性による選択
@@ -482,7 +538,7 @@ code・Dataset ID は渡しません。類似度順位で自動決定せず、�
 
 LLM の返答は `選択: UUIDまたはなし` と `理由: ...` の2行に限定し、
 不正形式・不正 UUID・候補外 UUID は `ValueError` にします。
-IntentExecutor が選択結果を Worker に渡し、None の場合だけ SkillCandidateGenerator を呼びます。
+IntentExecutor が選択結果を Worker に渡し、None または既存 Skill の Critic 失敗の場合に SkillCandidateGenerator を呼びます。
 
 通常の unit test は LLM を mock しています。実モデル確認は別途実行します。
 
@@ -510,12 +566,12 @@ Critic の成功を確認しています。駅数は収録全レコード数で�
 6 Intent の評価は recall@4 が6/6、Selector の正解が6/6でした。
 人口最大は Retriever の4位から Selector が選びました。
 [UUID・description・実行結果・全順位と cosine 値・再実行コマンド](docs/skill_evaluation.md)
-を記録しています。その評価後に、IntentExecutor で既存 Skill の再利用と該当なしの場合の学習を接続しました。Vector DB は追加していません。
+を記録しています。その評価後に、IntentExecutor で既存 Skill の再利用と該当なしの場合の学習を接続しました。検索用 DuckDB vss index を追加しています。
 
 ## IntentExecutor: 既知なら再利用、未知なら学習
 
 `IntentExecutor(retriever, selector, worker, generator, critic, skill_library)` に
-同じ filesystem Library を検索・保存先として渡します。
+同じ filesystem Library を検索・保存先として渡します。派生 cache / index は Retriever が同期します。
 `execute(intent, k=4) -> IntentExecution` は次の順で処理します。
 
 1. Retriever の top-k Skill を取得し、UUID の順序を保持する。
@@ -579,3 +635,5 @@ Observation の一致を確認します。Library は6→7→7→7でした。
 [全 UUID と結果・専用一時ディレクトリでの再実行方法](docs/skill_growth.md)を記録しています。
 
 現在の integration では再利用のたびに Critic を呼び、意図的な誤選択からの1回の fallback も確認します。過去の検証記録の critique=None は変更前の動作です。最新の結果は [Critic 検証と fallback](docs/critic_fallback.md) に記録します。
+
+[派生 cache / HNSW index の実検証結果・6 Intent 評価・学習後の再利用](docs/vector_retrieval.md)を記録しています。

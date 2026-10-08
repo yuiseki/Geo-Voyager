@@ -2,3 +2,6 @@ __pycache__/
 .pytest_cache/
 .venv/
 *.egg-info/
+skill_library/**/*_embedding.json
+skill_library/vectordb/*
+!skill_library/vectordb/.gitkeep
