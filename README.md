@@ -647,3 +647,12 @@ Observation の一致を確認します。Library は6→7→7→7でした。
 現在の integration では再利用のたびに Critic を呼び、意図的な誤選択からの1回の fallback も確認します。過去の検証記録の critique=None は変更前の動作です。最新の結果は [Critic 検証と fallback](docs/critic_fallback.md) に記録します。
 
 [派生 cache / HNSW index の実検証結果・6 Intent 評価・学習後の再利用](docs/vector_retrieval.md)を記録しています。
+
+## Registered geographical services
+
+`Service(id, description, base_url, protocol)` と `ServiceGraph.register/get/all` を追加しました。
+`load_service_graph()` は overpass / nominatim / valhalla / taginfo の正確な HTTPS origin と、
+検証用 YuisekinGeoSPARQL `http://geosparql:3030` を登録します。未知 ID は KeyError です。
+`*.yuiseki.net` wildcard は許可しません。HTTP User-Agent は
+`Geo-Voyager/0.1.0 (+https://github.com/yuiseki/Geo-Voyager)` です。
+この登録は探索用 metadata であり、Worker からの通信許可は別途 Gateway で制御します。
