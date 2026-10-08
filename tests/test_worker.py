@@ -1,33 +1,45 @@
 from unittest.mock import patch
+from uuid import uuid4
 
 import pytest
 
 from geo_voyager.intent import Intent
 from geo_voyager.observation import Observation
-from geo_voyager.worker import Worker
 from geo_voyager.skill import Skill
-from geo_voyager.skills import POPULATION_SKILL_ID
+from geo_voyager.worker import Worker
 
 
-def test_worker_reads_intent_dataset_through_internal_docker_sandbox():
-    intent = Intent('東京都23区で人口が最も多い区と人口を求める', ('yuiseki/jp-admin-2026-09',))
-    text = '東京都23区で人口が最も多い区は世田谷区で、人口は943664人である'
-    with patch('geo_voyager.worker.DockerSandbox') as sandbox, patch('geo_voyager.worker.SkillLibrary') as library, patch('geo_voyager.worker.promote') as promotion:
-        library.return_value.get.return_value = Skill(POPULATION_SKILL_ID, '人口最大', 'print("skill result")')
-        sandbox.return_value.run.return_value = text + '\n'
-        observations = Worker(network='test-internal').execute(intent)
+@pytest.mark.parametrize('dataset_id', ['yuiseki/jp-admin-2026-09', 'yuiseki/ekidata-jp'])
+def test_worker_executes_supplied_skill_and_injects_single_dataset_without_saving(dataset_id):
+    intent = Intent('調査結果を求める', (dataset_id,))
+    skill = Skill(uuid4(), '調査', 'print("skill result")')
+    with patch('geo_voyager.worker.DockerSandbox') as sandbox, \
+         patch('geo_voyager.worker.SkillLibrary') as library, \
+         patch('geo_voyager.worker.promote') as promotion:
+        sandbox.return_value.run.return_value = 'skill result\n'
+        observations = Worker(network='test-internal').execute_skill(intent, skill)
     sandbox.assert_called_once_with(image='geo-voyager-worker:duckdb-1.5.6', network='test-internal')
-    code = sandbox.return_value.run.call_args.args[0]
-    assert 'yuiseki/jp-admin-2026-09' in code
-    library.return_value.get.assert_called_once_with(POPULATION_SKILL_ID)
-    assert 'print("skill result")' in code
-    assert observations == [Observation(text)]
-    library.return_value.add.assert_not_called()
+    assert sandbox.return_value.run.call_args.args[0] == f'dataset_id={dataset_id!r}\n{skill.code}'
+    assert observations == [Observation('skill result')]
+    library.assert_not_called()
     promotion.assert_not_called()
 
 
-def test_worker_rejects_unsupported_intent_dataset_before_docker():
+@pytest.mark.parametrize('dataset_ids', [(), ('admin', 'stations')])
+@pytest.mark.parametrize('candidate', [False, True])
+def test_worker_rejects_zero_or_multiple_datasets_before_docker(dataset_ids, candidate):
+    from unittest.mock import Mock
+    from geo_voyager.skill_candidate import SkillCandidate
+    intent = Intent('調査', ('initial',))
+    intent.dataset_ids = dataset_ids
+    critic, library = Mock(), Mock()
     with patch('geo_voyager.worker.DockerSandbox') as sandbox:
         with pytest.raises(ValueError, match='dataset'):
-            Worker(network='test-internal').execute(Intent('人口最大の区', ('unknown/dataset',)))
-    sandbox.return_value.run.assert_not_called()
+            worker = Worker(network='test-internal')
+            if candidate:
+                worker.execute_candidate(intent, SkillCandidate('print(1)', '調査'), critic, library)
+            else:
+                worker.execute_skill(intent, Skill(uuid4(), '調査', 'print(1)'))
+    sandbox.assert_not_called()
+    critic.check.assert_not_called()
+    library.add.assert_not_called()

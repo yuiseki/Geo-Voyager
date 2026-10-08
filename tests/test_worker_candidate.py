@@ -30,7 +30,7 @@ def test_candidate_is_promoted_and_saved_only_after_critic_success(tmp_path, suc
          patch('geo_voyager.worker.promote', wraps=promote) as promotion:
         promotion.side_effect = promote_after_check
         sandbox.return_value.run.side_effect = lambda code: events.append('execution') or '世田谷区、943664人\n'
-        observations, result = Worker(network='test-internal').execute_candidate(
+        observations, result, learned = Worker(network='test-internal').execute_candidate(
             intent, candidate, critic, library_spy,
         )
         assert candidate.code in sandbox.return_value.run.call_args.args[0]
@@ -42,10 +42,12 @@ def test_candidate_is_promoted_and_saved_only_after_critic_success(tmp_path, suc
             promotion.assert_called_once_with(candidate)
             library_spy.add.assert_called_once()
             saved = library_spy.add.call_args.args[0]
+            assert learned == saved
             assert library.get(saved.id) == saved
             assert saved.code == candidate.code and saved.description == candidate.description
             assert library.all() == [saved]
         else:
+            assert learned is None
             promotion.assert_not_called()
             library_spy.add.assert_not_called()
             assert list(tmp_path.iterdir()) == []

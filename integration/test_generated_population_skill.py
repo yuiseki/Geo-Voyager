@@ -49,7 +49,7 @@ def test_generated_least_populous_ward_skill(tmp_path):
                 break
             time.sleep(0.25)
         assert ready.returncode == 0, docker('logs', names['gateway'])
-        observations, critique = Worker(network=names['internal']).execute_candidate(
+        observations, critique, learned = Worker(network=names['internal']).execute_candidate(
             intent, candidate, Critic(), library,
         )
         assert len(observations) == 1
@@ -59,6 +59,7 @@ def test_generated_least_populous_ward_skill(tmp_path):
         skills = library.all()
         assert len(skills) == 1
         skill = skills[0]
+        assert learned == skill
         assert skill.code == candidate.code and skill.description == candidate.description
         assert 'GET 206 Range: bytes=' in docker('logs', names['gateway'])
         print('Observation:', observations[0].text, flush=True)

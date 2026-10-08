@@ -1,4 +1,4 @@
-"""Worker.execute から実 Docker + 行政区 Parquet を読む明示的な確認。"""
+"""Worker.execute_skill から実 Docker + 行政区 Parquet を読む明示的な確認。"""
 
 import subprocess
 import time
@@ -31,14 +31,16 @@ def test_worker_execute_returns_most_populous_tokyo_ward():
                 break
             time.sleep(0.25)
         assert ready.returncode == 0, docker('logs', names['gateway'])
-        observations = Worker(network=names['internal']).execute(intent)
+        observations = Worker(network=names['internal']).execute_skill(
+            intent, SkillLibrary().get(UUID('72c549dd-e449-4bef-97f1-e3a2eab27d64')),
+        )
         assert observations == [Observation(
             '東京都23区で人口が最も多い区は世田谷区で、人口は943664人である',
         )]
         minimum_skill = SkillLibrary().get(UUID('e722f367-1ff1-4796-89a3-48cfd1dfcb68'))
-        minimum = Worker(network=names['internal'])._execute_code(
+        minimum = Worker(network=names['internal']).execute_skill(
             Intent('東京都23区で人口が最も少ない区と人口を求める', ('yuiseki/jp-admin-2026-09',)),
-            minimum_skill.code,
+            minimum_skill,
         )
         assert '千代田区' in minimum[0].text and '66680' in minimum[0].text
         print('minimum:', minimum[0].text)

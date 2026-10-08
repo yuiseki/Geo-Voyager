@@ -3,9 +3,8 @@ from .critique import Critique
 from .docker_sandbox import DockerSandbox
 from .intent import Intent
 from .observation import Observation
-from .skill import SkillLibrary
+from .skill import Skill, SkillLibrary
 from .skill_candidate import SkillCandidate, promote
-from .skills import POPULATION_SKILL_ID
 
 
 class Worker:
@@ -13,24 +12,25 @@ class Worker:
         self.network = network
 
     def _execute_code(self, intent: Intent, code: str) -> list[Observation]:
-        if intent.dataset_ids != ("yuiseki/jp-admin-2026-09",):
-            raise ValueError("Only the administrative dataset is supported by this fixed analysis")
+        if len(intent.dataset_ids) != 1:
+            raise ValueError("Exactly one dataset_id is required")
         code = f"dataset_id={intent.dataset_ids[0]!r}\n" + code
         stdout = DockerSandbox(
             image="geo-voyager-worker:duckdb-1.5.6", network=self.network,
         ).run(code)
         return [Observation(stdout.strip())]
 
-    def execute(self, intent: Intent) -> list[Observation]:
-        skill = SkillLibrary().get(POPULATION_SKILL_ID)
+    def execute_skill(self, intent: Intent, skill: Skill) -> list[Observation]:
         return self._execute_code(intent, skill.code)
 
     def execute_candidate(
         self, intent: Intent, candidate: SkillCandidate,
         critic: Critic, skill_library: SkillLibrary,
-    ) -> tuple[list[Observation], Critique]:
+    ) -> tuple[list[Observation], Critique, Skill | None]:
         observations = self._execute_code(intent, candidate.code)
         critique = critic.check(intent, observations)
+        learned = None
         if critique.success:
-            skill_library.add(promote(candidate))
-        return observations, critique
+            learned = promote(candidate)
+            skill_library.add(learned)
+        return observations, critique, learned

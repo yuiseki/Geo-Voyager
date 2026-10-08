@@ -1,0 +1,59 @@
+[
+  {
+    "intent": "東京都23区で人口が最も多い区と人口を求める",
+    "observations": [
+      {
+        "text": "東京都23区で人口が最も多い区は世田谷区で、人口は943664人である"
+      }
+    ],
+    "retrieved_skill_ids": [
+      "e722f367-1ff1-4796-89a3-48cfd1dfcb68",
+      "f2d4785a-779a-4927-b75d-65d1e4852ab2",
+      "befbc141-baad-41bc-abdf-dc34311c3111",
+      "72c549dd-e449-4bef-97f1-e3a2eab27d64"
+    ],
+    "selected_skill_id": "72c549dd-e449-4bef-97f1-e3a2eab27d64",
+    "learned_skill_id": null,
+    "critique": null
+  },
+  {
+    "intent": "駅データに収録されている最北端の駅を求める",
+    "observations": [
+      {
+        "text": "駅データに収録されている最北端の駅は稚内駅で、緯度は45.416995、経度は141.676999である"
+      }
+    ],
+    "retrieved_skill_ids": [
+      "fb0fb79f-10b3-424f-ae27-4d6292f474c4",
+      "ccd6a22b-d795-4359-a06a-f2ac214e6a28",
+      "e722f367-1ff1-4796-89a3-48cfd1dfcb68",
+      "f2d4785a-779a-4927-b75d-65d1e4852ab2"
+    ],
+    "selected_skill_id": "fb0fb79f-10b3-424f-ae27-4d6292f474c4",
+    "learned_skill_id": null,
+    "critique": null
+  },
+  {
+    "intent": "東京都23区の平均人口を求める",
+    "observations": [
+      {
+        "text": "東京都23区の平均人口は 423185.9130434783 です。"
+      }
+    ],
+    "retrieved_skill_ids": [
+      "befbc141-baad-41bc-abdf-dc34311c3111",
+      "e722f367-1ff1-4796-89a3-48cfd1dfcb68",
+      "f2d4785a-779a-4927-b75d-65d1e4852ab2",
+      "72c549dd-e449-4bef-97f1-e3a2eab27d64"
+    ],
+    "selected_skill_id": null,
+    "learned_skill_id": "4038ef3d-4721-4a91-905d-a1b8be10367d",
+    "critique": {
+      "success": true,
+      "reason": "東京都23区の平均人口という具体的な数値が観測結果として提示されているため、Intentの要求を満たしている。"
+    },
+    "learned_description": "東京都23区の平均人口を計算し、その値を出力します。",
+    "learned_code": "from geo_voyager.control_primitives import connect_duckdb, load_admin_units, load_stations\nwith connect_duckdb() as connection:\n    df = load_admin_units(dataset_id, connection, area=\"東京都23区\")\n    avg_df = df.aggregate(\"avg(population) AS average_population\")\n    average_population = avg_df.fetchone()[0]\n    print(f\"東京都23区の平均人口は {average_population} です。\")",
+    "library_count": 7
+  }
+]

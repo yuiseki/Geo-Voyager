@@ -1,7 +1,7 @@
 # Skill Retriever / Selector 評価（2026-10-08）
 
 既存2件と追加4件の description を embedding し、Intent.text との cosine similarity で top-4 を取得。
-同じ候補を Selector に渡しました。Worker / Generator への検索・選択の接続は追加していません。
+同じ候補を Selector に渡しました。この評価時点では Worker / Generator へ未接続でした。現在の統合 API は README の IntentExecutor を参照してください。
 
 - embedding: `http://10.105.167.163:8080/v1/embeddings`、`granite-embedding`（granite-embedding-97m-multilingual-r2）。
 - Selector / Critic: 既存 `gvt-llm`、`http://10.108.45.102:8080/v1/chat/completions`。

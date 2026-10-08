@@ -32,9 +32,11 @@ def test_generator_passes_intent_and_primitive_contracts_and_parses_candidate(re
                  'dataset_url(dataset_id)', 'load_admin_units(dataset_id, connection, area=None)',
                  'load_admin_units(dataset_id, connection, area="東京都23区")',
                  '外部URLを直接使わない', 'stdout', 'dataset_id は実行環境から与えられる',
-                 '再利用可能',
+                 '再利用可能', 'load_stations(dataset_id, connection)',
+                 'latitude', 'longitude', 'aggregate(expression)', 'avg(population)',
+                 'fetchone()[0]',
                  'from geo_voyager.control_primitives import connect_duckdb, load_admin_units',
-                 'pandas DataFrame ではない', 'order(expression)', 'fetchone()', 'dataset_id = ... という代入を書かない', 'stdout に選択・集計の意味', 'トップレベル'):
+                 'pandas DataFrame ではない', 'order(expression)', 'fetchone()', 'dataset_id = ... という代入を書かない', 'stdout に選択・集計の意味', 'トップレベル', 'Primitive 名を変更・推測しない', '接続部分の import と with 行は変更せず', '返答の1行目は必ず「説明:」', '説明本文を同じ行に書かない'):
         assert text in prompt
     assert "13101" not in prompt and "13123" not in prompt
 
@@ -51,3 +53,14 @@ def test_generator_rejects_invalid_or_empty_sections(reply):
     client.generate.return_value = reply
     with pytest.raises(ValueError):
         SkillCandidateGenerator(client).generate(Intent('調査', ('yuiseki/jp-admin-2026-09',)))
+
+
+def test_generator_advertises_station_primitive_for_station_intent():
+    client = Mock()
+    client.generate.return_value = VALID
+    intent = Intent('駅データの緯度の平均を求める', ('yuiseki/ekidata-jp',))
+    SkillCandidateGenerator(client).generate(intent)
+    prompt = client.generate.call_args.args[0]
+    assert intent.text in prompt and intent.dataset_ids[0] in prompt
+    assert 'load_stations(dataset_id, connection)' in prompt
+    assert 'name' in prompt and 'latitude' in prompt and 'longitude' in prompt

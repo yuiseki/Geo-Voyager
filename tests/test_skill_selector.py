@@ -54,3 +54,12 @@ def test_invalid_or_unknown_selection_is_rejected(output):
     client.generate.return_value = output
     with pytest.raises(ValueError):
         SkillSelector(client).select(Intent('人口最大', ('admin',)), [MAX, MIN])
+
+
+def test_selector_prompt_requires_direct_execution_and_explicit_none_format():
+    client = Mock()
+    client.generate.return_value = '選択: なし\n理由: 該当なし'
+    assert SkillSelector(client).select(Intent('平均人口を求める', ('admin',)), [MAX, MIN]) is None
+    prompt = client.generate.call_args.args[0]
+    assert 'コードの変更や追加計算が必要なら「なし」' in prompt
+    assert '選択: なし\n理由:' in prompt
