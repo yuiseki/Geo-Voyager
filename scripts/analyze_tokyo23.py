@@ -1,21 +1,9 @@
 """固定の東京23区実験。データへの接続先は Gateway だけ。"""
 
-GATEWAY_URL = "http://gateway:8000/datasets/yuiseki/jp-admin-2026-09"
+from geo_voyager.control_primitives import connect_duckdb as connect, dataset_url
 
+GATEWAY_URL = dataset_url("yuiseki/jp-admin-2026-09")
 
-def connect():
-    import duckdb
-
-    connection = duckdb.connect(config={
-        "extension_directory": "/opt/duckdb/extensions",
-        "autoinstall_known_extensions": "false",
-        "autoload_known_extensions": "false",
-        "threads": "1",
-        "memory_limit": "64MB",
-    })
-    connection.execute("LOAD httpfs")
-    connection.execute("LOAD spatial")
-    return connection
 
 
 def analyze(connection):

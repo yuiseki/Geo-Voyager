@@ -1,13 +1,22 @@
-from unittest.mock import Mock
+from contextlib import redirect_stdout
+from io import StringIO
+from unittest.mock import Mock, patch
 
-from scripts.most_populous_ward import analyze
+from geo_voyager.skills import load_skill_library
 
 
-def test_analysis_selects_one_ward_by_descending_population_through_gateway():
-    con = Mock()
-    con.execute.return_value.fetchone.return_value = ('13112', '世田谷区', 943664)
-    assert analyze(con, 'yuiseki/jp-admin-2026-09') == '東京都23区で人口が最も多い区は世田谷区で、人口は943664人である'
-    sql, parameters = con.execute.call_args.args
-    assert "BETWEEN '13101' AND '13123'" in sql
-    assert 'ORDER BY population DESC' in sql and 'LIMIT 1' in sql
-    assert parameters == ['http://gateway:8000/datasets/yuiseki/jp-admin-2026-09']
+def test_population_skill_uses_primitives_and_computes_result_without_hardcoded_ward():
+    skill = load_skill_library().get('most_populous_admin_unit')
+    relation = Mock()
+    relation.filter.return_value.order.return_value.limit.return_value.fetchone.return_value = ('13101', 'テスト区', 123)
+    with patch('geo_voyager.control_primitives.connect_duckdb') as connect, \
+         patch('geo_voyager.control_primitives.load_admin_units', return_value=relation) as load:
+        output = StringIO()
+        with redirect_stdout(output):
+            exec(skill.code, {'dataset_id': 'yuiseki/jp-admin-2026-09'})
+    load.assert_called_once_with('yuiseki/jp-admin-2026-09', connect.return_value.__enter__.return_value)
+    relation.filter.assert_called_once_with("code5 BETWEEN '13101' AND '13123'")
+    relation.filter.return_value.order.assert_called_once_with('population DESC')
+    relation.filter.return_value.order.return_value.limit.assert_called_once_with(1)
+    assert output.getvalue() == '東京都23区で人口が最も多い区はテスト区で、人口は123人である\n'
+    assert '世田谷' not in skill.code and '943664' not in skill.code

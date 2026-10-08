@@ -12,6 +12,7 @@ PY
 RUN chmod -R a+rX /opt/duckdb/extensions
 
 COPY scripts/analyze_tokyo23.py /opt/geo_voyager/analyze_tokyo23.py
-COPY scripts/most_populous_ward.py /opt/geo_voyager/most_populous_ward.py
+COPY geo_voyager/__init__.py /usr/local/lib/python3.12/site-packages/geo_voyager/__init__.py
+COPY geo_voyager/control_primitives /usr/local/lib/python3.12/site-packages/geo_voyager/control_primitives
 USER 65534:65534
 CMD ["python", "-I", "-B", "/opt/geo_voyager/analyze_tokyo23.py"]

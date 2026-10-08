@@ -39,8 +39,8 @@ YAML ライブラリや汎用 YAML parser、schema 制約は使用しません�
 この確認は Dataset の存在だけを保証し、調査内容とデータの意味的な整合性は検証しません。
 全ブロックが空なら拒否します。Intent の実行可能性は検証しません。
 `Worker(network=internal_network).execute(intent)` は、Intent の dataset_ids が
-`("yuiseki/jp-admin-2026-09",)` であることを確認し、Worker image 内の固定SQLで
-東京23区の人口最大の1区を取得します。それ以外の Dataset 指定は拒否します。
+`("yuiseki/jp-admin-2026-09",)` であることを確認し、SkillLibrary から固定名の Skill を取得して
+Worker image の Control Primitives を使い東京23区の人口最大の1区を取得します。それ以外の Dataset 指定は拒否します。
 Gateway を通じて取得した結果を stdout に出し、`strip()` して Observation 1件を返します。
 Intent の text の解釈や LLM によるコード生成は行いません。
 `Planner().judge(hypothesis, observations)` は、入力によらず
@@ -231,7 +231,7 @@ observations = Worker(network="既存のinternal network名").execute(intent)
 print(observations[0].text)
 ```
 
-固定スクリプト `scripts/most_populous_ward.py` は `read_parquet()` の接続先を Gateway にし、
+`geo_voyager/skills.py` の固定 Skill は Control Primitives から行政区域 relation を取得し、
 code5 が13101〜13123の行を population 降順・LIMIT 1で取得します。
 Intent の dataset_ids は固定分析の対象確認と Gateway URL の組み立てに使用します。
 
@@ -244,3 +244,27 @@ integration test は実験用の Gateway / internal network を作り、実際�
 「東京都23区で人口が最も多い区は世田谷区で、人口は943664人である」でした。
 これは登録済み行政区 Dataset に収録された2020年国勢調査人口です。
 終了時には実験用 container / network を削除します。
+
+
+## Control Primitives と Skill Library
+
+`geo_voyager/control_primitives/` は検証済みの3つの基礎操作を提供します。
+
+- `connect_duckdb()`: sandbox 用の DuckDB 接続。既存の extension 設定・LOAD を維持します。
+- `dataset_url(dataset_id)`: 対応する行政区 Dataset id を Gateway URL に変換します。
+- `load_admin_units(dataset_id, connection)`: Gateway の Parquet を読み、code5・name・population の relation を返します。
+
+Primitive は23区の絞り込みや人口最大の選択をしません。
+DuckDB 接続を引数で渡すことで、Skill が接続の終了まで管理します。
+
+`Skill(name, description, code)` と `SkillLibrary.add/get/all` はメモリ上だけの最小モデルです。
+`load_skill_library()` は最初の Skill `most_populous_admin_unit` を登録します。
+description は「行政区域の集合から人口が最も多い区域と人口を求める」です。
+現在の code は東京23区への絞り込み、人口降順で1件の選択、stdout の生成を行います。
+区名・人口の答えは埋め込まず、取得した行から生成します。
+
+Worker は固定名で Skill を取得し、Intent の Dataset id と Skill.code を sandbox の stdin に送ります。
+image には Control Primitives を配置しており、Skill 自体は Library から受け取ります。
+旧 `scripts/most_populous_ward.py` は Skill に移しました。
+23行・人口合計を確認する既存実験スクリプトも接続 Primitive を再利用します。
+LLM による Skill 選択、検索、永続化は実装していません。
