@@ -404,3 +404,41 @@ AOI対応後の実データ確認では、`area=None` は1,918行政区域、
 既存の最大人口 Skill は世田谷区・943,664人、最小人口 Skill は千代田区・66,680人を維持しています。
 実 LLM の生成 Candidate も AOI指定を使用し、行政コード範囲を含まずに人口最小を取得して
 Critic の成功判定まで確認しました。この確認で生成された Skill は一時 Library のみに保存しています。
+
+## EmbeddingClient
+
+`EmbeddingClient(base_url, model).embed(texts: list[str]) -> list[list[float]]` は
+標準ライブラリで llama.cpp の OpenAI互換 `POST /v1/embeddings` を呼びます。
+constructor に server root または `/v1` までの base URL と model name を渡します。
+リクエストは model、input 配列、`encoding_format="float"` を使用します。
+レスポンスは index 順に並べ、入力順の float ベクトルを返します。
+
+空の texts、data 件数の不一致、不正・重複・欠落 index、空 embedding、
+非数値・非有限値、次元数の不一致は `ValueError` です。
+HTTP error と不正 JSON の例外はそのまま呼び出し元へ伝えます。
+Skill retrieval や vectordb には接続していません。
+
+```python
+from geo_voyager.embedding_client import EmbeddingClient
+
+client = EmbeddingClient(
+    base_url="http://10.105.167.163:8080",
+    model="granite-embedding",
+)
+vectors = client.embed(["人口が最も多い区を調べる。", "人口が最も少ない区を調べる。"])
+```
+
+2026-10-08に既存 `default/embedding-server` を読み取り専用で確認しました。
+model alias は `granite-embedding`、モデル実体は
+`granite-embedding-97m-multilingual-r2.f16.gguf`（pooling cls）です。
+実 endpoint は `http://10.105.167.163:8080/v1/embeddings` でした。
+日本語2文の1回のbatchリクエストで384次元のベクトルが2件返り、すべて有限値でした。
+
+unit test は HTTP を mock にします。integration は明示実行し、
+次の環境変数がない場合は skip します。環境変数はテストが constructor に渡すためのものです。
+
+```bash
+GEO_VOYAGER_EMBEDDING_BASE_URL=http://10.105.167.163:8080 \
+GEO_VOYAGER_EMBEDDING_MODEL=granite-embedding \
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest integration/test_embedding_llama.py -q -s -W error
+```
