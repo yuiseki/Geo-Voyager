@@ -115,3 +115,32 @@ timeout 時は専用の一意なコンテナ名を指定して強制削除しま
 memory 128 MiB、CPU 1、PID 32、network none です。
 bind/volume mount と Docker socket の共有は行いません。コードは host 上では実行しません。
 `--pull never` により実行時にはイメージを取得しません。
+
+## Docker ネットワーク分離の検証
+
+`integration/` にテスト専用の構成があります。実 Worker や DockerSandbox の
+実行設定は変更していません。Fetch Gateway API、proxy、取得ポリシーは未実装です。
+
+- Worker: user-defined bridge の internal network のみ
+- Gateway: internal と external の両ネットワーク
+- Origin: external network のみ
+- Gateway と Origin: `/tmp` を公開する単純な HTTP server（port 8000）
+
+外部 Internet へのアクセスや host port 公開、volume mount は行いません。
+external はテスト用の通常 bridge で、通信先は Origin コンテナだけです。
+既存の `python:3.12-slim` を使い、イメージ取得も行いません。
+
+通常の unit test は Docker CLI を mock にします。
+実 Docker の検証は明示実行し、default internal と isolated gateway mode を各1回試します。
+isolated 非対応の Engine では default のケースだけを実行してください。
+
+```bash
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest integration/test_docker_network.py -q -s -W error
+# isolated 非対応の場合
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest integration/test_docker_network.py -q -s -W error -k False
+```
+
+Worker→Gateway と Gateway→Origin の HTTP 200、Worker→Origin の DNS名・IP直接通信の失敗、
+各コンテナの network 参加状況を確認します。終了・途中失敗時とも、専用の一意な名前の
+コンテナと network を削除します。正常終了時は削除後の不存在もテストします。
+Docker Engine 29.5.3 で両モードの2件が成功しています。
