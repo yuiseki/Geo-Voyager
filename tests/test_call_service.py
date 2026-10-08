@@ -36,3 +36,12 @@ def test_arbitrary_urls_and_unknown_services_are_rejected_before_http(service, p
         with pytest.raises((ValueError, KeyError)):
             call_service(service, path=path)
         opened.assert_not_called()
+
+
+def test_primitive_returns_bounded_http_error_details_to_execution_failure():
+    from io import BytesIO
+    from urllib.error import HTTPError
+    with patch('geo_voyager.control_primitives.call_service.urlopen') as opened:
+        opened.side_effect = HTTPError('http://gateway', 400, 'bad query', {}, BytesIO(b'Unknown output format count'))
+        with pytest.raises(RuntimeError, match='Unknown output format count'):
+            call_service('overpass', path='/api/interpreter')

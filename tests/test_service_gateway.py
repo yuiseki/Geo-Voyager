@@ -113,3 +113,13 @@ def test_request_limit(gateway):
 def test_timeout_is_explicit_failure(gateway):
     gateway[1].side_effect = TimeoutError()
     assert request(gateway)[0] == 504
+
+
+def test_registered_upstream_query_error_returns_bounded_diagnostic_without_redirect(gateway):
+    from io import BytesIO
+    gateway[1].side_effect = HTTPError('https://overpass.yuiseki.net', 400, 'bad query', {},
+                                    BytesIO(b'Unknown output format count\nTOKEN=secret' + b'x' * 10000))
+    status, headers, body = request(gateway, '/services/overpass/api/interpreter')
+    assert status == 400 and b'Unknown output format count' in body
+    assert len(body) <= 8192 and b'TOKEN=secret' not in body
+    assert 'Location' not in headers

@@ -79,3 +79,35 @@ def test_critic_uses_zero_temperature_for_completion_judgement():
     client.generate.return_value = '判定: 成功\n理由: 回答されている'
     Critic(client).check(intent(), [Observation('世田谷区、943664人')])
     assert client.generate.call_args.kwargs['temperature'] == 0.0
+
+
+def test_critic_receives_prior_observations_for_target_references():
+    from unittest.mock import Mock
+    from geo_voyager.intent import Intent
+    from geo_voyager.observation import Observation
+    from geo_voyager.critic import Critic
+    llm = Mock(); llm.generate.return_value = '判定: 成功\n理由: 対象に回答'
+    intent = Intent('前段一覧の2番目を測定', service_ids=('overpass',), previous_observations=(Observation('[{"name":"対象A"},{"name":"対象B"}]'),))
+    Critic(llm).check(intent, [Observation('対象Bの件数は4')])
+    assert '対象A' in llm.generate.call_args.args[0] and '対象B' in llm.generate.call_args.args[0]
+
+
+def test_critic_context_maps_positional_intent_to_runtime_list():
+    client = Mock(); client.generate.return_value = '判定: 失敗\n理由: 対象が違う'
+    intent = Intent('一覧の2番目を測定', service_ids=('overpass',), previous_observations=(Observation('[{"name":"甲"},{"name":"乙"}]'),))
+    Critic(client).check(intent, [Observation('{"name":"甲","count":5}')])
+    prompt = client.generate.call_args.args[0]
+    assert 'N-1' in prompt and 'previous_observations[0]' in prompt
+
+
+def test_critic_gets_resolved_reference_without_having_to_count_list_items():
+    client = Mock(); client.generate.return_value = '判定: 成功\n理由: 対象が一致'
+    reference = Observation('[{"name":"甲"},{"name":"乙"}]')
+    Critic(client).check(Intent('一覧の2番目を測定', service_ids=('overpass',), previous_observations=(reference,)), [Observation('{"name":"乙","count":5}')])
+    assert '解決済み参照対象: {"name": "乙"}' in client.generate.call_args.args[0]
+
+
+def test_critic_does_not_adopt_an_answer_present_only_in_prior_data():
+    client = Mock(); client.generate.return_value = '判定: 失敗\n理由: 今回の回答が違う'
+    Critic(client).check(Intent('前段から最大を求める', requires_context=True, previous_observations=(Observation('{"name":"乙","count":4}'),)), [Observation('{"name":"甲","count":0}')])
+    assert '前段に正しい値があっても今回の回答が誤りなら失敗' in client.generate.call_args.args[0]

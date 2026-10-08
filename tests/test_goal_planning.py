@@ -63,4 +63,46 @@ def test_completed_goal_checks_final_output_and_reuses_updated_library():
     result = GoalExecutor(planner, executor, critic).execute('goal')
     assert result.executions[1].selected_skill_id == result.executions[0].learned_skill_id
     assert result.critique.success
-    assert critic.check.call_args.args[1] == second.observations
+    assert critic.check.call_args.args[1] == first.observations + second.observations
+
+
+def test_goal_prompt_requires_probe_and_small_repeatable_measurements():
+    client = Mock(); client.generate.return_value = PLAN
+    Planner(client).plan('対象集合の測定値を比較する')
+    prompt = client.generate.call_args.args[0]
+    assert '1対象で方法を確立' in prompt
+    assert '両方を [] にしない' in prompt
+    assert '対象1件ずつの Intent' in prompt
+
+
+def test_planner_prefers_registered_graph_for_known_target_collections():
+    client = Mock(); client.generate.return_value = PLAN
+    Planner(client).plan('対象集合を比較する')
+    assert '既存 Graph に対象型が登録されている場合' in client.generate.call_args.args[0]
+
+
+def test_repeated_fixed_fields_also_define_unambiguous_plan_boundaries():
+    client = Mock(); client.generate.return_value = PLAN.replace('\n---\n', '\n\n')
+    assert len(Planner(client).plan('複合調査')) == 2
+
+
+def test_local_final_step_requires_prior_context_instead_of_dummy_service():
+    client = Mock(); client.generate.return_value = PLAN + '\n---\n調査項目: 前段の件数から最大を選ぶ\n利用データセット: []\n利用サービス:'
+    intents = Planner(client).plan('複合調査')
+    assert len(intents) == 3 and intents[-1].requires_context
+    assert intents[-1].service_ids == () and intents[-1].dataset_ids == ()
+
+
+def test_single_leading_document_separator_is_allowed():
+    client = Mock(); client.generate.return_value = '---\n' + PLAN
+    assert len(Planner(client).plan('複合調査')) == 2
+
+
+def test_final_critic_receives_all_successful_step_observations():
+    planner, executor, critic = Mock(), Mock(), Mock()
+    planner.plan.return_value = [Intent('一覧', service_ids=('overpass',)), Intent('最大', requires_context=True)]
+    observations = [Observation('measurement evidence'), Observation('final answer')]
+    executor.execute.side_effect = [IntentExecution([obs], (), None, None, Critique(True, 'ok'), None) for obs in observations]
+    critic.check.return_value = Critique(True, 'complete')
+    GoalExecutor(planner, executor, critic).execute('goal')
+    assert critic.check.call_args.args[1] == observations

@@ -250,3 +250,91 @@ def test_geosparql_label_contract_requires_binding_before_filtering():
     client.generate.return_value = VALID
     SkillCandidateGenerator(client).generate(Intent('名前から区域を調べる', service_ids=('yuisekin-geosparql',)))
     assert 'rdfs:label のトリプルでラベル変数を束縛してから FILTER' in client.generate.call_args.args[0]
+
+
+def test_service_candidate_emits_machine_readable_output_and_rejects_missing_required_fields():
+    client = Mock(); client.generate.return_value = VALID
+    SkillCandidateGenerator(client).generate(Intent('一覧を取得', service_ids=('yuisekin-geosparql',)))
+    prompt = client.generate.call_args.args[0]
+    assert 'stdout は JSON のみ' in prompt
+    assert 'N/A' in prompt and '必須' in prompt
+    assert 'geo:osmRelation ではない' in prompt
+
+
+def test_service_contract_prefers_simple_runtime_uri_and_position_parsing():
+    client = Mock(); client.generate.return_value = VALID
+    intent = Intent('一覧の1番目を測定', service_ids=('yuisekin-geosparql',), previous_observations=(__import__('geo_voyager.observation', fromlist=['Observation']).Observation('[]'),))
+    SkillCandidateGenerator(client).generate(intent)
+    prompt = client.generate.call_args.args[0]
+    assert '([0-9]+)番' in prompt
+    assert 'SPARQL の REPLACE' in prompt
+
+
+def test_service_system_contract_parameterizes_target_position_and_description():
+    client = Mock(); client.generate.return_value = VALID
+    SkillCandidateGenerator(client).generate(Intent('一覧の1番目を測定', service_ids=('overpass',)))
+    system = client.generate.call_args.kwargs['system_prompt']
+    assert 'never the current ordinal' in system and 'intent_text' in system
+
+
+def test_overpass_contract_requires_existing_area_before_measuring():
+    client = Mock(); client.generate.return_value = VALID
+    SkillCandidateGenerator(client).generate(Intent('対象の地物件数を取得', service_ids=('overpass',)))
+    prompt = client.generate.call_args.args[0]
+    assert 'Every relation ID' in prompt and 'area exists' in prompt
+
+
+def test_final_generation_instruction_distinguishes_parameter_from_fixed_scope():
+    client = Mock(); client.generate.return_value = VALID
+    from geo_voyager.observation import Observation
+    SkillCandidateGenerator(client).generate(Intent('一覧の1番目を測定', service_ids=('overpass',), previous_observations=(Observation('[]'),)))
+    assert '対象番号は実行時パラメータ' in client.generate.call_args.args[0].split('Intent:')[-1]
+
+
+def test_target_context_example_uses_runtime_intent_instead_of_literal_text():
+    from geo_voyager.observation import Observation
+    client = Mock(); client.generate.return_value = VALID
+    intent = Intent('一覧の1番目を測定', service_ids=('overpass',), previous_observations=(Observation('[]'),))
+    SkillCandidateGenerator(client).generate(intent)
+    assert 'position = int(re.search(r"([0-9]+)番", intent_text).group(1)) - 1' in client.generate.call_args.args[0]
+
+
+def test_positive_service_contracts_distinguish_area_filter_and_external_relation():
+    client = Mock(); client.generate.return_value = VALID
+    SkillCandidateGenerator(client).generate(Intent('境界から件数を調べる', service_ids=('overpass','yuisekin-geosparql')))
+    prompt = client.generate.call_args.args[0]
+    assert 'nwr["<key>"="<value>"](area:<area_id>);out count;' in prompt
+    assert '?ward gs:osmRelation ?relation' in prompt and 'isdigit()' in prompt
+
+
+def test_standalone_service_generation_does_not_require_a_target_position():
+    client = Mock(); client.generate.return_value = VALID
+    SkillCandidateGenerator(client).generate(Intent('地名から位置を調べる', service_ids=('nominatim',)))
+    assert '対象番号は実行時パラメータ' not in client.generate.call_args.args[0]
+
+
+def test_prior_tag_context_does_not_make_collection_discovery_positional():
+    from geo_voyager.observation import Observation
+    client = Mock(); client.generate.return_value = VALID
+    intent = Intent('対象集合を取得する', service_ids=('yuisekin-geosparql',), previous_observations=(Observation('{"key":"example"}'),))
+    SkillCandidateGenerator(client).generate(intent)
+    assert 'position = int(re.search' not in client.generate.call_args.args[0]
+
+
+def test_local_aggregation_reads_all_outputs_and_requires_metric_fields():
+    from geo_voyager.observation import Observation
+    client = Mock(); client.generate.return_value = VALID
+    intent = Intent('前段測定の最大値を求める', requires_context=True, previous_observations=(Observation('[{"name":"対象"}]'), Observation('{"name":"対象","count":2}')))
+    SkillCandidateGenerator(client).generate(intent)
+    prompt = client.generate.call_args.args[0]
+    assert 'decoded = [json.loads(text) for text in previous_observations]' in prompt
+    assert '0 で代用しない' in prompt
+
+
+def test_service_metadata_exposes_actual_json_response_envelopes():
+    client = Mock(); client.generate.return_value = VALID
+    SkillCandidateGenerator(client).generate(Intent('API結果を調べる', service_ids=('taginfo','yuisekin-geosparql')))
+    prompt = client.generate.call_args.args[0]
+    assert 'payload["data"]' in prompt
+    assert 'payload["results"]["bindings"]' in prompt
+    assert 'row["<variable>"]["value"]' in prompt

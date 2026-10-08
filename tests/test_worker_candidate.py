@@ -23,3 +23,9 @@ def test_candidate_execution_error_propagates():
         sandbox.return_value.run.side_effect = RuntimeError('execution failed')
         with pytest.raises(RuntimeError):
             Worker('internal').execute_candidate(Intent('調査', ('admin',)), SkillCandidate('code', '説明'))
+
+
+def test_successful_code_without_output_returns_no_observations():
+    with patch('geo_voyager.worker.DockerSandbox') as sandbox:
+        sandbox.return_value.run.return_value = ''
+        assert Worker('internal').execute_candidate(Intent('調査', ('admin',)), SkillCandidate('pass', '説明')) == []

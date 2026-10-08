@@ -20,3 +20,9 @@ def test_local_critic_checks_intent_completion(text, success):
     print(f'{text}: {result}', flush=True)
     assert result.success is success
     assert result.reason
+
+
+def test_local_critic_rejects_wrong_answer_despite_correct_prior_measurements():
+    intent = Intent('前段の測定から件数が最大の対象と件数を求める', requires_context=True, previous_observations=(Observation('{"name":"対象甲","count":1}'), Observation('{"name":"対象乙","count":4}')))
+    result = Critic().check(intent, [Observation('{"name":"対象甲","count":0}')])
+    assert not result.success

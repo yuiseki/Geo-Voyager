@@ -9,7 +9,7 @@ def gateway_code():
     root = Path(__file__).resolve().parents[1] / 'geo_voyager'
     files = {name: (root / name).read_text() for name in (
         '__init__.py', 'dataset.py', 'dataset_graph.py', 'fetch_gateway.py',
-        'service.py', 'service_graph.py', 'services.py', 'service_gateway.py',
+        'service.py', 'service_graph.py', 'services.py', 'service_gateway.py', 'execution_failure.py',
     )}
     return f'''
 from pathlib import Path

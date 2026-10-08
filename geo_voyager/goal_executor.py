@@ -32,5 +32,5 @@ class GoalExecutor:
             previous.extend(execution.observations)
         final = Intent(goal, dataset_ids=tuple(dict.fromkeys(id for intent in intents for id in intent.dataset_ids)),
                        service_ids=tuple(dict.fromkeys(id for intent in intents for id in intent.service_ids)))
-        critique = self.critic.check(final, executions[-1].observations)
+        critique = self.critic.check(final, previous)
         return GoalExecution(tuple(executed_intents), tuple(executions), critique)

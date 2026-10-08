@@ -14,7 +14,7 @@ class Worker:
         self.network = network
 
     def _execute_code(self, intent: Intent, code: str) -> list[Observation] | ExecutionFailure:
-        if len(intent.dataset_ids) > 1 or (not intent.dataset_ids and not intent.service_ids):
+        if len(intent.dataset_ids) > 1 or (not intent.dataset_ids and not intent.service_ids and not (intent.requires_context and intent.previous_observations)):
             raise ValueError("At most one dataset_id or registered service_ids are required")
         for service_id in intent.service_ids:
             load_service_graph().get(service_id)
@@ -30,7 +30,7 @@ class Worker:
             if error.returncode != GENERATED_ERROR_EXIT:
                 raise
             return ExecutionFailure.from_process(error)
-        return [Observation(stdout.strip())]
+        return [Observation(stdout.strip())] if stdout.strip() else []
 
     def execute_skill(self, intent: Intent, skill: Skill) -> list[Observation] | ExecutionFailure:
         return self._execute_code(intent, skill.code)

@@ -28,7 +28,7 @@ class IntentExecutor:
         self.skill_library = skill_library
 
     def execute(self, intent: Intent, k: int = 4) -> IntentExecution:
-        if len(intent.dataset_ids) > 1 or (not intent.dataset_ids and not intent.service_ids):
+        if len(intent.dataset_ids) > 1 or (not intent.dataset_ids and not intent.service_ids and not (intent.requires_context and intent.previous_observations)):
             raise ValueError('At most one dataset_id or registered service_ids are required')
         skills = self.retriever.retrieve(intent, k)
         retrieved_ids = tuple(skill.id for skill in skills)

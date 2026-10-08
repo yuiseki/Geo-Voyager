@@ -3,6 +3,7 @@ from urllib.parse import parse_qsl, unquote, urlsplit
 from urllib.request import ProxyHandler, Request, build_opener
 
 from .dataset_graph import DatasetGraph
+from .execution_failure import bounded_output
 from .fetch_gateway import NoRedirect, make_handler as dataset_handler
 from .service_graph import ServiceGraph
 from .services import HTTP_USER_AGENT
@@ -128,8 +129,18 @@ def make_handler(graph: ServiceGraph, datasets: DatasetGraph | None = None):
                     self.end_headers()
                     self.wfile.write(result)
             except HTTPError as error:
-                error.close()
-                self.send_error(502, 'Service request failed; redirects are forbidden')
+                try:
+                    if 400 <= error.code <= 599:
+                        diagnostic = bounded_output(error.read(8193)).encode('utf-8')[:8192]
+                        self.send_response(error.code)
+                        self.send_header('Content-Type', 'text/plain; charset=utf-8')
+                        self.send_header('Content-Length', str(len(diagnostic)))
+                        self.end_headers()
+                        self.wfile.write(diagnostic)
+                    else:
+                        self.send_error(502, 'Service request failed; redirects are forbidden')
+                finally:
+                    error.close()
             except TimeoutError:
                 self.send_error(504, 'Service request timed out')
             except URLError:

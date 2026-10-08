@@ -51,3 +51,43 @@ def test_bounded_repairs_only_save_success_and_skip_critic_on_execution_failure(
         promote.assert_called_once_with(repaired)
     else:
         assert result.failure == FAILURE and result.learned_skill_id is None
+
+
+def test_only_final_repaired_source_is_saved_to_real_library(tmp_path):
+    from geo_voyager.skill import SkillLibrary
+    retriever, selector, worker, generator, critic, repairer = [Mock() for _ in range(6)]
+    retriever.retrieve.return_value = []; selector.select.return_value = None
+    generator.generate.return_value = SkillCandidate('broken original', '元の説明')
+    fixed = SkillCandidate('print("answer")', '修正された操作')
+    repairer.repair.return_value = fixed
+    worker.execute_candidate.side_effect = [FAILURE, [Observation('answer')]]
+    critic.check.return_value = Critique(True, 'answered')
+    library = SkillLibrary(tmp_path)
+    result = IntentExecutor(retriever, selector, worker, generator, critic, library, repairer).execute(
+        Intent('調査', service_ids=('overpass',)))
+    assert len(library.all()) == 1
+    saved = library.get(result.learned_skill_id)
+    assert saved.code == fixed.code and saved.description == fixed.description
+    assert result.attempts[0].code == 'broken original'
+    assert result.attempts[1].code == fixed.code
+
+
+def test_repair_is_direct_code_correction_with_short_description():
+    llm = Mock(); llm.generate.return_value = REPLY
+    SkillCandidateRepairer(llm).repair(Intent('調査', service_ids=('overpass',)), SkillCandidate('bad', '操作'), FAILURE)
+    options = llm.generate.call_args.kwargs
+    assert 'one sentence' in options['system_prompt']
+    assert options['temperature'] > 0
+
+
+def test_repair_preserves_description_scope():
+    llm = Mock(); llm.generate.return_value = REPLY
+    SkillCandidateRepairer(llm).repair(Intent('調査', service_ids=('overpass',)), SkillCandidate('bad', '操作'), FAILURE)
+    assert 'Preserve the original description' in llm.generate.call_args.kwargs['system_prompt']
+
+
+def test_repair_receives_nested_service_json_contracts():
+    llm = Mock(); llm.generate.return_value = REPLY
+    SkillCandidateRepairer(llm).repair(Intent('API調査', service_ids=('taginfo','yuisekin-geosparql')), SkillCandidate('bad', '操作'), FAILURE)
+    prompt = llm.generate.call_args.args[0]
+    assert 'payload["data"]' in prompt and 'payload["results"]["bindings"]' in prompt

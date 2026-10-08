@@ -62,3 +62,15 @@ def test_worker_passes_prior_observations_and_current_intent_as_data():
         Worker('internal').execute_skill(intent, skill)
     code = sandbox.return_value.run.call_args.args[0]
     assert 'previous_observations=' in code and 'intent_text=' in code
+
+
+def test_local_execution_requires_actual_prior_observations():
+    from geo_voyager.skill_candidate import SkillCandidate
+    intent = Intent('前段を集計', requires_context=True)
+    with patch('geo_voyager.worker.DockerSandbox') as sandbox:
+        with pytest.raises(ValueError):
+            Worker('internal').execute_candidate(intent, SkillCandidate('print(1)', '集計'))
+        sandbox.assert_not_called()
+        intent.previous_observations = (Observation('1'),)
+        sandbox.return_value.run.return_value = 'result'
+        assert Worker('internal').execute_candidate(intent, SkillCandidate('print(1)', '集計')) == [Observation('result')]

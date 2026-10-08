@@ -707,7 +707,7 @@ output. Service-only generation explicitly sets `temperature=0.2` and
 `chat_template_kwargs.enable_thinking=true`, `reasoning_budget_tokens=1024` and
 `max_tokens=3072` per request. Dataset generation retains its existing defaults; Critic and Selector
 use temperature zero. An explicit system message requests the strict description/code
-layout and only the first description label is assistant-prefilled; malformed responses are rejected, not repaired. These settings do not
+layout and only the first description label is assistant-prefilled; malformed response formats are rejected. Generated-code execution failures use the bounded repair loop described below. These settings do not
 guarantee that generated code succeeds. No model or Kubernetes configuration is changed.
 
 The GeoSPARQL test reads only manifest-listed, SHA-256-verified pinned TTL files
@@ -721,6 +721,7 @@ no host mounts. Created containers and networks are removed in `finally`.
 Protocol metadata references: [Taginfo API](https://taginfo.openstreetmap.org/taginfo/apidoc),
 [Overpass QL](https://wiki.openstreetmap.org/wiki/Overpass_API/Overpass_QL),
 [Fuseki context](https://jena.apache.org/documentation/fuseki2/fuseki-configuration.html),
+[SPARQL JSON results](https://www.w3.org/TR/sparql11-results-json/),
 [llama.cpp request options](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md),
 [reasoning-budget request handling](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/server-common.cpp).
 
@@ -747,8 +748,58 @@ describes the adopted/final result. Failed executions have no Critic verdict.
 `Planner.plan(goal: str)` (or `plan_goal`) decomposes a Goal into ordered,
 strictly parsed Intents using registered Dataset/Service metadata. The original
 `plan(Question)` API still returns Hypotheses. `GoalExecutor` executes the plan
-sequentially, stops on a failed step, and applies Critic to the final answer.
+sequentially, stops on a failed step, and applies final Critic to all accumulated measurements and the final answer.
 Each later Intent receives earlier Observations as `previous_observations`;
 Worker exposes their text as `list[str]` and the current `intent_text` in the
 container. Generated/reused code reads these runtime values, rather than fixing
 previous answers into its source. No geographic decomposition is hardcoded.
+
+
+Goal plans contain only `調査項目`, `利用データセット`, and `利用サービス`.
+Lists accept registered IDs or `[]`; unknown IDs and extra fields fail explicitly.
+Blocks are separated by `---` or by the next unambiguous `調査項目:` header.
+A local aggregation can declare both lists empty, but is valid only after an
+external step. Such an Intent has `requires_context=True`; Worker and Executor
+require actual previous Observations before execution. External reads still
+require registered resources. The original Intent validation stays unchanged
+for Intents without that explicit context requirement.
+
+Generator/Repairer see the shape of previous JSON outputs, not answer values.
+The sandbox supplies the actual `previous_observations` and `intent_text` at
+runtime. A collection-measurement Skill chooses its target from these runtime
+inputs, so later positional Intents can reuse the same saved code. Critic receives
+the prior data and a mechanically resolved list-position reference, so it does
+not have to recount a long JSON list to identify the requested target. Required
+entity IDs and expected collection cardinality must be verified rather than
+replaced by placeholder values. Protocol/schema contracts stay in Service
+metadata; `call_service` remains a generic Gateway client.
+
+Registered upstream HTTP errors expose only a bounded, redacted diagnostic
+body (8 KiB) to the Worker. Redirects remain rejected. Service metadata also
+states the actual Taginfo data array and SPARQL results/bindings/value envelope,
+so Generator and Repairer can interpret raw text responses without adding
+service-specific parsing to the Primitive. This allows repair of an
+actual query error without opening a new origin or forwarding arbitrary headers.
+Repair preserves the original reusable operation description, repairs the
+failure cause, and does not introduce answer constants or new resources.
+
+The explicit burger integration uses an empty temporary Library, an intentional
+first-Candidate syntax fault, real LLM repair, real service requests and Critic.
+Learned measurement code is reused for subsequent targets. All 23 measurements
+are independently checked by fresh per-area Overpass requests after the Goal
+has completed; this verification code never enters any generation/repair prompt
+or Skill Library. No fixed answer is embedded in the tests.
+
+```bash
+GEO_VOYAGER_EMBEDDING_BASE_URL=http://10.105.167.163:8080 \
+GEO_VOYAGER_EMBEDDING_MODEL=granite-embedding \
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 .venv/bin/python -m pytest \
+  integration/test_burger_goal.py -q -s -W error --import-mode=importlib \
+  --basetemp=/tmp/geo-burger-goal-$(cat /proc/sys/kernel/random/uuid)
+```
+
+This is one sequential plan, with at most two repairs per generated Candidate.
+Critic checks task completion; it is not a substitute for independent numerical
+verification. There is no guarantee of success for every LLM generation.
+
+[複合 burger Goal の実測レポート（全25 Intent、失敗code/stderr、repair差分、UUID再利用、23区集計）](docs/burger_goal_learning.md) を記録しています。

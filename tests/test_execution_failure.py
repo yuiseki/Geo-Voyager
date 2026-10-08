@@ -34,3 +34,14 @@ def test_failure_redacts_secret_and_environment_dump():
     assert 'private' not in failure.stdout + failure.stderr
     assert "'/x'" not in failure.stdout
     assert 'answer' in failure.stdout
+
+
+def test_diagnostic_limit_is_utf8_bytes_not_characters():
+    failure = ExecutionFailure.from_process(subprocess.CalledProcessError(73, [], stderr='失敗' * 10000))
+    assert len(failure.stderr.encode('utf-8')) <= 8192
+
+
+def test_parser_token_diagnostic_is_preserved_but_secret_assignments_are_not():
+    failure = ExecutionFailure.from_process(subprocess.CalledProcessError(73, [], stderr='Unexpected token count\nAPI_KEY="private"\n{"HOME": "/hidden"}'))
+    assert 'Unexpected token count' in failure.stderr
+    assert 'private' not in failure.stderr and '/hidden' not in failure.stderr

@@ -10,9 +10,9 @@ def bounded_output(text: str | bytes | None) -> str:
     if isinstance(text, bytes):
         text = text.decode('utf-8', errors='replace')
     lines = (text or '').splitlines()
-    safe = [line if not re.search(r'(?i)(token|password|secret|api[_-]?key|authorization|environ)', line)
-            else '[redacted]' for line in lines]
-    return '\n'.join(safe)[:OUTPUT_LIMIT]
+    sensitive = re.compile(r"""\b(?:(?i:token|password|secret|api[_-]?key|authorization)|HOME|PATH|HOSTNAME|PWD)['"]?\s*[:=]|\benviron\b""")
+    safe = [line if not sensitive.search(line) else '[redacted]' for line in lines]
+    return '\n'.join(safe).encode('utf-8')[:OUTPUT_LIMIT].decode('utf-8', errors='ignore')
 
 
 @dataclass(frozen=True)
@@ -35,7 +35,7 @@ class LimitedOutput(io.TextIOBase):
     def __init__(self):
         self.text = ''
     def write(self, text):
-        self.text += text[:max(0, 8192 - len(self.text))]
+        self.text += text.encode('utf-8')[:max(0, 8192 - len(self.text.encode('utf-8')))].decode('utf-8', errors='ignore')
         return len(text)
     def flush(self):
         pass
@@ -52,8 +52,8 @@ finally:
     sys.stdout, sys.stderr = original_out, original_err
     for stream, text in ((original_out, out.text), (original_err, err.text)):
         for key, value in os.environ.items():
-            if len(value) >= 8:
+            if len(value) >= 8 or any(word in key.upper() for word in ('TOKEN', 'SECRET', 'PASSWORD', 'KEY')):
                 text = text.replace(value, '[redacted]')
-        stream.write(text)
+        stream.write(text.encode('utf-8')[:8192].decode('utf-8', errors='ignore'))
 sys.exit(status)
 '''

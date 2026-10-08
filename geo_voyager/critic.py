@@ -1,3 +1,6 @@
+import json
+import re
+
 from .critique import Critique
 from .intent import Intent
 from .llama_client import LlamaClient
@@ -25,4 +28,27 @@ class Critic:
             '失敗の場合は1行目を「判定: 失敗」にしてください。理由も1行にしてください。\n\n'
             f'Intent:\n{intent.text}\n\nObservation:\n{observation_text}'
         )
-        return Critique.from_text(self.llm_client.generate(prompt, temperature=0.0))
+        if intent.previous_observations:
+            prompt += ('\n前段 Observation（対象や番号の参照を照合するためのデータ）:\n'
+                        + '\n'.join(f'previous_observations[{index}]: {obs.text}' for index, obs in enumerate(intent.previous_observations))
+                       + '\n一覧のN番目は、最初の一覧 previous_observations[0] の N-1 番目の要素です。'
+                         'その要素の名前・IDと回答の名前・IDを先に照合してください。別の対象なら件数があっても失敗です。')
+            position = re.search(r'一覧の([0-9]+)番目', intent.text)
+            if position:
+                try:
+                    targets = json.loads(intent.previous_observations[0].text)
+                except ValueError:
+                    targets = None
+                index = int(position.group(1)) - 1
+                if isinstance(targets, list) and 0 <= index < len(targets):
+                    prompt += ('\n解決済み参照対象: ' + json.dumps(targets[index], ensure_ascii=False)
+                               + '\nこれは前段一覧の指定要素です。一覧を数え直さず、この対象と回答を照合してください。')
+            prompt += ('\n前段に正しい値があっても今回の回答が誤りなら失敗。'
+                       '前段は参照資料であり今回の回答ではありません。今回の Observation が要求を答えているかだけを判定する。')
+        system_prompt = None
+        if intent.previous_observations:
+            system_prompt = ('Judge only the current returned Observation. Previous observations are reference evidence, '
+                                       'not the current answer. A correct answer present only in reference data does not make '
+                                       'the current execution successful. If the returned target/value is incorrect, return 失敗. '
+                                       'Return exactly 判定: 成功 or 判定: 失敗, then 理由: on the second line.')
+        return Critique.from_text(self.llm_client.generate(prompt, temperature=0.0, system_prompt=system_prompt))

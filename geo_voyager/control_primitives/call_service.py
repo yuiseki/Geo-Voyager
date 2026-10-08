@@ -1,3 +1,5 @@
+from urllib.error import HTTPError
+from ..execution_failure import bounded_output
 from urllib.parse import quote, urlencode, urlsplit
 from urllib.request import Request, urlopen
 
@@ -19,5 +21,12 @@ def call_service(service_id: str, *, path: str = '', params: dict[str, str] | No
         headers['Content-Type'] = content_type
     req = Request(url, data=body.encode('utf-8') if body is not None else None,
                   headers=headers, method='POST' if body is not None else 'GET')
-    with urlopen(req, timeout=20) as response:
-        return response.read().decode('utf-8')
+    try:
+        with urlopen(req, timeout=20) as response:
+            return response.read().decode('utf-8')
+    except HTTPError as error:
+        try:
+            diagnostic = bounded_output(error.read(8193))
+            raise RuntimeError(f'Service {service_id} HTTP {error.code}: {diagnostic}') from None
+        finally:
+            error.close()

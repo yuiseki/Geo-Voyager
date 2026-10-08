@@ -117,7 +117,8 @@ def test_reuse_admin_and_station_then_learn_average_population(tmp_path):
         library_spy.add.assert_called_once()
         worker.execute_skill.assert_called()
         assert worker.execute_skill.call_count == 2
-        worker.execute_candidate.assert_called_once()
+        candidate_execution_count = worker.execute_candidate.call_count
+        assert 1 <= candidate_execution_count <= 3
         learned = library.get(result.learned_skill_id)
         assert learned == library_spy.add.call_args.args[0]
         cache.get.assert_called_once_with(learned)
@@ -167,7 +168,7 @@ with connect_duckdb() as connection:
             generator.generate.assert_called_once_with(intent)
             critic.check.assert_called_with(reuse_intent, reused.observations)
             library_spy.add.assert_called_once()
-            worker.execute_candidate.assert_called_once()
+            assert worker.execute_candidate.call_count == candidate_execution_count
             report = {'intent': text, **asdict(reused), 'phase': 'learned_skill_reuse',
                       'generator_called': False, 'library_before': 7, 'library_count': len(library.all()),
                       'generator_call_count': generator.generate.call_count,
@@ -200,7 +201,8 @@ with connect_duckdb() as connection:
         assert store.upsert.call_count == 2 and cache.get.call_count == 2
         assert embedding_client.embed.call_count == 8
         assert len(library.all()) == 8 and library_spy.add.call_count == 2
-        assert generator.generate.call_count == 2 and worker.execute_candidate.call_count == 2
+        assert generator.generate.call_count == 2
+        assert worker.execute_candidate.call_count == candidate_execution_count + len(fallback.attempts) - 1
         fallback_skill = library.get(fallback.learned_skill_id)
         report = {'intent': intent.text, **asdict(fallback), 'phase': 'incorrect_selection_fallback',
                   'existing_critique': asdict(critiques[0]), 'library_count': len(library.all()),
