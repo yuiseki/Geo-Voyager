@@ -1,4 +1,4 @@
-"""実験専用: 登録済み行政区 Parquet の署名付き配信先を明示検証する。"""
+"""実験専用: 登録済み行政区・駅 Parquet の署名付き配信先を明示検証する。"""
 
 from dataclasses import replace
 from urllib.error import HTTPError
@@ -8,8 +8,8 @@ from urllib.request import ProxyHandler, Request, build_opener
 from geo_voyager.fetch_gateway import NoRedirect
 
 
-def register_admin_download(graph):
-    dataset = graph.get("yuiseki/jp-admin-2026-09")
+def _register_download(graph, dataset_id):
+    dataset = graph.get(dataset_id)
     opener = build_opener(ProxyHandler({}), NoRedirect())
     try:
         with opener.open(Request(dataset.data_url, method="HEAD"), timeout=30):
@@ -25,7 +25,15 @@ def register_admin_download(graph):
                     or not target.path.startswith("/xet-bridge-us/")
                     or not content_hash or target.path.rsplit("/", 1)[-1] != content_hash
                     or target.fragment):
-                raise ValueError("Unverified administrative dataset download URL")
+                raise ValueError("Unverified registered dataset download URL")
             graph.register(replace(dataset, data_url=location))
         finally:
             error.close()
+
+
+def register_admin_download(graph):
+    _register_download(graph, "yuiseki/jp-admin-2026-09")
+
+
+def register_station_download(graph):
+    _register_download(graph, "yuiseki/ekidata-jp")

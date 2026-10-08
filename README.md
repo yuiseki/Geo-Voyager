@@ -297,7 +297,7 @@ Intent の Dataset id と読み込んだ Skill.code を sandbox の stdin に送
 image には Control Primitives を配置しており、Skill は host 側の filesystem から
 読み込みます。host filesystem はコンテナに mount しません。
 23行・人口合計を確認する既存実験スクリプトも接続 Primitive を再利用します。
-LLM による Skill 選択、検索、Vector DB は実装していません。
+Worker への LLM Skill 選択・検索の接続と Vector DB は実装していません。
 
 ## Critic
 
@@ -416,7 +416,7 @@ constructor に server root または `/v1` までの base URL と model name �
 空の texts、data 件数の不一致、不正・重複・欠落 index、空 embedding、
 非数値・非有限値、次元数の不一致は `ValueError` です。
 HTTP error と不正 JSON の例外はそのまま呼び出し元へ伝えます。
-Skill retrieval や vectordb には接続していません。
+EmbeddingClient は SkillRetriever で利用します。vectordb には接続していません。
 
 ```python
 from geo_voyager.embedding_client import EmbeddingClient
@@ -483,3 +483,22 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest integration/test_skill_select
 
 既存2件の Skill を最小人口 Skill が先頭になるよう並べた実モデル確認で、
 人口最大は最大人口 Skill、人口最小は最小人口 Skill、鉄道駅数は `None` を返しました。
+
+### 駅 Primitive と6件の初期 Skill
+
+`load_stations(dataset_id, connection)` は `yuiseki/ekidata-jp` の固定 revision
+`a33321099406b47338be0d03a4887059473fde0c` にある
+`parquet/2026-10-05/station.2026-07-31.parquet` を Gateway 経由で読み、
+`name`（station_name）、`latitude`（lat）、`longitude`（lon）を返します。
+読み込み・列の正規化だけを行い、集計・最北端判定は Skill に置きます。
+DatasetGraph の既存 `data_url` に固定実ファイル URL を追加しました。
+
+file-based Library に人口合計・人口上位5区・全国駅数・最北端駅の4 Skill を追加し、
+合計6件にしました。各 Skill は実 DockerSandbox → Gateway → Dataset で実行し、
+Critic の成功を確認しています。駅数は収録全レコード数であり、営業状態で絞ったり
+同一駅の重複を除いたりしません。Worker.execute の固定 Skill 選択は従来通りです。
+
+6 Intent の評価は recall@4 が6/6、Selector の正解が6/6でした。
+人口最大は Retriever の4位から Selector が選びました。
+[UUID・description・実行結果・全順位と cosine 値・再実行コマンド](docs/skill_evaluation.md)
+を記録しています。Vector DB、検索・選択の Worker 接続、Generator fallback は追加していません。

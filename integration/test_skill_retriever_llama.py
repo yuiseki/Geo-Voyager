@@ -17,7 +17,7 @@ def test_retrieve_existing_population_skills():
     registered_ids = {skill.id for skill in SkillLibrary().all()}
     for adjective in ('多い', '少ない'):
         intent = Intent(f'東京都23区で人口が最も{adjective}区と人口を求める', ('yuiseki/jp-admin-2026-09',))
-        result = retriever.retrieve(intent, k=2)
+        result = retriever.retrieve(intent, k=len(registered_ids))
         print(f'{intent.text} -> {[str(skill.id) for skill in result]}')
-        assert len(result) == 2
+        assert len(result) == len(registered_ids)
         assert {skill.id for skill in result} == registered_ids

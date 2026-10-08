@@ -58,6 +58,11 @@ CATALOG = (
         spatial_coverage="日本全国（無料版の駅データは新幹線駅を含まない）",
         temporal_coverage="取得: 2026-10-05。収録版: 2025-05-23〜2026-09-14、最新駅版: 2026-07-31。都道府県マスタは日付なし。",
         contents=("鉄道事業者", "路線", "駅と座標", "路線上の隣接駅", "都道府県マスタ"),
+        data_url=(
+            "https://huggingface.co/datasets/yuiseki/ekidata-jp/resolve/"
+            "a33321099406b47338be0d03a4887059473fde0c/"
+            "parquet/2026-10-05/station.2026-07-31.parquet"
+        ),
     ),
     # cb54e5985662c617a235278bc3529cc172e6368c
     Dataset(

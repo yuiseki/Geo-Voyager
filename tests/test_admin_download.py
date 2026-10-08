@@ -40,3 +40,31 @@ def test_admin_download_rejects_unrelated_redirect_targets(location):
         with pytest.raises(ValueError):
             register_admin_download(graph)
     assert graph.get("yuiseki/jp-admin-2026-09").data_url == source
+
+
+def test_station_download_uses_only_registered_pinned_source():
+    from integration.admin_download import register_station_download
+    graph = load_dataset_graph()
+    source = graph.get('yuiseki/ekidata-jp').data_url
+    location = 'https://us.aws.cdn.hf.co/xet-bridge-us/repository/stationhash?Expires=123'
+    with patch('integration.admin_download.build_opener') as build:
+        build.return_value.open.side_effect = HTTPError(
+            source, 302, 'Found', {'Location': location, 'X-Xet-Hash': 'stationhash'}, None,
+        )
+        register_station_download(graph)
+    assert graph.get('yuiseki/ekidata-jp').data_url == location
+    request = build.return_value.open.call_args.args[0]
+    assert request.full_url == source and request.get_method() == 'HEAD'
+
+
+def test_station_download_rejects_unregistered_redirect():
+    from integration.admin_download import register_station_download
+    graph = load_dataset_graph()
+    source = graph.get('yuiseki/ekidata-jp').data_url
+    with patch('integration.admin_download.build_opener') as build:
+        build.return_value.open.side_effect = HTTPError(
+            source, 302, 'Found', {'Location': 'https://other.example/stationhash', 'X-Xet-Hash': 'stationhash'}, None,
+        )
+        with pytest.raises(ValueError):
+            register_station_download(graph)
+    assert graph.get('yuiseki/ekidata-jp').data_url == source

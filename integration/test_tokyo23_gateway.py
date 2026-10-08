@@ -9,7 +9,7 @@ from integration.network_topology import network_topology
 from integration.test_worker_image import WORKER_IMAGE
 
 
-def gateway_code():
+def gateway_code(*, include_stations=False):
     root = Path(__file__).resolve().parents[1]
     files = {name: (root / 'geo_voyager' / name).read_text() for name in (
         '__init__.py', 'dataset.py', 'dataset_graph.py', 'datasets.py', 'fetch_gateway.py',
@@ -32,10 +32,12 @@ from http.server import HTTPServer
 exec({resolver!r})
 graph = load_dataset_graph()
 register_admin_download(graph)
+if {include_stations!r}:
+    register_station_download(graph)
 print('registered administrative parquet download', flush=True)
 class LoggedHandler(make_handler(graph)):
     def send_response(self, code, message=None):
-        print(self.command, code, 'Range:', self.headers.get('Range', ''), flush=True)
+        print(self.command, code, 'Range:', self.headers.get('Range', ''), 'Path:', self.path, flush=True)
         super().send_response(code, message)
 HTTPServer(('0.0.0.0', 8000), LoggedHandler).serve_forever()
 '''
