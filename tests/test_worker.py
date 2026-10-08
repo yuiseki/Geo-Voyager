@@ -12,7 +12,7 @@ from geo_voyager.skills import POPULATION_SKILL_ID
 def test_worker_reads_intent_dataset_through_internal_docker_sandbox():
     intent = Intent('東京都23区で人口が最も多い区と人口を求める', ('yuiseki/jp-admin-2026-09',))
     text = '東京都23区で人口が最も多い区は世田谷区で、人口は943664人である'
-    with patch('geo_voyager.worker.DockerSandbox') as sandbox, patch('geo_voyager.worker.SkillLibrary') as library:
+    with patch('geo_voyager.worker.DockerSandbox') as sandbox, patch('geo_voyager.worker.SkillLibrary') as library, patch('geo_voyager.worker.promote') as promotion:
         library.return_value.get.return_value = Skill(POPULATION_SKILL_ID, '人口最大', 'print("skill result")')
         sandbox.return_value.run.return_value = text + '\n'
         observations = Worker(network='test-internal').execute(intent)
@@ -22,6 +22,8 @@ def test_worker_reads_intent_dataset_through_internal_docker_sandbox():
     library.return_value.get.assert_called_once_with(POPULATION_SKILL_ID)
     assert 'print("skill result")' in code
     assert observations == [Observation(text)]
+    library.return_value.add.assert_not_called()
+    promotion.assert_not_called()
 
 
 def test_worker_rejects_unsupported_intent_dataset_before_docker():

@@ -323,3 +323,31 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest integration/test_critic_llm.py
 
 実モデルでは「世田谷区、943664人」は成功、
 「23区の人口データを取得した」は区名・人口の回答がないため失敗になりました。
+
+## SkillCandidate と成功時の保存
+
+`SkillCandidate(code, description)` は frozen dataclass で、UUID を持ちません。
+`promote(candidate)` は呼び出された時点で uuid4 を生成し、code と description を
+そのまま持つ `Skill` を返します。
+
+`Worker.execute_candidate(intent, candidate, critic, skill_library)` は、
+Candidate の固定コードを既存の Docker sandbox 内で実行し、stdout から Observation を生成します。
+次に `critic.check(intent, observations)` を呼び、success が True の場合だけ
+`promote(candidate)` と `skill_library.add(skill)` を実行します。
+戻り値は `(observations, critique)` です。失敗判定の場合は UUID も生成せず、保存しません。
+実行・判定が例外になった場合も、その先の昇格・保存には進みません。
+
+```python
+from geo_voyager.critic import Critic
+from geo_voyager.skill import SkillLibrary
+from geo_voyager.skill_candidate import SkillCandidate
+
+candidate = SkillCandidate(code=fixed_python_code, description="調査内容の説明")
+observations, critique = worker.execute_candidate(
+    intent, candidate, critic=Critic(), skill_library=SkillLibrary(),
+)
+```
+
+code と description は呼び出し側が与えます。既存 Skill を使う `Worker.execute(intent)` は
+昇格・保存を行いません。現在の Dataset 制約と sandbox 制約は同じです。
+Candidate に対する LLM コード生成、description 生成、検索、Vector DB は実装していません。
