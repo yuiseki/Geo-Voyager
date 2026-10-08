@@ -279,6 +279,9 @@ skill_library/
   72c549dd-e449-4bef-97f1-e3a2eab27d64/
     code.py
     description.txt
+  e722f367-1ff1-4796-89a3-48cfd1dfcb68/
+    code.py
+    description.txt
 ```
 
 `vectordb/` は Git でディレクトリを保持するための空の `.gitkeep` のみです。
@@ -351,3 +354,41 @@ observations, critique = worker.execute_candidate(
 code と description は呼び出し側が与えます。既存 Skill を使う `Worker.execute(intent)` は
 昇格・保存を行いません。現在の Dataset 制約と sandbox 制約は同じです。
 Candidate に対する LLM コード生成、description 生成、検索、Vector DB は実装していません。
+
+## SkillCandidateGenerator
+
+`SkillCandidateGenerator.generate(intent) -> SkillCandidate` は既存のローカル
+`LlamaClient` を使い、Intent.text、dataset_ids、利用可能な3つの Control Primitives の
+名前・シグネチャ・説明を渡します。DuckDB relation の列と API、必要な import も提示します。
+Dataset の読み込みは Primitive のみに限定するよう指示し、外部 URL の直接利用を禁止します。
+`dataset_id` は実行環境に定義済みの変数を参照し、最終結果を stdout に出すコードを生成します。
+既存 Skill の内容は prompt に渡しません。
+
+自由文出力は「説明:」「---」「コード:」と Python code fence の単純形式です。
+section 間の空行を許容し、description と code を取り出します。
+必須ラベル・区切り・code fence が不正、または本文が空なら `ValueError` です。
+Generator はコードを実行・保存せず、UUID も生成しません。
+
+```python
+from geo_voyager.skill_candidate_generator import SkillCandidateGenerator
+
+candidate = SkillCandidateGenerator().generate(intent)
+observations, critique = worker.execute_candidate(
+    intent, candidate, critic=Critic(), skill_library=SkillLibrary(),
+)
+```
+
+実 LLM・Docker・Gateway・Dataset・Critic・保存の確認は明示実行します。
+通常の unit test では LLM を mock にします。
+
+```bash
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest integration/test_generated_population_skill.py -q -s -W error
+```
+
+この integration は一時 Library に保存しており、実 Library には自動追記しません。
+開発時の失敗は保存されず、prompt の契約と空行 parser を修正した後の実験で、
+東京23区の人口最小として千代田区・66,680人を取得し Critic が成功と判定しました。
+承認済み Skill は同じ UUID `e722f367-1ff1-4796-89a3-48cfd1dfcb68` のまま
+リポジトリの Library にも保存しています。これは登録 Dataset の2020年国勢調査人口です。
+自動 retry、self-repair、複数 Candidate の生成、Skill retrieval、Vector DB、
+Planner 全体との E2E 接続は実装していません。
