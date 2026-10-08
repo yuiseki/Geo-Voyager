@@ -1,4 +1,4 @@
-from unittest.mock import Mock
+from unittest.mock import Mock, call, patch
 
 import pytest
 
@@ -34,19 +34,19 @@ def test_planner_returns_hypotheses_for_question():
     [
         (
             "  調査項目: 人口密度を算出する\n利用データセット: yuiseki/jp-admin-2026-09\n",
-            ["調査項目: 人口密度を算出する\n利用データセット: yuiseki/jp-admin-2026-09"],
+            [("人口密度を算出する", "yuiseki/jp-admin-2026-09")],
         ),
         (
             "調査項目: 人口密度を算出する\n利用データセット: yuiseki/jp-admin-2026-09"
             "\n---\n調査項目: 駅数を集計する\n利用データセット: yuiseki/ekidata-jp",
             [
-                "調査項目: 人口密度を算出する\n利用データセット: yuiseki/jp-admin-2026-09",
-                "調査項目: 駅数を集計する\n利用データセット: yuiseki/ekidata-jp",
+                ("人口密度を算出する", "yuiseki/jp-admin-2026-09"),
+                ("駅数を集計する", "yuiseki/ekidata-jp"),
             ],
         ),
         (
             "\n---\n \n---\n調査項目: 駅数を集計する\n利用データセット: yuiseki/ekidata-jp\n---\n",
-            ["調査項目: 駅数を集計する\n利用データセット: yuiseki/ekidata-jp"],
+            [("駅数を集計する", "yuiseki/ekidata-jp")],
         ),
     ],
 )
@@ -56,10 +56,14 @@ def test_planner_returns_intents_for_hypothesis(response, expected):
     client = Mock()
     client.generate.return_value = response
 
-    intents = Planner(client).plan_intents(hypothesis, load_dataset_graph())
+    graph = load_dataset_graph()
+    with patch.object(graph, "get", wraps=graph.get) as get:
+        intents = Planner(client).plan_intents(hypothesis, graph)
+
+    assert get.call_args_list == [call(dataset_id) for _, dataset_id in expected]
 
     assert isinstance(intents, list)
-    assert intents == [Intent(text) for text in expected]
+    assert intents == [Intent(text, dataset_id) for text, dataset_id in expected]
     client.generate.assert_called_once()
     assert hypothesis.text in client.generate.call_args.args[0]
 
@@ -96,12 +100,12 @@ def test_planner_rejects_empty_llm_response(response):
 
 def test_intent_prompt_includes_registered_dataset_metadata():
     client = Mock()
-    client.generate.return_value = "登録済みデータのコンビニ件数を調べる"
+    client.generate.return_value = "調査項目: 登録済みデータのコンビニ件数を調べる\n利用データセット: yuiseki/osm-japan-src-2026-08"
     graph = load_dataset_graph()
 
     intents = Planner(client).plan_intents(Hypothesis("コンビニ密度には差がある"), graph)
 
-    assert intents == [Intent("登録済みデータのコンビニ件数を調べる")]
+    assert intents == [Intent("登録済みデータのコンビニ件数を調べる", "yuiseki/osm-japan-src-2026-08")]
     client.generate.assert_called_once()
     prompt = client.generate.call_args.args[0]
     for dataset in graph.all():
@@ -126,7 +130,7 @@ def test_planner_rejects_empty_dataset_graph_before_calling_llm():
 )
 def test_intent_prompt_requires_minimal_investigation_unit(rule):
     client = Mock()
-    client.generate.return_value = "yuiseki/ekidata-jp から鉄道駅数を集計する"
+    client.generate.return_value = "調査項目: 鉄道駅数を集計する\n利用データセット: yuiseki/ekidata-jp"
 
     Planner(client).plan_intents(
         Hypothesis("コンビニ密度には区ごとの差がある"), load_dataset_graph()
@@ -148,3 +152,11 @@ def test_intent_prompt_requests_yaml_blocks_separated_by_delimiter():
     assert "利用データセット:" in prompt
     assert "---" in prompt
     assert "1行につき1 Intent" not in prompt
+
+
+def test_planner_rejects_unregistered_dataset_id():
+    client = Mock()
+    client.generate.return_value = "調査項目: 店舗数を集計する\n利用データセット: unknown/dataset"
+
+    with pytest.raises(KeyError, match="unknown/dataset"):
+        Planner(client).plan_intents(Hypothesis("コンビニ密度には差がある"), load_dataset_graph())

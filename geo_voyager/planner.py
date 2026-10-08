@@ -51,7 +51,13 @@ class Planner:
             f"仮説:\n{hypothesis.text}"
         )
         blocks = self.llm_client.generate(prompt).split("---")
-        intents = [Intent(block.strip()) for block in blocks if block.strip()]
+        intents = []
+        for block in blocks:
+            if not block.strip():
+                continue
+            intent = Intent.from_block(block)
+            dataset_graph.get(intent.dataset_id)
+            intents.append(intent)
         if not intents:
             raise ValueError("LLM returned no intents")
         return intents

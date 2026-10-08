@@ -3,7 +3,8 @@
 Python 3.12 以降を使用します。実行時の外部依存関係はありません。
 テストには pytest が必要です（`python -m pip install pytest`）。
 
-`Question(text)`、`Hypothesis(text)`、`Intent(text)`、`Observation(text)`、`Verdict(text)` は空文字列を拒否します。
+`Question(text)`、`Hypothesis(text)`、`Observation(text)`、`Verdict(text)` は空文字列を拒否します。
+`Intent(text, dataset_id)` は両方を必須とし、空文字列・空白のみを拒否します。
 `Planner().plan(question)` は、既存 k8s の llama.cpp に疑問を送り、
 自由文の返答を `strip()` して Hypothesis 1件をリストで返します。
 空の返答は拒否します。
@@ -25,7 +26,11 @@ HTTP には標準ライブラリを使用し、structured output は使用しま
 ```
 
 返答を `---` で分割して `strip()` し、空ブロックを除いた `list[Intent]` を返します。
-各 Intent の text に2行をそのまま保持し、YAML の解析や schema 制約は使用しません。
+各ブロックは「調査項目:」「利用データセット:」の順の2行だけを許可し、
+`Intent.from_block()` で `text` と `dataset_id` に分離します。
+YAML ライブラリや汎用 YAML parser、schema 制約は使用しません。
+返された `dataset_id` は必ず `DatasetGraph.get()` で確認し、未登録なら `KeyError` になります。
+この確認は Dataset の存在だけを保証し、調査内容とデータの意味的な整合性は検証しません。
 全ブロックが空なら拒否します。Intent の実行可能性は検証しません。
 `Worker().execute(intent)` は、入力によらず
 「調査対象は東京23区である」という Observation 1件をリストで返します。
