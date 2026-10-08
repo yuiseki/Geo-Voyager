@@ -573,3 +573,11 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest integration/test_intent_execu
 [3経路の実 retrieved / selected / learned、Observation・Critic・保存Skillの記録](docs/intent_execution.md)
 を保存しています。平均人口は423185.9130434783で、Critic success後に一時 Library が6→7件になりました。
 初期 Library は6件のままです。既存 Skill の通常実行では保存されません。
+
+### 学習直後の同一 Intent・言い換え再利用
+
+`integration/test_intent_executor.py` は同じ一時 Library を使い、平均人口を学習した後、
+同じ Intent と「東京都23区について、1区あたりの平均人口を計算して」を連続実行します。
+両方で学習 UUID の top-4 入り・Selector 選択、learned=None、生成・保存回数が増えないこと、
+Observation の一致を確認します。Library は6→7→7→7でした。
+[全 UUID と結果・専用一時ディレクトリでの再実行方法](docs/skill_growth.md)を記録しています。

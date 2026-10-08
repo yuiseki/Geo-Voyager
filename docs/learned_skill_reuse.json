@@ -1,0 +1,77 @@
+{
+  "library": "/tmp/pytest-of-yuiseki/pytest-278/test_reuse_admin_and_station_t0/skill_library",
+  "restored_from_exact_execution_record": true,
+  "learned_skill_id": "4038ef3d-4721-4a91-905d-a1b8be10367d",
+  "executions": [
+    {
+      "phase": "initial_learning_previously_verified",
+      "library_before": 6,
+      "library_after": 7,
+      "intent": "東京都23区の平均人口を求める",
+      "observations": [
+        {
+          "text": "東京都23区の平均人口は 423185.9130434783 です。"
+        }
+      ],
+      "retrieved_skill_ids": [
+        "befbc141-baad-41bc-abdf-dc34311c3111",
+        "e722f367-1ff1-4796-89a3-48cfd1dfcb68",
+        "f2d4785a-779a-4927-b75d-65d1e4852ab2",
+        "72c549dd-e449-4bef-97f1-e3a2eab27d64"
+      ],
+      "selected_skill_id": null,
+      "learned_skill_id": "4038ef3d-4721-4a91-905d-a1b8be10367d",
+      "critique": {
+        "success": true,
+        "reason": "東京都23区の平均人口という具体的な数値が観測結果として提示されているため、Intentの要求を満たしている。"
+      },
+      "learned_description": "東京都23区の平均人口を計算し、その値を出力します。",
+      "learned_code": "from geo_voyager.control_primitives import connect_duckdb, load_admin_units, load_stations\nwith connect_duckdb() as connection:\n    df = load_admin_units(dataset_id, connection, area=\"東京都23区\")\n    avg_df = df.aggregate(\"avg(population) AS average_population\")\n    average_population = avg_df.fetchone()[0]\n    print(f\"東京都23区の平均人口は {average_population} です。\")",
+      "library_count": 7
+    },
+    {
+      "phase": "same_intent_reuse",
+      "intent": "東京都23区の平均人口を求める",
+      "observations": [
+        {
+          "text": "東京都23区の平均人口は 423185.9130434783 です。"
+        }
+      ],
+      "retrieved_skill_ids": [
+        "4038ef3d-4721-4a91-905d-a1b8be10367d",
+        "befbc141-baad-41bc-abdf-dc34311c3111",
+        "e722f367-1ff1-4796-89a3-48cfd1dfcb68",
+        "f2d4785a-779a-4927-b75d-65d1e4852ab2"
+      ],
+      "selected_skill_id": "4038ef3d-4721-4a91-905d-a1b8be10367d",
+      "learned_skill_id": null,
+      "critique": null,
+      "library_before": 7,
+      "library_after": 7,
+      "generator_called": false,
+      "save_called": false
+    },
+    {
+      "phase": "paraphrased_intent_reuse",
+      "intent": "東京都23区について、1区あたりの平均人口を計算して",
+      "observations": [
+        {
+          "text": "東京都23区の平均人口は 423185.9130434783 です。"
+        }
+      ],
+      "retrieved_skill_ids": [
+        "4038ef3d-4721-4a91-905d-a1b8be10367d",
+        "befbc141-baad-41bc-abdf-dc34311c3111",
+        "e722f367-1ff1-4796-89a3-48cfd1dfcb68",
+        "f2d4785a-779a-4927-b75d-65d1e4852ab2"
+      ],
+      "selected_skill_id": "4038ef3d-4721-4a91-905d-a1b8be10367d",
+      "learned_skill_id": null,
+      "critique": null,
+      "library_before": 7,
+      "library_after": 7,
+      "generator_called": false,
+      "save_called": false
+    }
+  ]
+}

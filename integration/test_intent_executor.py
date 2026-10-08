@@ -1,4 +1,4 @@
-"""実embedding / LLM / Docker / Gatewayで再利用2件と学習1件を確認。"""
+"""実embedding / LLM / Docker / Gatewayで既存再利用・学習・学習後の一致／言い換え再利用を確認。"""
 
 import json
 import math
@@ -121,10 +121,35 @@ with connect_duckdb() as connection:
         expected_average = float(DockerSandbox(image=WORKER_IMAGE, network=names['internal']).run(reference_code))
         numbers = [float(number) for number in re.findall(r'\d+(?:\.\d+)?', result.observations[0].text.replace(',', ''))]
         assert any(math.isclose(number, expected_average, abs_tol=1.0) for number in numbers)
-        report = {'intent': intent.text, **asdict(result), 'learned_description': learned.description,
+        report = {'intent': intent.text, **asdict(result), 'phase': 'initial_learning', 'library_before': 6,
+                  'generator_called': True, 'learned_description': learned.description,
                   'learned_code': learned.code, 'library_count': len(library.all())}
         reports.append(report)
         print(json.dumps(report, ensure_ascii=False, default=str), flush=True)
+        # Reuse the exact learned Skill, then reuse it for a paraphrase in the same Library.
+        for text in (
+            intent.text,
+            '東京都23区について、1区あたりの平均人口を計算して',
+        ):
+            reuse_intent = Intent(text, intent.dataset_ids)
+            reused = executor.execute(reuse_intent, k=4)
+            assert learned.id in reused.retrieved_skill_ids
+            assert reused.selected_skill_id == learned.id
+            assert reused.learned_skill_id is None and reused.critique is None
+            assert reused.observations == result.observations
+            assert len(library.all()) == 7
+            # These counts must remain unchanged from the initial learning call.
+            generator.generate.assert_called_once_with(intent)
+            critic.check.assert_called_once_with(intent, result.observations)
+            library_spy.add.assert_called_once()
+            worker.execute_candidate.assert_called_once()
+            report = {'intent': text, **asdict(reused), 'phase': 'learned_skill_reuse',
+                      'generator_called': False, 'library_before': 7, 'library_count': len(library.all()),
+                      'generator_call_count': generator.generate.call_count,
+                      'save_call_count': library_spy.add.call_count}
+            reports.append(report)
+            print(json.dumps(report, ensure_ascii=False, default=str), flush=True)
+        assert worker.execute_skill.call_count == 4
         logs = docker('logs', names['gateway'])
         assert 'GET 206 Range: bytes=' in logs
         assert '/datasets/yuiseki/ekidata-jp' in logs
