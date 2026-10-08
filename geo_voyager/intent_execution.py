@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from .critique import Critique
+from .execution_failure import ExecutionFailure
 from .observation import Observation
 
 
@@ -13,3 +14,4 @@ class IntentExecution:
     learned_skill_id: UUID | None
     critique: Critique
     selected_skill_critique: Critique | None
+    failure: ExecutionFailure | None = None

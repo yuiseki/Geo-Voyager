@@ -1,4 +1,7 @@
 from .critic import Critic
+from .critique import Critique
+from .execution_failure import ExecutionFailure
+from .skill_candidate_repairer import SkillCandidateRepairer
 from .intent import Intent
 from .intent_execution import IntentExecution
 from .skill import SkillLibrary
@@ -13,7 +16,9 @@ class IntentExecutor:
     def __init__(
         self, retriever: SkillRetriever, selector: SkillSelector, worker: Worker,
         generator: SkillCandidateGenerator, critic: Critic, skill_library: SkillLibrary,
+        repairer: SkillCandidateRepairer | None = None,
     ) -> None:
+        self.repairer = repairer if repairer is not None else SkillCandidateRepairer()
         self.retriever = retriever
         self.selector = selector
         self.worker = worker
@@ -30,14 +35,25 @@ class IntentExecutor:
         selected_skill_critique = None
         if selected is not None:
             observations = self.worker.execute_skill(intent, selected)
-            selected_skill_critique = self.critic.check(intent, observations)
-            if selected_skill_critique.success:
+            if not isinstance(observations, ExecutionFailure):
+                selected_skill_critique = self.critic.check(intent, observations)
+            if selected_skill_critique is not None and selected_skill_critique.success:
                 return IntentExecution(
                     observations, retrieved_ids, selected.id, None,
                     selected_skill_critique, selected_skill_critique,
                 )
         candidate = self.generator.generate(intent)
-        observations = self.worker.execute_candidate(intent, candidate)
+        for repair_count in range(3):
+            observations = self.worker.execute_candidate(intent, candidate)
+            if not isinstance(observations, ExecutionFailure):
+                break
+            if repair_count == 2:
+                return IntentExecution(
+                    [], retrieved_ids, selected.id if selected else None, None,
+                    Critique(False, observations.message), selected_skill_critique,
+                    failure=observations,
+                )
+            candidate = self.repairer.repair(intent, candidate, observations)
         critique = self.critic.check(intent, observations)
         learned = None
         if critique.success:

@@ -731,3 +731,10 @@ redacted `ExecutionFailure` values. The container wrapper reserves exit code 73
 for these errors. Docker startup/daemon failures still raise exceptions. Captured
 stdout and stderr are each limited to 8 KiB; container environment values are
 redacted, and failure diagnostics omit sensitive/environment-dump lines.
+
+`IntentExecutor` repairs generated-code failures with `SkillCandidateRepairer`
+at most twice (three executions total). Repair receives the original Intent,
+registered resources and Primitive contracts, Candidate and bounded diagnostics.
+Critic only checks executable Observations. Exhaustion returns `failure` with an
+unsuccessful critique and never promotes or saves the Candidate. Infrastructure
+exceptions remain exceptions. Existing Skill failures can fall back to generation.
