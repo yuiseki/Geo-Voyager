@@ -38,9 +38,9 @@ YAML ライブラリや汎用 YAML parser、schema 制約は使用しません�
 返された各 id は必ず `DatasetGraph.get()` で確認し、1件でも未登録なら `KeyError` になります。
 この確認は Dataset の存在だけを保証し、調査内容とデータの意味的な整合性は検証しません。
 全ブロックが空なら拒否します。Intent の実行可能性は検証しません。
-`Worker().execute(intent)` は、入力によらず
-「調査対象は東京23区である」という Observation 1件をリストで返します。
-Worker は固定実装で、実際のデータ取得は行いません。
+`Worker().execute(intent)` は、DockerSandbox で固定コード
+`print("hello from sandbox")` を実行し、stdout を `strip()` して Observation 1件を返します。
+Intent からのコード生成や実データ取得は行いません。
 `Planner().judge(hypothesis, observations)` は、入力によらず
 「仮説はまだ十分に検証されていない」という Verdict 1件を返します。
 
@@ -58,7 +58,7 @@ verdict = planner.judge(hypotheses[0], observations)
 print(verdict.text)
 ```
 
-unit test は LLM client または HTTP を mock にしており、実モデルを呼びません。
+unit test は LLM client・HTTP・Docker プロセスを mock にしており、実モデルや Docker を起動しません。
 上の使用例は手動確認用で、`plan()` と `plan_intents()` で
 実モデルへのリクエストが各1回発生します。
 
@@ -96,3 +96,22 @@ print([dataset.id for dataset in graph.all()])
 - [jp-admin-2026-09](https://huggingface.co/datasets/yuiseki/jp-admin-2026-09): 2026-09の行政名・コードと2020年国勢調査の境界・人口を結合。
 - [ekidata-jp](https://huggingface.co/datasets/yuiseki/ekidata-jp): 駅データ.jpの無料版。新幹線駅は未収録で、独自利用規約。
 - [worldpop-jp-2026-01](https://huggingface.co/datasets/yuiseki/worldpop-jp-2026-01): 2015〜2030年の日本人口推計・予測ラスターとCOG、ファイルメタデータ表。
+
+## Docker sandbox
+
+Docker CLI と稼働中の daemon、および事前取得した公式イメージが必要です。
+
+```bash
+docker pull python:3.12-slim
+```
+
+`DockerSandbox().run(code)` は Python をコンテナの stdin に送り、stdout を文字列で返します。
+非0終了は `subprocess.CalledProcessError`、30秒の timeout は `subprocess.TimeoutExpired` になります。
+timeout 時は専用の一意なコンテナ名を指定して強制削除します（削除コマンドは最大5秒）。
+通常終了時は `--rm` でコンテナを削除します。
+
+実行制約は UID/GID 65534、read-only root filesystem、
+`/tmp:rw,noexec,nosuid,size=16m` の tmpfs、cap-drop ALL、no-new-privileges、
+memory 128 MiB、CPU 1、PID 32、network none です。
+bind/volume mount と Docker socket の共有は行いません。コードは host 上では実行しません。
+`--pull never` により実行時にはイメージを取得しません。
