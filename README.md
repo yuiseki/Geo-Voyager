@@ -4,7 +4,9 @@ Python 3.12 以降を使用します。実行時の外部依存関係はあり�
 テストには pytest が必要です（`python -m pip install pytest`）。
 
 `Question(text)`、`Hypothesis(text)`、`Observation(text)`、`Verdict(text)` は空文字列を拒否します。
-`Intent(text, dataset_id)` は両方を必須とし、空文字列・空白のみを拒否します。
+`Intent(text, dataset_ids)` は空の text と空の dataset_ids を拒否します。
+`dataset_ids` は1件以上の非空 id を持つ tuple です。1 Intent は1 measurable output とし、
+必要なら空間結合や集計のために複数 Dataset を使えます。
 `Planner().plan(question)` は、既存 k8s の llama.cpp に疑問を送り、
 自由文の返答を `strip()` して Hypothesis 1件をリストで返します。
 空の返答は拒否します。
@@ -15,21 +17,25 @@ HTTP には標準ライブラリを使用し、structured output は使用しま
 登録済み Dataset の id・description を短いテキストで送り、
 利用可能な Dataset の範囲内で調査を作るよう依頼します。
 空の Dataset Graph は LLM 呼び出し前に拒否します。Dataset の選択ロジックはありません。
-3〜5件程度の最小調査単位を、以下の2行の簡易 YAML で返すよう依頼します。
+3〜5件程度の最小調査単位を、以下の簡易 YAML で返すよう依頼します。
 
 ```yaml
-調査項目: 1つの測定値・集計値を得る調査内容
-利用データセット: 登録済み Dataset の id を1つ
+調査項目: 23区ごとの推計人口を算出する
+利用データセット:
+  - yuiseki/jp-admin-2026-09
+  - yuiseki/worldpop-jp-2026-01
 ---
 調査項目: 次の調査内容
-利用データセット: 登録済み Dataset の id を1つ
+利用データセット:
+  - yuiseki/ekidata-jp
 ```
 
 返答を `---` で分割して `strip()` し、空ブロックを除いた `list[Intent]` を返します。
-各ブロックは「調査項目:」「利用データセット:」の順の2行だけを許可し、
-`Intent.from_block()` で `text` と `dataset_id` に分離します。
+各ブロックは「調査項目:」「利用データセット:」に続く
+半角空白2つと `- ` の Dataset リストだけを許可し、
+`Intent.from_block()` で `text` と `dataset_ids` に分離します。
 YAML ライブラリや汎用 YAML parser、schema 制約は使用しません。
-返された `dataset_id` は必ず `DatasetGraph.get()` で確認し、未登録なら `KeyError` になります。
+返された各 id は必ず `DatasetGraph.get()` で確認し、1件でも未登録なら `KeyError` になります。
 この確認は Dataset の存在だけを保証し、調査内容とデータの意味的な整合性は検証しません。
 全ブロックが空なら拒否します。Intent の実行可能性は検証しません。
 `Worker().execute(intent)` は、入力によらず

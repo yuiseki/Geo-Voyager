@@ -4,7 +4,7 @@ from geo_voyager.worker import Worker
 
 
 def test_worker_returns_observations_for_intent():
-    intent = Intent("東京23区ごとのコンビニ件数を調べる", "yuiseki/osm-japan-src-2026-08")
+    intent = Intent("東京23区ごとのコンビニ件数を調べる", ("yuiseki/osm-japan-src-2026-08",))
 
     observations = Worker().execute(intent)
 
