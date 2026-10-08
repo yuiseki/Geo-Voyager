@@ -292,3 +292,34 @@ image には Control Primitives を配置しており、Skill は host 側の fi
 読み込みます。host filesystem はコンテナに mount しません。
 23行・人口合計を確認する既存実験スクリプトも接続 Primitive を再利用します。
 LLM による Skill 選択、検索、Vector DB は実装していません。
+
+## Critic
+
+`Critic.check(intent, observations)` は Intent の要求した調査結果が Observation に
+回答されているかだけを判定します。仮説の正否や結果の望ましさは評価しません。
+戻り値は immutable な `Critique(success: bool, reason: str)` です。
+
+Observation が0件、または本文を strip するとすべて空の場合は、LLM を呼ばず失敗を返します。
+それ以外は既存の `LlamaClient` に Intent.text と Observation.text の一覧だけを渡します。
+自由文の2行「判定: 成功/失敗」「理由: ...」を読み、行数・ラベル・判定値・非空理由を確認します。
+不正な形式は `ValueError` になります。structured output は使用しません。
+Worker や SkillLibrary.add との自動接続はありません。
+
+```python
+from geo_voyager.critic import Critic
+from geo_voyager.intent import Intent
+from geo_voyager.observation import Observation
+
+intent = Intent("東京都23区で人口が最も多い区と人口を求める", ("yuiseki/jp-admin-2026-09",))
+result = Critic().check(intent, [Observation("世田谷区、943664人")])
+print(result.success, result.reason)
+```
+
+unit test は LLM を mock します。実ローカル LLM の2例は明示実行します。
+
+```bash
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest integration/test_critic_llm.py -q -s -W error
+```
+
+実モデルでは「世田谷区、943664人」は成功、
+「23区の人口データを取得した」は区名・人口の回答がないため失敗になりました。
