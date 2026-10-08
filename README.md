@@ -462,3 +462,24 @@ GEO_VOYAGER_EMBEDDING_BASE_URL=http://10.105.167.163:8080 \
 GEO_VOYAGER_EMBEDDING_MODEL=granite-embedding \
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest integration/test_skill_retriever_llama.py -q -s
 ```
+
+### Skill の適合性による選択
+
+`SkillSelector(llm_client=None).select(intent, skills) -> Skill | None` は既存の
+ローカル LLM に Intent.text と候補の UUID / description だけを渡します。
+code・Dataset ID は渡しません。類似度順位で自動決定せず、最大/最小・対象・
+集計方法・出力内容が Intent に適合するか判断させます。候補1件でも判定し、
+候補0件は LLM を呼ばず `None` を返します。
+
+LLM の返答は `選択: UUIDまたはなし` と `理由: ...` の2行に限定し、
+不正形式・不正 UUID・候補外 UUID は `ValueError` にします。
+Worker / SkillCandidateGenerator にはまだ接続していません。
+
+通常の unit test は LLM を mock しています。実モデル確認は別途実行します。
+
+```bash
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest integration/test_skill_selector_llama.py -q -s -W error
+```
+
+既存2件の Skill を最小人口 Skill が先頭になるよう並べた実モデル確認で、
+人口最大は最大人口 Skill、人口最小は最小人口 Skill、鉄道駅数は `None` を返しました。
