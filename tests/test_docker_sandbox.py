@@ -60,3 +60,20 @@ def test_sandbox_can_use_prebuilt_worker_image():
         run.return_value.stdout = "duckdb extensions ok\n"
         assert DockerSandbox(image="geo-voyager-worker:duckdb-1.5.6").run("fixed code") == "duckdb extensions ok\n"
     assert "geo-voyager-worker:duckdb-1.5.6" in run.call_args.args[0]
+
+
+def test_sandbox_allows_only_an_internal_network():
+    with patch('geo_voyager.docker_sandbox.subprocess.run') as run:
+        run.return_value.stdout = 'true\n'
+        DockerSandbox(network='test-internal').run('fixed code')
+    inspect, execution = [call.args[0] for call in run.call_args_list]
+    assert inspect == ['docker', 'network', 'inspect', '--format', '{{.Internal}}', 'test-internal']
+    assert execution[execution.index('--network') + 1] == 'test-internal'
+
+
+def test_sandbox_rejects_external_network():
+    with patch('geo_voyager.docker_sandbox.subprocess.run') as run:
+        run.return_value.stdout = 'false\n'
+        with pytest.raises(ValueError, match='internal'):
+            DockerSandbox(network='external').run('fixed code')
+    assert run.call_count == 1

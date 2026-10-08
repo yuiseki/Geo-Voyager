@@ -38,9 +38,11 @@ YAML ライブラリや汎用 YAML parser、schema 制約は使用しません�
 返された各 id は必ず `DatasetGraph.get()` で確認し、1件でも未登録なら `KeyError` になります。
 この確認は Dataset の存在だけを保証し、調査内容とデータの意味的な整合性は検証しません。
 全ブロックが空なら拒否します。Intent の実行可能性は検証しません。
-`Worker().execute(intent)` は、DockerSandbox で固定コード
-`print("hello from sandbox")` を実行し、stdout を `strip()` して Observation 1件を返します。
-Intent からのコード生成や実データ取得は行いません。
+`Worker(network=internal_network).execute(intent)` は、Intent の dataset_ids が
+`("yuiseki/jp-admin-2026-09",)` であることを確認し、Worker image 内の固定SQLで
+東京23区の人口最大の1区を取得します。それ以外の Dataset 指定は拒否します。
+Gateway を通じて取得した結果を stdout に出し、`strip()` して Observation 1件を返します。
+Intent の text の解釈や LLM によるコード生成は行いません。
 `Planner().judge(hypothesis, observations)` は、入力によらず
 「仮説はまだ十分に検証されていない」という Verdict 1件を返します。
 
@@ -48,14 +50,11 @@ Intent からのコード生成や実データ取得は行いません。
 from geo_voyager.datasets import load_dataset_graph
 from geo_voyager.planner import Planner
 from geo_voyager.question import Question
-from geo_voyager.worker import Worker
 
 planner = Planner()
 hypotheses = planner.plan(Question("東京23区でコンビニの分布はどうなっている？"))
 intents = planner.plan_intents(hypotheses[0], load_dataset_graph())
-observations = Worker().execute(intents[0])
-verdict = planner.judge(hypotheses[0], observations)
-print(verdict.text)
+print(intents)
 ```
 
 unit test は LLM client・HTTP・Docker プロセスを mock にしており、実モデルや Docker を起動しません。
@@ -204,9 +203,44 @@ Worker は isolated internal network のみ、Gateway は internal + external �
 固定スクリプト `scripts/analyze_tokyo23.py` の接続先は Gateway だけです。
 `read_parquet()` で code5、name、population のみを取得し、13101〜13123が23行で
 population が整数であることを確認して行数・人口合計を stdout に出します。
-geometry は取得しません。通常の Worker の固定処理や LLM は変更していません。
+geometry は取得しません。LLM は変更していません。
 
 2026-10-08 の実験結果は23行、人口合計 **9,733,276人** でした。
 DuckDB から Gateway への HEAD 200 と Range GET 206（3回）、
 Worker から Internet への直接接続の失敗を確認しています。
 終了後には実験用の container / network を削除します。
+
+
+## Worker.execute の固定人口最大区分析
+
+事前 build 済みの `geo-voyager-worker:duckdb-1.5.6` と、internal network 上で
+`gateway:8000` として到達できる登録済み行政区 Dataset の Gateway を使用します。
+`DockerSandbox` の network は既定で `none` です。指定した network は Docker inspect で
+internal であることを確認し、通常の external bridge を指定すると失敗します。
+network 以外の sandbox 制約は同じです。
+
+```python
+from geo_voyager.intent import Intent
+from geo_voyager.worker import Worker
+
+intent = Intent(
+    text="東京都23区で人口が最も多い区と人口を求める",
+    dataset_ids=("yuiseki/jp-admin-2026-09",),
+)
+observations = Worker(network="既存のinternal network名").execute(intent)
+print(observations[0].text)
+```
+
+固定スクリプト `scripts/most_populous_ward.py` は `read_parquet()` の接続先を Gateway にし、
+code5 が13101〜13123の行を population 降順・LIMIT 1で取得します。
+Intent の dataset_ids は固定分析の対象確認と Gateway URL の組み立てに使用します。
+
+```bash
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest integration/test_worker_image.py integration/test_worker_population.py -q -s -W error
+```
+
+integration test は実験用の Gateway / internal network を作り、実際の
+`Worker.execute(intent)` を呼び出します。実データで得た Observation は
+「東京都23区で人口が最も多い区は世田谷区で、人口は943664人である」でした。
+これは登録済み行政区 Dataset に収録された2020年国勢調査人口です。
+終了時には実験用 container / network を削除します。
