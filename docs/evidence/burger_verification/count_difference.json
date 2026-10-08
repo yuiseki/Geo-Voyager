@@ -1,0 +1,561 @@
+{
+  "area": 3601759477,
+  "timestamp": "2025-09-14T23:59:55Z",
+  "exact_query": "[out:json][timeout:12];nwr[\"cuisine\"=\"burger\"](area:3601759477);out tags;",
+  "token_query": "[out:json][timeout:12];nwr[\"cuisine\"~\"(^|;)burger(;|$)\"](area:3601759477);out tags;",
+  "exact_ids": [
+    [
+      "node",
+      610813254
+    ],
+    [
+      "node",
+      614612798
+    ],
+    [
+      "node",
+      701873033
+    ],
+    [
+      "node",
+      728435722
+    ],
+    [
+      "node",
+      752870738
+    ],
+    [
+      "node",
+      861115536
+    ],
+    [
+      "node",
+      861245035
+    ],
+    [
+      "node",
+      1378231338
+    ],
+    [
+      "node",
+      1657287443
+    ],
+    [
+      "node",
+      1669745941
+    ],
+    [
+      "node",
+      1673403933
+    ],
+    [
+      "node",
+      1673403940
+    ],
+    [
+      "node",
+      1681422077
+    ],
+    [
+      "node",
+      1725254274
+    ],
+    [
+      "node",
+      1906496717
+    ],
+    [
+      "node",
+      1935517372
+    ],
+    [
+      "node",
+      2125918768
+    ],
+    [
+      "node",
+      2171172103
+    ],
+    [
+      "node",
+      2196894747
+    ],
+    [
+      "node",
+      2242388775
+    ],
+    [
+      "node",
+      2425349223
+    ],
+    [
+      "node",
+      2504465912
+    ],
+    [
+      "node",
+      2651760789
+    ],
+    [
+      "node",
+      2975856794
+    ],
+    [
+      "node",
+      3012473506
+    ],
+    [
+      "node",
+      3607529976
+    ],
+    [
+      "node",
+      3608380639
+    ],
+    [
+      "node",
+      3696235257
+    ],
+    [
+      "node",
+      3696245326
+    ],
+    [
+      "node",
+      3880208034
+    ],
+    [
+      "node",
+      4231510742
+    ],
+    [
+      "node",
+      4336626489
+    ],
+    [
+      "node",
+      5072487343
+    ],
+    [
+      "node",
+      5072487364
+    ],
+    [
+      "node",
+      5080717146
+    ],
+    [
+      "node",
+      5080769506
+    ],
+    [
+      "node",
+      5240285654
+    ],
+    [
+      "node",
+      5291746475
+    ],
+    [
+      "node",
+      5485828752
+    ],
+    [
+      "node",
+      5493235337
+    ],
+    [
+      "node",
+      5686792922
+    ],
+    [
+      "node",
+      5761912419
+    ],
+    [
+      "node",
+      5763313572
+    ],
+    [
+      "node",
+      5763313579
+    ],
+    [
+      "node",
+      6388635651
+    ],
+    [
+      "node",
+      6738001032
+    ],
+    [
+      "node",
+      7207895885
+    ],
+    [
+      "node",
+      7211570085
+    ],
+    [
+      "node",
+      7300442374
+    ],
+    [
+      "node",
+      8191155518
+    ],
+    [
+      "node",
+      11155635425
+    ],
+    [
+      "node",
+      11370454986
+    ],
+    [
+      "node",
+      12414024301
+    ],
+    [
+      "node",
+      12452266950
+    ],
+    [
+      "node",
+      12452329282
+    ],
+    [
+      "node",
+      12981434979
+    ],
+    [
+      "node",
+      13015106468
+    ],
+    [
+      "way",
+      141293818
+    ],
+    [
+      "way",
+      142558158
+    ]
+  ],
+  "token_ids": [
+    [
+      "node",
+      610813254
+    ],
+    [
+      "node",
+      614612798
+    ],
+    [
+      "node",
+      701873033
+    ],
+    [
+      "node",
+      728435722
+    ],
+    [
+      "node",
+      752870738
+    ],
+    [
+      "node",
+      861115536
+    ],
+    [
+      "node",
+      861245035
+    ],
+    [
+      "node",
+      1378231338
+    ],
+    [
+      "node",
+      1657287443
+    ],
+    [
+      "node",
+      1669745941
+    ],
+    [
+      "node",
+      1673403933
+    ],
+    [
+      "node",
+      1673403940
+    ],
+    [
+      "node",
+      1681422077
+    ],
+    [
+      "node",
+      1725254274
+    ],
+    [
+      "node",
+      1906496717
+    ],
+    [
+      "node",
+      1935517372
+    ],
+    [
+      "node",
+      2125918768
+    ],
+    [
+      "node",
+      2171172103
+    ],
+    [
+      "node",
+      2196894747
+    ],
+    [
+      "node",
+      2242388775
+    ],
+    [
+      "node",
+      2425349223
+    ],
+    [
+      "node",
+      2504465912
+    ],
+    [
+      "node",
+      2651760789
+    ],
+    [
+      "node",
+      2975856794
+    ],
+    [
+      "node",
+      3012473506
+    ],
+    [
+      "node",
+      3607529976
+    ],
+    [
+      "node",
+      3608380639
+    ],
+    [
+      "node",
+      3696235257
+    ],
+    [
+      "node",
+      3696245326
+    ],
+    [
+      "node",
+      3880208034
+    ],
+    [
+      "node",
+      4231510742
+    ],
+    [
+      "node",
+      4336626489
+    ],
+    [
+      "node",
+      5072487343
+    ],
+    [
+      "node",
+      5072487364
+    ],
+    [
+      "node",
+      5072661386
+    ],
+    [
+      "node",
+      5080717146
+    ],
+    [
+      "node",
+      5080769506
+    ],
+    [
+      "node",
+      5240285654
+    ],
+    [
+      "node",
+      5291746475
+    ],
+    [
+      "node",
+      5485828752
+    ],
+    [
+      "node",
+      5493235337
+    ],
+    [
+      "node",
+      5686792922
+    ],
+    [
+      "node",
+      5761912419
+    ],
+    [
+      "node",
+      5763313572
+    ],
+    [
+      "node",
+      5763313579
+    ],
+    [
+      "node",
+      6388635651
+    ],
+    [
+      "node",
+      6738001032
+    ],
+    [
+      "node",
+      7207895885
+    ],
+    [
+      "node",
+      7211570085
+    ],
+    [
+      "node",
+      7300442374
+    ],
+    [
+      "node",
+      8191155518
+    ],
+    [
+      "node",
+      11155635425
+    ],
+    [
+      "node",
+      11370454986
+    ],
+    [
+      "node",
+      11532870568
+    ],
+    [
+      "node",
+      11847062940
+    ],
+    [
+      "node",
+      12414024301
+    ],
+    [
+      "node",
+      12452266950
+    ],
+    [
+      "node",
+      12452329282
+    ],
+    [
+      "node",
+      12981434979
+    ],
+    [
+      "node",
+      13015106468
+    ],
+    [
+      "node",
+      13075151101
+    ],
+    [
+      "way",
+      141293818
+    ],
+    [
+      "way",
+      142558158
+    ]
+  ],
+  "extras": [
+    {
+      "type": "node",
+      "id": 5072661386,
+      "tags": {
+        "amenity": "restaurant",
+        "cuisine": "burger;chinese",
+        "name": "Whoopi Goldburger"
+      }
+    },
+    {
+      "type": "node",
+      "id": 11532870568,
+      "tags": {
+        "amenity": "restaurant",
+        "branch": "原宿店",
+        "check_date": "2024-01-20",
+        "cuisine": "american;dessert;breakfast;pancake;sandwich;burger",
+        "internet_access": "wlan",
+        "internet_access:fee": "customers",
+        "internet_access:ssid": "BMC-admin",
+        "name": "Buttermilk Channel",
+        "name:ja": "BUTTERMILK CHANNEL",
+        "opening_hours": "11:00-21:30",
+        "payment:QUICPay": "yes",
+        "payment:cash": "yes",
+        "payment:credit_cards": "yes",
+        "payment:debit_cards": "yes",
+        "payment:iD": "yes",
+        "payment:id": "yes",
+        "payment:public_transportation_cards": "yes",
+        "payment:quicpay": "yes",
+        "reservation": "yes",
+        "website": "http://www.buttermilkchannel-jp.com/",
+        "wheelchair": "no"
+      }
+    },
+    {
+      "type": "node",
+      "id": 11847062940,
+      "tags": {
+        "amenity": "fast_food",
+        "branch": "渋谷",
+        "cuisine": "burger;fried_chicken",
+        "drive_through": "no",
+        "name": "MOM'S TOUCH",
+        "website": "https://momstouch.co.jp"
+      }
+    },
+    {
+      "type": "node",
+      "id": 13075151101,
+      "tags": {
+        "addr:housenumber": "4 Chome−1−11",
+        "addr:postcode": "150-0012",
+        "amenity": "restaurant",
+        "cuisine": "american;burger;mexican",
+        "internet_access": "wlan",
+        "name": "Pepple Hiroo Terrace",
+        "opening_hours": "Th-Tu 08:30-21:00"
+      }
+    }
+  ]
+}

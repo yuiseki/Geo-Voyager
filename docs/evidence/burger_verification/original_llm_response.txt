@@ -1,0 +1,25 @@
+説明:
+previous_observationsから全23区のburger地物数を比較し、最も多い区の名称と件数を特定して出力する。
+---
+コード:
+```python
+from geo_voyager.control_primitives import call_service
+import json, re
+
+observations = [json.loads(obs) for obs in previous_observations]
+assert len(observations) == 23, "Expected 23 observations"
+
+max_count = -1
+max_name = ""
+
+for obs in observations:
+    name = obs.get("name")
+    count = obs.get("count")
+    if count is not None and count > max_count:
+        max_count = count
+        max_name = name
+
+assert max_count >= 0, "No valid count found"
+
+print(json.dumps({"name": max_name, "count": max_count}))
+```
