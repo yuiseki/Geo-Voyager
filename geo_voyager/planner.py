@@ -30,7 +30,13 @@ class Planner:
         )
         prompt = (
             "次の仮説を検証するために必要な調査を、具体的な実行単位に分解してください。\n\n"
-            "- 1行につき1つ\n"
+            "Intent は、1回の Worker 実行で1つの明確な Observation を得るための最小調査単位です。\n"
+            "- 1 Intent = 1 primary dataset（原則1つの Dataset を主に使う）\n"
+            "- 1 Intent = 1 measurable output（1つの測定値・集計値だけを得る）\n"
+            "- 複数 Dataset をまとめた総合分析は Intent にしない\n"
+            "- 最終的な相関分析や仮説判定は Intent にしない\n"
+            "- 測定する指標が複数なら、指標ごとに別の Intent に分ける\n"
+            "- 1行につき1 Intent\n"
             "- 調査内容だけを書く\n"
             "- 3〜5件程度\n"
             "- 結論は書かない\n"

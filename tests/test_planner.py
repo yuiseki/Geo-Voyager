@@ -110,3 +110,19 @@ def test_planner_rejects_empty_dataset_graph_before_calling_llm():
         Planner(client).plan_intents(Hypothesis("コンビニ密度には差がある"), DatasetGraph())
 
     client.generate.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "rule",
+    ["1 Intent = 1 primary dataset", "1 Intent = 1 measurable output"],
+)
+def test_intent_prompt_requires_minimal_investigation_unit(rule):
+    client = Mock()
+    client.generate.return_value = "yuiseki/ekidata-jp から鉄道駅数を集計する"
+
+    Planner(client).plan_intents(
+        Hypothesis("コンビニ密度には区ごとの差がある"), load_dataset_graph()
+    )
+
+    client.generate.assert_called_once()
+    assert rule in client.generate.call_args.args[0]
