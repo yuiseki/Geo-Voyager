@@ -1,7 +1,9 @@
 from geo_voyager.hypothesis import Hypothesis
 from geo_voyager.intent import Intent
+from geo_voyager.observation import Observation
 from geo_voyager.planner import Planner
 from geo_voyager.question import Question
+from geo_voyager.verdict import Verdict
 
 
 def test_planner_returns_hypotheses_for_question():
@@ -25,3 +27,13 @@ def test_planner_returns_intents_for_hypothesis():
     assert len(intents) >= 1
     assert all(isinstance(intent, Intent) for intent in intents)
     assert all(intent.text for intent in intents)
+
+
+def test_planner_returns_verdict_for_hypothesis_and_observations():
+    hypothesis = Hypothesis("コンビニ密度には区ごとの差がある")
+    observations = [Observation("調査対象は東京23区である")]
+
+    verdict = Planner().judge(hypothesis, observations)
+
+    assert isinstance(verdict, Verdict)
+    assert verdict.text

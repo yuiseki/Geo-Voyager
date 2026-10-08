@@ -1,6 +1,8 @@
 from .hypothesis import Hypothesis
 from .intent import Intent
+from .observation import Observation
 from .question import Question
+from .verdict import Verdict
 
 
 class Planner:
@@ -9,3 +11,8 @@ class Planner:
 
     def plan_intents(self, hypothesis: Hypothesis) -> list[Intent]:
         return [Intent("東京23区ごとのコンビニ件数を調べる")]
+
+    def judge(
+        self, hypothesis: Hypothesis, observations: list[Observation]
+    ) -> Verdict:
+        return Verdict("仮説はまだ十分に検証されていない")
