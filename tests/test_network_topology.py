@@ -21,6 +21,7 @@ def test_topology_uses_only_the_required_network_connections(isolated):
         command = next(command for command in commands if "--name" in command and names[role] in command)
         assert command[command.index("--network") + 1] == names[network]
         assert command[command.index("--pull") + 1] == "never"
+        assert command[command.index("--pids-limit") + 1] == ("128" if role == "worker" else "32")
         assert not {"-p", "--publish", "-v", "--volume", "--mount"}.intersection(command)
     connections = [command for command in commands if command[:3] == ["docker", "network", "connect"]]
     assert connections == [["docker", "network", "connect", names["external"], names["gateway"]]]
@@ -52,3 +53,14 @@ def test_topology_can_run_test_gateway_and_origin_code_without_mounts():
         assert command[-2:] == ["-c", f"{role} code"]
         assert command[command.index("--network-alias") + 1] == role
         assert not {"-v", "--volume", "--mount"}.intersection(command)
+
+
+def test_topology_uses_worker_image_and_can_omit_the_test_origin():
+    with patch("integration.network_topology.subprocess.run") as run:
+        with network_topology(worker_image="geo-voyager-worker:duckdb-1.5.6", include_origin=False) as names:
+            commands = [entry.args[0] for entry in run.call_args_list]
+    starts = [command for command in commands if command[:2] == ["docker", "run"]]
+    assert len(starts) == 2
+    worker = next(command for command in starts if names["worker"] in command)
+    assert "geo-voyager-worker:duckdb-1.5.6" in worker
+    assert worker[worker.index("--network") + 1] == names["internal"]

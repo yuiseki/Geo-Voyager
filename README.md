@@ -112,7 +112,7 @@ timeout 時は専用の一意なコンテナ名を指定して強制削除しま
 
 実行制約は UID/GID 65534、read-only root filesystem、
 `/tmp:rw,noexec,nosuid,size=16m` の tmpfs、cap-drop ALL、no-new-privileges、
-memory 128 MiB、CPU 1、PID 32、network none です。
+memory 128 MiB、CPU 1、PID 128、network none です。
 bind/volume mount と Docker socket の共有は行いません。コードは host 上では実行しません。
 `--pull never` により実行時にはイメージを取得しません。
 
@@ -151,7 +151,7 @@ Docker Engine 29.5.3 で両モードの2件が成功しています。
 `geo_voyager.fetch_gateway.make_handler(dataset_graph)` を標準ライブラリの
 `HTTPServer` に渡します。API は `GET /datasets/{dataset_id}` と
 `HEAD /datasets/{dataset_id}` だけです。id に `/` が含まれていても取得できます。
-`DatasetGraph.get()` で登録済み id を確認して、その `Dataset.url` だけを使います。
+`DatasetGraph.get()` で登録済み id を確認して、その `Dataset.data_url`（未指定なら `Dataset.url`）だけを使います。
 今回の integration test は公開 catalog を使わず、固定の `test/fixed` 1件を登録します。
 
 - GET: upstream body を返す。Range があればそのまま転送。
@@ -173,3 +173,40 @@ GETは200と全10バイト、HEADは200とbodyなし、Range GETは206と`01234`
 未登録・変更系・任意URL queryの拒否、Worker→Originの名前/IP直接通信の失敗も確認し、
 終了後に全テスト用コンテナ・networkを削除します。
 既存の Worker 分析処理や DockerSandbox は Gateway に接続していません。
+
+
+## 固定 DuckDB Worker 実験
+
+`docker/worker/Dockerfile` は Python 3.12 と DuckDB **1.5.6** を使用します。
+`httpfs` / `spatial` は build 時に公式配信元から install し、
+`/opt/duckdb/extensions` に保存します。UID/GID 65534 から読み取れます。
+runtime は extension 自動 install・autoload を無効にして `LOAD` のみ行い、
+署名検証は有効なままです。署名検証の並列スレッドに対応するため、
+ユーザー承認により sandbox の PID 上限を32から128へ変更しました。
+他の sandbox 制約は維持しています。
+
+```bash
+# build と offline LOAD を先に確認する（network none）
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest integration/test_worker_image.py -q -s -W error
+# 成功後、実データを取得する明示的な実験
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest integration/test_tokyo23_gateway.py -q -s -W error
+```
+
+Dataset に任意の1ファイルを指す optional `data_url` だけを追加しました。
+`url` は紹介ページとして保持し、行政区 Dataset の `data_url` に固定 revision の
+`municipalities.parquet` を登録しています。ファイル一覧や任意 path API はありません。
+実験用 Gateway の起動時に、この登録 URL に HEAD を1回送り、
+Hugging Face の署名付き CDN 配信先を HTTPS・固定ホスト・X-Xet-Hash と一致する
+パスで明示検証して DatasetGraph に登録します。署名付き URL は保存しません。
+Gateway はこの登録済み URL のみ使用し、redirect の自動追跡は無効のままです。
+
+Worker は isolated internal network のみ、Gateway は internal + external に接続します。
+固定スクリプト `scripts/analyze_tokyo23.py` の接続先は Gateway だけです。
+`read_parquet()` で code5、name、population のみを取得し、13101〜13123が23行で
+population が整数であることを確認して行数・人口合計を stdout に出します。
+geometry は取得しません。通常の Worker の固定処理や LLM は変更していません。
+
+2026-10-08 の実験結果は23行、人口合計 **9,733,276人** でした。
+DuckDB から Gateway への HEAD 200 と Range GET 206（3回）、
+Worker から Internet への直接接続の失敗を確認しています。
+終了後には実験用の container / network を削除します。

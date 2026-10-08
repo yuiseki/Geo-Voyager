@@ -41,7 +41,7 @@ def make_handler(graph: DatasetGraph):
             headers = {}
             if method == "GET" and "Range" in self.headers:
                 headers["Range"] = self.headers["Range"]
-            request = Request(dataset.url, headers=headers, method=method)
+            request = Request(dataset.data_url or dataset.url, headers=headers, method=method)
             opener = build_opener(ProxyHandler({}), NoRedirect())
             try:
                 with opener.open(request, timeout=10) as response:

@@ -18,3 +18,12 @@ def test_catalog_registers_researched_datasets():
         assert dataset.url == f"https://huggingface.co/datasets/{dataset_id}"
         assert dataset.description
         assert dataset.contents
+
+
+def test_admin_dataset_has_one_pinned_municipalities_download_url():
+    dataset = load_dataset_graph().get("yuiseki/jp-admin-2026-09")
+    assert dataset.data_url == (
+        "https://huggingface.co/datasets/yuiseki/jp-admin-2026-09/resolve/"
+        "e6c87b1d7095c17422147962185071a986e13135/municipalities.parquet"
+    )
+    assert dataset.url == "https://huggingface.co/datasets/yuiseki/jp-admin-2026-09"

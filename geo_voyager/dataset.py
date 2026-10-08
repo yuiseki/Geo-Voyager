@@ -11,6 +11,7 @@ class Dataset:
     spatial_coverage: str
     temporal_coverage: str
     contents: tuple[str, ...]
+    data_url: str | None = None
 
     def __post_init__(self) -> None:
         if self.id == "":

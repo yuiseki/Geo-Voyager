@@ -109,3 +109,17 @@ def test_redirect_is_not_followed_or_forwarded(gateway):
     assert status == 502
     assert "Location" not in headers
     gateway[1].assert_called_once()
+
+
+def test_gateway_prefers_registered_data_url_over_card_url(gateway):
+    from dataclasses import replace
+
+    # 元の get を wrap した mock に、指定した登録レコードを返させる。
+    graph_dataset = Dataset(
+        id="test/fixed", description="固定データ", url="http://origin:8000/card",
+        license="CC0", formats=("text",), spatial_coverage="なし",
+        temporal_coverage="なし", contents=("テスト文字列",),
+    )
+    gateway[3].return_value = replace(graph_dataset, data_url="http://origin:8000/fixed.txt")
+    assert request(gateway)[0] == 200
+    assert gateway[1].call_args.args[0].full_url == "http://origin:8000/fixed.txt"

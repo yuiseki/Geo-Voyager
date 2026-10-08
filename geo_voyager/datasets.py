@@ -43,6 +43,10 @@ CATALOG = (
         spatial_coverage="日本47都道府県・1,918市区町村（境界・人口が欠ける自治体あり）",
         temporal_coverage="名称・コード: 2026-09、境界・人口・世帯: 2020年国勢調査",
         contents=("行政区域名・コード", "代表点", "行政区域ポリゴン", "人口", "世帯数"),
+        data_url=(
+            "https://huggingface.co/datasets/yuiseki/jp-admin-2026-09/resolve/"
+            "e6c87b1d7095c17422147962185071a986e13135/municipalities.parquet"
+        ),
     ),
     # a33321099406b47338be0d03a4887059473fde0c
     Dataset(

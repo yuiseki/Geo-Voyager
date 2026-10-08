@@ -3,6 +3,9 @@ from uuid import uuid4
 
 
 class DockerSandbox:
+    def __init__(self, image: str = "python:3.12-slim") -> None:
+        self.image = image
+
     def run(self, code: str) -> str:
         name = f"geo-voyager-sandbox-{uuid4().hex}"
         command = [
@@ -14,9 +17,9 @@ class DockerSandbox:
             "--security-opt", "no-new-privileges",
             "--memory", "128m",
             "--cpus", "1",
-            "--pids-limit", "32",
+            "--pids-limit", "128",
             "--network", "none",
-            "python:3.12-slim", "python", "-I", "-B", "-",
+            self.image, "python", "-I", "-B", "-",
         ]
         try:
             result = subprocess.run(

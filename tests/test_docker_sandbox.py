@@ -23,7 +23,7 @@ def test_sandbox_returns_stdout_with_required_constraints():
         "--security-opt": "no-new-privileges",
         "--memory": "128m",
         "--cpus": "1",
-        "--pids-limit": "32",
+        "--pids-limit": "128",
         "--network": "none",
         "--pull": "never",
     }.items():
@@ -53,3 +53,10 @@ def test_sandbox_rejects_timeout_and_removes_its_container():
     command = run.call_args_list[0].args[0]
     name = command[command.index("--name") + 1]
     assert run.call_args_list[1].args[0] == ["docker", "rm", "--force", name]
+
+
+def test_sandbox_can_use_prebuilt_worker_image():
+    with patch("geo_voyager.docker_sandbox.subprocess.run") as run:
+        run.return_value.stdout = "duckdb extensions ok\n"
+        assert DockerSandbox(image="geo-voyager-worker:duckdb-1.5.6").run("fixed code") == "duckdb extensions ok\n"
+    assert "geo-voyager-worker:duckdb-1.5.6" in run.call_args.args[0]
