@@ -32,17 +32,25 @@ def test_planner_returns_hypotheses_for_question():
 @pytest.mark.parametrize(
     ("response", "expected"),
     [
-        ("  区ごとの人口密度を調べる\n", ["区ごとの人口密度を調べる"]),
         (
-            "区ごとの人口密度を調べる\n区ごとの駅数を調べる",
-            ["区ごとの人口密度を調べる", "区ごとの駅数を調べる"],
+            "  調査項目: 人口密度を算出する\n利用データセット: yuiseki/jp-admin-2026-09\n",
+            ["調査項目: 人口密度を算出する\n利用データセット: yuiseki/jp-admin-2026-09"],
         ),
         (
-            "\n 区ごとの人口密度を調べる \n  \n 区ごとの駅数を調べる \n",
-            ["区ごとの人口密度を調べる", "区ごとの駅数を調べる"],
+            "調査項目: 人口密度を算出する\n利用データセット: yuiseki/jp-admin-2026-09"
+            "\n---\n調査項目: 駅数を集計する\n利用データセット: yuiseki/ekidata-jp",
+            [
+                "調査項目: 人口密度を算出する\n利用データセット: yuiseki/jp-admin-2026-09",
+                "調査項目: 駅数を集計する\n利用データセット: yuiseki/ekidata-jp",
+            ],
+        ),
+        (
+            "\n---\n \n---\n調査項目: 駅数を集計する\n利用データセット: yuiseki/ekidata-jp\n---\n",
+            ["調査項目: 駅数を集計する\n利用データセット: yuiseki/ekidata-jp"],
         ),
     ],
 )
+
 def test_planner_returns_intents_for_hypothesis(response, expected):
     hypothesis = Hypothesis("コンビニ密度には区ごとの差がある")
     client = Mock()
@@ -56,7 +64,7 @@ def test_planner_returns_intents_for_hypothesis(response, expected):
     assert hypothesis.text in client.generate.call_args.args[0]
 
 
-@pytest.mark.parametrize("response", ["", " \n\t\n "])
+@pytest.mark.parametrize("response", ["", " \n\t\n ", "---\n \n---"])
 def test_planner_rejects_empty_intent_response(response):
     client = Mock()
     client.generate.return_value = response
@@ -126,3 +134,17 @@ def test_intent_prompt_requires_minimal_investigation_unit(rule):
 
     client.generate.assert_called_once()
     assert rule in client.generate.call_args.args[0]
+
+
+def test_intent_prompt_requests_yaml_blocks_separated_by_delimiter():
+    client = Mock()
+    client.generate.return_value = "調査項目: 駅数を集計する\n利用データセット: yuiseki/ekidata-jp"
+
+    Planner(client).plan_intents(Hypothesis("コンビニ密度には差がある"), load_dataset_graph())
+
+    prompt = client.generate.call_args.args[0]
+    assert "簡易 YAML" in prompt
+    assert "調査項目:" in prompt
+    assert "利用データセット:" in prompt
+    assert "---" in prompt
+    assert "1行につき1 Intent" not in prompt

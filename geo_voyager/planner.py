@@ -36,7 +36,11 @@ class Planner:
             "- 複数 Dataset をまとめた総合分析は Intent にしない\n"
             "- 最終的な相関分析や仮説判定は Intent にしない\n"
             "- 測定する指標が複数なら、指標ごとに別の Intent に分ける\n"
-            "- 1行につき1 Intent\n"
+            "- 各 Intent は2行の簡易 YAML にする\n"
+            "- 1行目は「調査項目: 調査内容」、2行目は「利用データセット: 登録済み Dataset の id」\n"
+            "- コロンは半角で直後に空白を置き、値は1行の文字列にする\n"
+            "- Intent 同士は、単独行の --- で区切る\n"
+            "- 番号、箇条書き、コードフェンス、前置きは付けない\n"
             "- 調査内容だけを書く\n"
             "- 3〜5件程度\n"
             "- 結論は書かない\n"
@@ -46,8 +50,8 @@ class Planner:
             f"利用可能な Dataset:\n{dataset_text}\n\n"
             f"仮説:\n{hypothesis.text}"
         )
-        lines = self.llm_client.generate(prompt).splitlines()
-        intents = [Intent(line.strip()) for line in lines if line.strip()]
+        blocks = self.llm_client.generate(prompt).split("---")
+        intents = [Intent(block.strip()) for block in blocks if block.strip()]
         if not intents:
             raise ValueError("LLM returned no intents")
         return intents
