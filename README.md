@@ -442,3 +442,23 @@ GEO_VOYAGER_EMBEDDING_BASE_URL=http://10.105.167.163:8080 \
 GEO_VOYAGER_EMBEDDING_MODEL=granite-embedding \
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest integration/test_embedding_llama.py -q -s -W error
 ```
+
+### 最小 Skill 検索
+
+`SkillRetriever(library, embedding_client).retrieve(intent, k=1)` は
+`SkillLibrary.all()` の description をまとめて embedding し、続いて
+`Intent.text` を embedding して cosine similarity の降順で `list[Skill]` を返します。
+検索のたびに計算し、保存・Vector DB・Worker への自動接続は行いません。
+空の Library は空リスト、非正の k・ゼロベクトル・次元不一致は例外です。
+同点では Library の列挙順を維持します。
+
+実モデルの確認では人口最大・最小の両 Intent に対して人口最小 Skill が上位でした。
+embedding 類似度は Skill が要求に適合する保証ではありません。
+
+実モデルでの検索確認は通常の unit test と分離しています。
+
+```bash
+GEO_VOYAGER_EMBEDDING_BASE_URL=http://10.105.167.163:8080 \
+GEO_VOYAGER_EMBEDDING_MODEL=granite-embedding \
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest integration/test_skill_retriever_llama.py -q -s
+```
