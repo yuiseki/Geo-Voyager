@@ -11,4 +11,4 @@ class IntentExecution:
     retrieved_skill_ids: tuple[UUID, ...]
     selected_skill_id: UUID | None
     learned_skill_id: UUID | None
-    critique: Critique | None = None
+    critique: Critique

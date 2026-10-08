@@ -1,5 +1,5 @@
 from dataclasses import FrozenInstanceError
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import pytest
@@ -9,8 +9,8 @@ from geo_voyager.intent import Intent
 from geo_voyager.intent_execution import IntentExecution
 from geo_voyager.intent_executor import IntentExecutor
 from geo_voyager.observation import Observation
-from geo_voyager.skill import Skill
-from geo_voyager.skill_candidate import SkillCandidate
+from geo_voyager.skill import Skill, SkillLibrary
+from geo_voyager.skill_candidate import SkillCandidate, promote
 
 
 def setup_executor():
@@ -18,66 +18,72 @@ def setup_executor():
     return IntentExecutor(*components), components
 
 
-@pytest.mark.parametrize('text,dataset_id', [
-    ('東京都23区で人口が最も多い区と人口を求める', 'yuiseki/jp-admin-2026-09'),
-    ('駅データに収録されている最北端の駅を求める', 'yuiseki/ekidata-jp'),
+@pytest.mark.parametrize('selected,existing_success,candidate_success', [
+    (True, True, True),
+    (True, False, True),
+    (True, False, False),
+    (False, False, True),
+    (False, False, False),
 ])
-def test_known_skill_is_reused_in_order_without_generator_or_save(text, dataset_id):
-    executor, (retriever, selector, worker, generator, critic, library) = setup_executor()
-    intent = Intent(text, (dataset_id,))
-    skills = [Skill(uuid4(), '候補1', 'code1'), Skill(uuid4(), '候補2', 'code2')]
-    retriever.retrieve.return_value = skills
-    selector.select.return_value = skills[1]
-    observations = [Observation('結果')]
-    worker.execute_skill.return_value = observations
-    events = Mock()
-    for name, component in [('retriever', retriever), ('selector', selector), ('worker', worker)]:
-        events.attach_mock(component, name)
-    result = executor.execute(intent, k=4)
-    assert isinstance(result, IntentExecution)
-    assert result.observations == observations
-    assert result.retrieved_skill_ids == tuple(skill.id for skill in skills)
-    assert result.selected_skill_id == skills[1].id
-    assert result.learned_skill_id is None
-    assert result.critique is None
-    assert [call[0] for call in events.mock_calls] == ['retriever.retrieve', 'selector.select', 'worker.execute_skill']
-    retriever.retrieve.assert_called_once_with(intent, 4)
-    selector.select.assert_called_once_with(intent, skills)
-    worker.execute_skill.assert_called_once_with(intent, skills[1])
-    worker.execute_candidate.assert_not_called()
-    generator.generate.assert_not_called()
-    critic.check.assert_not_called()
-    library.add.assert_not_called()
-
-
-@pytest.mark.parametrize('success', [True, False])
-def test_unknown_skill_is_generated_and_returns_only_learned_uuid_on_success(success):
-    executor, (retriever, selector, worker, generator, critic, library) = setup_executor()
+def test_validation_and_learning_order(tmp_path, selected, existing_success, candidate_success):
+    executor, (retriever, selector, worker, generator, critic, _) = setup_executor()
+    library = SkillLibrary(tmp_path)
+    executor.skill_library = Mock(wraps=library)
     intent = Intent('東京都23区の平均人口を求める', ('yuiseki/jp-admin-2026-09',))
-    retrieved = [Skill(uuid4(), '人口合計', 'code')]
-    retriever.retrieve.return_value = retrieved
-    selector.select.return_value = None
+    skills = [Skill(uuid4(), '人口合計', 'code'), Skill(uuid4(), '人口最大', 'code2')]
+    retriever.retrieve.return_value = skills
+    selector.select.return_value = skills[1] if selected else None
+    existing = [Observation('既存結果')]
+    generated = [Observation('平均人口')]
+    worker.execute_skill.return_value = existing
+    worker.execute_candidate.return_value = generated
     candidate = SkillCandidate('print("平均人口")', '平均人口を算出')
     generator.generate.return_value = candidate
-    critique = Critique(success, '結果の適合性')
-    learned = Skill(uuid4(), candidate.description, candidate.code) if success else None
-    observations = [Observation('平均人口の結果')]
-    worker.execute_candidate.return_value = observations, critique, learned
+    existing_critique = Critique(existing_success, '既存結果の適合性')
+    candidate_critique = Critique(candidate_success, '生成結果の適合性')
+    critic.check.side_effect = ([existing_critique, candidate_critique] if selected else [candidate_critique])
     events = Mock()
-    for name, component in [('retriever', retriever), ('selector', selector), ('generator', generator), ('worker', worker)]:
+    for name, component in [('retriever', retriever), ('selector', selector), ('worker', worker),
+                            ('generator', generator), ('critic', critic), ('library', executor.skill_library)]:
         events.attach_mock(component, name)
-    result = executor.execute(intent, k=2)
-    assert result.observations == observations
-    assert result.retrieved_skill_ids == (retrieved[0].id,)
-    assert result.selected_skill_id is None
-    assert result.learned_skill_id == (learned.id if learned else None)
-    assert result.critique == critique
-    assert [call[0] for call in events.mock_calls] == ['retriever.retrieve', 'selector.select', 'generator.generate', 'worker.execute_candidate']
-    generator.generate.assert_called_once_with(intent)
-    worker.execute_candidate.assert_called_once_with(intent, candidate, critic, library)
-    worker.execute_skill.assert_not_called()
-    # Worker owns promotion and saving; Executor must not save a second time.
-    library.add.assert_not_called()
+    with patch('geo_voyager.intent_executor.promote', wraps=promote) as promotion:
+        events.attach_mock(promotion, 'promote')
+        result = executor.execute(intent, k=4)
+        assert result.retrieved_skill_ids == tuple(skill.id for skill in skills)
+        assert result.selected_skill_id == (skills[1].id if selected else None)
+        expected_events = ['retriever.retrieve', 'selector.select']
+        if selected:
+            expected_events += ['worker.execute_skill', 'critic.check']
+            worker.execute_skill.assert_called_once_with(intent, skills[1])
+        if selected and existing_success:
+            assert result.observations == existing
+            assert result.critique == existing_critique
+            assert result.learned_skill_id is None
+            generator.generate.assert_not_called()
+            worker.execute_candidate.assert_not_called()
+            promotion.assert_not_called()
+            executor.skill_library.add.assert_not_called()
+            assert library.all() == []
+        else:
+            expected_events += ['generator.generate', 'worker.execute_candidate', 'critic.check']
+            generator.generate.assert_called_once_with(intent)
+            worker.execute_candidate.assert_called_once_with(intent, candidate)
+            assert result.observations == generated
+            assert result.critique == candidate_critique
+            if candidate_success:
+                expected_events += ['promote', 'library.add']
+                promotion.assert_called_once_with(candidate)
+                executor.skill_library.add.assert_called_once()
+                saved = library.get(result.learned_skill_id)
+                assert saved.code == candidate.code and saved.description == candidate.description
+                assert library.all() == [saved]
+            else:
+                assert result.learned_skill_id is None
+                promotion.assert_not_called()
+                executor.skill_library.add.assert_not_called()
+                assert list(tmp_path.iterdir()) == []
+        assert [call[0] for call in events.mock_calls] == expected_events
+        assert critic.check.call_args.args == (intent, result.observations)
 
 
 @pytest.mark.parametrize('dataset_ids', [(), ('admin', 'stations')])
@@ -105,6 +111,6 @@ def test_existing_skill_execution_error_does_not_fall_back():
 
 
 def test_intent_execution_is_frozen():
-    result = IntentExecution([], (), None, None)
+    result = IntentExecution([], (), None, None, Critique(False, "未実行"))
     with pytest.raises(FrozenInstanceError):
         result.learned_skill_id = uuid4()

@@ -79,13 +79,13 @@ def test_reuse_admin_and_station_then_learn_average_population(tmp_path):
             intent = Intent(text, (dataset_id,))
             result = executor.execute(intent, k=4)
             assert str(result.selected_skill_id) == expected
-            assert result.learned_skill_id is None and result.critique is None
+            assert result.learned_skill_id is None and result.critique.success
             assert len(result.retrieved_skill_ids) == 4
             assert result.selected_skill_id in result.retrieved_skill_ids
             assert len(result.observations) == 1 and result.observations[0].text.strip()
             assert len(library.all()) == 6
             generator.generate.assert_not_called()
-            critic.check.assert_not_called()
+            critic.check.assert_called_with(intent, result.observations)
             library_spy.add.assert_not_called()
             report = {'intent': text, **asdict(result)}
             reports.append(report)
@@ -98,7 +98,7 @@ def test_reuse_admin_and_station_then_learn_average_population(tmp_path):
         assert len(result.retrieved_skill_ids) == 4
         assert len(library.all()) == 7
         generator.generate.assert_called_once_with(intent)
-        critic.check.assert_called_once_with(intent, result.observations)
+        critic.check.assert_called_with(intent, result.observations)
         library_spy.add.assert_called_once()
         worker.execute_skill.assert_called()
         assert worker.execute_skill.call_count == 2
@@ -135,12 +135,12 @@ with connect_duckdb() as connection:
             reused = executor.execute(reuse_intent, k=4)
             assert learned.id in reused.retrieved_skill_ids
             assert reused.selected_skill_id == learned.id
-            assert reused.learned_skill_id is None and reused.critique is None
+            assert reused.learned_skill_id is None and reused.critique.success
             assert reused.observations == result.observations
             assert len(library.all()) == 7
-            # These counts must remain unchanged from the initial learning call.
+            # Generation and save counts remain unchanged; every reuse is checked.
             generator.generate.assert_called_once_with(intent)
-            critic.check.assert_called_once_with(intent, result.observations)
+            critic.check.assert_called_with(reuse_intent, reused.observations)
             library_spy.add.assert_called_once()
             worker.execute_candidate.assert_called_once()
             report = {'intent': text, **asdict(reused), 'phase': 'learned_skill_reuse',
@@ -150,6 +150,30 @@ with connect_duckdb() as connection:
             reports.append(report)
             print(json.dumps(report, ensure_ascii=False, default=str), flush=True)
         assert worker.execute_skill.call_count == 4
+        assert critic.check.call_count == 5
+        # Force an incorrect real Skill selection; execution, Critic and generation remain real.
+        wrong_skill = library.get('72c549dd-e449-4bef-97f1-e3a2eab27d64')
+        executor.selector = Mock()
+        executor.selector.select.return_value = wrong_skill
+        critiques = []
+        real_critic = Critic()
+        def record_check(intent, observations):
+            checked = real_critic.check(intent, observations)
+            critiques.append(checked)
+            return checked
+        critic.check.side_effect = record_check
+        fallback = executor.execute(intent, k=4)
+        assert [checked.success for checked in critiques] == [False, True]
+        assert fallback.selected_skill_id == wrong_skill.id
+        assert fallback.learned_skill_id is not None and fallback.critique.success
+        assert len(library.all()) == 8 and library_spy.add.call_count == 2
+        assert generator.generate.call_count == 2 and worker.execute_candidate.call_count == 2
+        fallback_skill = library.get(fallback.learned_skill_id)
+        report = {'intent': intent.text, **asdict(fallback), 'phase': 'incorrect_selection_fallback',
+                  'existing_critique': asdict(critiques[0]), 'library_count': len(library.all()),
+                  'learned_description': fallback_skill.description, 'learned_code': fallback_skill.code}
+        reports.append(report)
+        print(json.dumps(report, ensure_ascii=False, default=str), flush=True)
         logs = docker('logs', names['gateway'])
         assert 'GET 206 Range: bytes=' in logs
         assert '/datasets/yuiseki/ekidata-jp' in logs

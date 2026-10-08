@@ -3,6 +3,8 @@
 import ast
 import subprocess
 import time
+from unittest.mock import Mock
+from geo_voyager.intent_executor import IntentExecutor
 
 from geo_voyager.critic import Critic
 from geo_voyager.intent import Intent
@@ -49,9 +51,14 @@ def test_generated_least_populous_ward_skill(tmp_path):
                 break
             time.sleep(0.25)
         assert ready.returncode == 0, docker('logs', names['gateway'])
-        observations, critique, learned = Worker(network=names['internal']).execute_candidate(
-            intent, candidate, Critic(), library,
-        )
+        retriever, selector, generator = Mock(), Mock(), Mock()
+        retriever.retrieve.return_value = []
+        selector.select.return_value = None
+        generator.generate.return_value = candidate
+        result = IntentExecutor(retriever, selector, Worker(names['internal']), generator,
+                                Critic(), library).execute(intent)
+        observations, critique = result.observations, result.critique
+        learned = library.get(result.learned_skill_id)
         assert len(observations) == 1
         assert '千代田区' in observations[0].text
         assert '66680' in observations[0].text.replace(',', '')

@@ -1,10 +1,8 @@
-from .critic import Critic
-from .critique import Critique
 from .docker_sandbox import DockerSandbox
 from .intent import Intent
 from .observation import Observation
-from .skill import Skill, SkillLibrary
-from .skill_candidate import SkillCandidate, promote
+from .skill import Skill
+from .skill_candidate import SkillCandidate
 
 
 class Worker:
@@ -23,14 +21,5 @@ class Worker:
     def execute_skill(self, intent: Intent, skill: Skill) -> list[Observation]:
         return self._execute_code(intent, skill.code)
 
-    def execute_candidate(
-        self, intent: Intent, candidate: SkillCandidate,
-        critic: Critic, skill_library: SkillLibrary,
-    ) -> tuple[list[Observation], Critique, Skill | None]:
-        observations = self._execute_code(intent, candidate.code)
-        critique = critic.check(intent, observations)
-        learned = None
-        if critique.success:
-            learned = promote(candidate)
-            skill_library.add(learned)
-        return observations, critique, learned
+    def execute_candidate(self, intent: Intent, candidate: SkillCandidate) -> list[Observation]:
+        return self._execute_code(intent, candidate.code)

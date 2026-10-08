@@ -324,7 +324,7 @@ Observation が0件、または本文を strip するとすべて空の場合は
 それ以外は既存の `LlamaClient` に Intent.text と Observation.text の一覧だけを渡します。
 自由文の2行「判定: 成功/失敗」「理由: ...」を読み、行数・ラベル・判定値・非空理由を確認します。
 不正な形式は `ValueError` になります。structured output は使用しません。
-Candidate 経路では Worker が Critic を呼び、成功時だけ SkillLibrary.add へ進みます。既存 Skill 経路では Critic を呼びません。
+IntentExecutor が既存 Skill・Candidate の両経路で Critic を呼びます。既存 Skill の失敗判定時だけ Candidate 生成へ1回 fallback し、Candidate 成功時だけ保存します。
 
 ```python
 from geo_voyager.critic import Critic
@@ -351,22 +351,17 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest integration/test_critic_llm.py
 `promote(candidate)` は呼び出された時点で uuid4 を生成し、code と description を
 そのまま持つ `Skill` を返します。
 
-`Worker.execute_candidate(intent, candidate, critic, skill_library)` は、
-Candidate の固定コードを既存の Docker sandbox 内で実行し、stdout から Observation を生成します。
-次に `critic.check(intent, observations)` を呼び、success が True の場合だけ
-`promote(candidate)` と `skill_library.add(skill)` を実行します。
-戻り値は `(observations, critique, learned_skill)` です。成功時は保存した Skill、失敗判定時は None を返します。失敗判定の場合は UUID も生成せず、保存しません。
-実行・判定が例外になった場合も、その先の昇格・保存には進みません。
+`Worker.execute_candidate(intent, candidate) -> list[Observation]` は、
+コードを既存の Docker sandbox 内で実行し、stdout から Observation を生成します。
+Worker は Critic・昇格・保存を扱いません。IntentExecutor が結果を検証し、
+成功時だけ `promote(candidate)` と `skill_library.add(skill)` を実行します。
+失敗判定の場合は UUID を生成せず、保存しません。例外は呼び出し側へ伝播します。
 
 ```python
-from geo_voyager.critic import Critic
-from geo_voyager.skill import SkillLibrary
 from geo_voyager.skill_candidate import SkillCandidate
 
 candidate = SkillCandidate(code=fixed_python_code, description="調査内容の説明")
-observations, critique, learned_skill = worker.execute_candidate(
-    intent, candidate, critic=Critic(), skill_library=SkillLibrary(),
-)
+observations = worker.execute_candidate(intent, candidate)
 ```
 
 code と description は呼び出し側が与えるか SkillCandidateGenerator で生成します。
@@ -395,9 +390,7 @@ Generator はコードを実行・保存せず、UUID も生成しません。
 from geo_voyager.skill_candidate_generator import SkillCandidateGenerator
 
 candidate = SkillCandidateGenerator().generate(intent)
-observations, critique, learned_skill = worker.execute_candidate(
-    intent, candidate, critic=Critic(), skill_library=SkillLibrary(),
-)
+observations = worker.execute_candidate(intent, candidate)
 ```
 
 実 LLM・Docker・Gateway・Dataset・Critic・保存の確認は明示実行します。
@@ -527,20 +520,20 @@ Critic の成功を確認しています。駅数は収録全レコード数で�
 
 1. Retriever の top-k Skill を取得し、UUID の順序を保持する。
 2. Selector が Intent を完遂できる Skill または None を返す。
-3. Skill があれば Worker.execute_skill で実行し、生成・昇格・保存は行わない。
-4. None なら Generator → Worker.execute_candidate → Critic と進み、成功後だけ新 UUID Skill を保存する。
+3. Skill があれば Worker.execute_skill → Critic と進み、成功なら生成・昇格・保存せず結果を採用する。
+4. Skill が None、または既存 Skill の Critic が失敗なら、Generator → Worker.execute_candidate → Critic と進む。Candidate 成功後だけ新 UUID Skill を保存する。fallback は1回だけ。
 
 `IntentExecution` は frozen dataclass で、次を保持します。
 
 - observations: list[Observation]
 - retrieved_skill_ids: tuple[UUID, ...]（検索順位の順）
-- selected_skill_id: UUID | None（既存 Skill 経路だけ）
+- selected_skill_id: UUID | None（最初に選んだ既存 Skill。fallback 後も保持）
 - learned_skill_id: UUID | None（Candidate の Critic 成功後だけ）
-- critique: Critique | None（Candidate の成功・失敗理由。既存 Skill 経路は None）
+- critique: Critique（採用または最終実行結果の成功・失敗理由）
 
 Worker と Executor は Dataset ID が1件だけの Intent を扱います。
-Critic 失敗なら Observation と失敗理由を返し、保存・UUID 生成は行いません。
-実行・生成・判定・保存の例外は伝播します。既存 Skill 失敗時 fallback、retry、self-repair、
+Candidate の Critic 失敗なら Observation と失敗理由を返し、保存・UUID 生成は行いません。
+実行・生成・判定・保存の例外は伝播し、例外時は fallback しません。retry、self-repair、
 similarity threshold、複数 Dataset、Planner 接続は追加していません。
 
 ```python
@@ -581,3 +574,5 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest integration/test_intent_execu
 両方で学習 UUID の top-4 入り・Selector 選択、learned=None、生成・保存回数が増えないこと、
 Observation の一致を確認します。Library は6→7→7→7でした。
 [全 UUID と結果・専用一時ディレクトリでの再実行方法](docs/skill_growth.md)を記録しています。
+
+現在の integration では再利用のたびに Critic を呼び、意図的な誤選択からの1回の fallback も確認します。過去の検証記録の critique=None は変更前の動作です。最新の結果は [Critic 検証と fallback](docs/critic_fallback.md) に記録します。

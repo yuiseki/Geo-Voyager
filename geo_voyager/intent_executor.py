@@ -2,6 +2,7 @@ from .critic import Critic
 from .intent import Intent
 from .intent_execution import IntentExecution
 from .skill import SkillLibrary
+from .skill_candidate import promote
 from .skill_candidate_generator import SkillCandidateGenerator
 from .skill_retriever import SkillRetriever
 from .skill_selector import SkillSelector
@@ -28,11 +29,17 @@ class IntentExecutor:
         selected = self.selector.select(intent, skills)
         if selected is not None:
             observations = self.worker.execute_skill(intent, selected)
-            return IntentExecution(observations, retrieved_ids, selected.id, None)
+            critique = self.critic.check(intent, observations)
+            if critique.success:
+                return IntentExecution(observations, retrieved_ids, selected.id, None, critique)
         candidate = self.generator.generate(intent)
-        observations, critique, learned = self.worker.execute_candidate(
-            intent, candidate, self.critic, self.skill_library,
-        )
+        observations = self.worker.execute_candidate(intent, candidate)
+        critique = self.critic.check(intent, observations)
+        learned = None
+        if critique.success:
+            learned = promote(candidate)
+            self.skill_library.add(learned)
         return IntentExecution(
-            observations, retrieved_ids, None, learned.id if learned else None, critique,
+            observations, retrieved_ids, selected.id if selected else None,
+            learned.id if learned else None, critique,
         )
