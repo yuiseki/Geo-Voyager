@@ -64,3 +64,22 @@ def test_generator_advertises_station_primitive_for_station_intent():
     assert intent.text in prompt and intent.dataset_ids[0] in prompt
     assert 'load_stations(dataset_id, connection)' in prompt
     assert 'name' in prompt and 'latitude' in prompt and 'longitude' in prompt
+
+
+def test_generator_exposes_registered_services_and_generic_api_without_origin_urls():
+    from geo_voyager.services import load_service_graph
+
+    client = Mock()
+    client.generate.return_value = VALID
+    intent = Intent('地名から位置を取得する', service_ids=('nominatim',))
+    SkillCandidateGenerator(client).generate(intent)
+    prompt = client.generate.call_args.args[0]
+    for service in load_service_graph().all():
+        assert service.id in prompt
+        assert service.description in prompt
+        assert service.protocol in prompt
+        assert service.base_url not in prompt
+    assert 'call_service(service_id, *, path="", params=None, body=None, content_type=None)' in prompt
+    assert '接続部分の import と with 行は変更せず' not in prompt
+    assert 'from geo_voyager.control_primitives import call_service' in prompt
+    assert 'natural=volcano' not in prompt

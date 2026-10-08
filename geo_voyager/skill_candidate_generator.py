@@ -1,6 +1,7 @@
 from .intent import Intent
 from .llama_client import LlamaClient
 from .skill_candidate import SkillCandidate
+from .services import load_service_graph
 
 
 def _parse_candidate(text: str) -> SkillCandidate:
@@ -76,4 +77,31 @@ class SkillCandidateGenerator:
             '返答の1行目は必ず「説明:」のみ。説明本文を同じ行に書かない。2行目から説明を書き、必須ラベルを省略しない。\n'
             '続けて「---」「コード:」「```python」、Pythonコード、最後に「```」をそれぞれ独立した行に書く。'
         )
-        return _parse_candidate(self.llm_client.generate(prompt))
+        services = '\n'.join(
+            f'- id: {service.id}; protocol: {service.protocol}; description: {service.description}'
+            for service in load_service_graph().all()
+        )
+        service_contract = (
+            '\n利用可能な登録済み Service（URL は Gateway が解決する）:\n'
+            f'{services}\n'
+            '- call_service(service_id, *, path="", params=None, body=None, content_type=None): '
+            'Service Gateway を通して text を返す汎用 Primitive。\n'
+            'body=None は GET、それ以外は POST。params は文字列の辞書。'
+            'POST は body を文字列として渡し content_type を指定する。\n'
+            'import json と urllib.parse.urlencode 等の標準ライブラリは利用可能。'
+            '返答の JSON は json.loads で解析する。サービス固有のリクエストは Intent に応じて生成する。\n'
+            'Service へのアクセスも call_service のみ使う。任意 URL や直接 HTTP は使わない。\n'
+            'タグ探索の要求では辞書サービスから実行時にキー・値を調べ、得た結果を後続検索に使う。'
+            'タグの答えを事前にコードへ固定しない。\n'
+            f'Intent の Service ids: {", ".join(intent.service_ids)}\n'
+        )
+        if not intent.dataset_ids:
+            start = prompt.index('出力形式と接続部分')
+            end = prompt.index('Intent:\n', start)
+            prompt = prompt[:start] + (
+                '出力形式（サービスだけの調査には DuckDB 接続は不要）:\n'
+                '説明:\n調査コードの簡潔な説明\n---\nコード:\n```python\n'
+                'from geo_voyager.control_primitives import call_service\n'
+                '# Intent に必要なリクエスト、解析、print をここに書く\n```\n\n'
+            ) + prompt[end:]
+        return _parse_candidate(self.llm_client.generate(service_contract + prompt))
