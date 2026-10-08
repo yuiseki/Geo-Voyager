@@ -18,6 +18,8 @@ class Worker:
             raise ValueError("At most one dataset_id or registered service_ids are required")
         for service_id in intent.service_ids:
             load_service_graph().get(service_id)
+        if intent.previous_observations:
+            code = f"previous_observations={[obs.text for obs in intent.previous_observations]!r}\nintent_text={intent.text!r}\n" + code
         if intent.dataset_ids:
             code = f"dataset_id={intent.dataset_ids[0]!r}\n" + code
         try:

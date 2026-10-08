@@ -1,11 +1,14 @@
 from dataclasses import dataclass
 
+from .observation import Observation
+
 
 @dataclass
 class Intent:
     text: str
     dataset_ids: tuple[str, ...] = ()
     service_ids: tuple[str, ...] = ()
+    previous_observations: tuple[Observation, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.text.strip():

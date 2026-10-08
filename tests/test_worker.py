@@ -52,3 +52,13 @@ def test_worker_executes_service_only_code_without_injecting_dummy_dataset():
         sandbox.return_value.run.return_value = 'place'
         assert Worker('internal').execute_skill(intent, skill) == [Observation('place')]
         assert sandbox.return_value.run.call_args.args[0] == sandbox_program(skill.code)
+
+
+def test_worker_passes_prior_observations_and_current_intent_as_data():
+    intent = Intent('対象を数える', service_ids=('overpass',), previous_observations=(Observation('{"target": 1}'),))
+    skill = Skill(uuid4(), '測定', 'print(previous_observations)')
+    with patch('geo_voyager.worker.DockerSandbox') as sandbox:
+        sandbox.return_value.run.return_value = 'answer'
+        Worker('internal').execute_skill(intent, skill)
+    code = sandbox.return_value.run.call_args.args[0]
+    assert 'previous_observations=' in code and 'intent_text=' in code

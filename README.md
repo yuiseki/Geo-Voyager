@@ -743,3 +743,12 @@ exceptions remain exceptions. Existing Skill failures can fall back to generatio
 all selected-Skill, initial-Candidate and repaired-Candidate executions in order.
 `selected_skill_critique` continues to describe the selected Skill only; `critique`
 describes the adopted/final result. Failed executions have no Critic verdict.
+
+`Planner.plan(goal: str)` (or `plan_goal`) decomposes a Goal into ordered,
+strictly parsed Intents using registered Dataset/Service metadata. The original
+`plan(Question)` API still returns Hypotheses. `GoalExecutor` executes the plan
+sequentially, stops on a failed step, and applies Critic to the final answer.
+Each later Intent receives earlier Observations as `previous_observations`;
+Worker exposes their text as `list[str]` and the current `intent_text` in the
+container. Generated/reused code reads these runtime values, rather than fixing
+previous answers into its source. No geographic decomposition is hardcoded.

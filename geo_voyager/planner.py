@@ -5,13 +5,17 @@ from .llama_client import LlamaClient
 from .observation import Observation
 from .question import Question
 from .verdict import Verdict
+from .services import load_service_graph
+from .datasets import load_dataset_graph
 
 
 class Planner:
     def __init__(self, llm_client: LlamaClient | None = None) -> None:
         self.llm_client = llm_client if llm_client is not None else LlamaClient()
 
-    def plan(self, question: Question) -> list[Hypothesis]:
+    def plan(self, question: Question | str) -> list[Hypothesis] | list[Intent]:
+        if isinstance(question, str):
+            return self.plan_goal(question)
         prompt = (
             "次の疑問に対して、データを使って検証可能な仮説を1つ提案してください。\n"
             "仮説本文だけを返してください。\n\n"
@@ -72,3 +76,54 @@ class Planner:
         self, hypothesis: Hypothesis, observations: list[Observation]
     ) -> Verdict:
         return Verdict("仮説はまだ十分に検証されていない")
+
+    def plan_goal(self, goal: str) -> list[Intent]:
+        if not goal.strip():
+            raise ValueError('Goal must not be empty')
+        datasets, services = load_dataset_graph(), load_service_graph()
+        resources = '\n'.join(f'Dataset {item.id}: {item.description}' for item in datasets.all())
+        resources += '\n' + '\n'.join(f'Service {item.id}: {item.protocol}: {item.description}' for item in services.all())
+        prompt = (
+            'Goal を小さい調査 Intent に分解してください。1 Intent = 1 measurable output。\n'
+            '依存関係のある順に並べ、取得した情報を後続で使う。巨大なループコードを最初から作らない。\n'
+            '後続では previous_observations（前段 stdout の文字列一覧）を参照できる。\n'
+            '既に取得した一覧やタグを再検索せず使う。途中の出力は JSON にすると参照しやすい。\n'
+            '有限個の対象を比較するとき、対象一覧の取得、任意対象1件の測定、全対象の測定、最大選択を分ける。\n'
+            '対象件数が Goal で明示されている場合、全対象の測定は一覧の各番号について同じ小さい Intent を並べてよい。\n'
+            '各 Intent は登録済み Dataset 0〜1件または Service 1件以上を指定する。ローカル集計でも由来の Service を指定。\n'
+            '答えを推測しない。サービス固有の実行コードを書かない。前段結果に依存する入力を調査項目に明記。\n'
+            '出力は以下の3項目のみ。各 Intent を独立行 --- で区切る。前置き、番号、コードフェンス禁止。\n'
+            '調査項目: 調査内容\n利用データセット: []\n利用サービス:\n  - 登録済みid\n'
+            '利用データセットと利用サービスは空なら []、非空なら半角2空白の - id の行を続ける。\n'
+            f'利用可能リソース:\n{resources}\nGoal:\n{goal}'
+        )
+        text = self.llm_client.generate(prompt, temperature=0.0, max_tokens=4096)
+        result = []
+        for block in text.strip().split('\n---\n'):
+            lines = block.strip().splitlines()
+            if not lines or not lines[0].startswith('調査項目: '):
+                raise ValueError('Plan must start with 調査項目:')
+            ids = {'利用データセット': [], '利用サービス': []}
+            position = 1
+            for label in ids:
+                if position >= len(lines) or lines[position] not in (label + ':', label + ': []'):
+                    raise ValueError('Plan must contain dataset and service lists')
+                empty = lines[position].endswith(' []')
+                position += 1
+                if not empty:
+                    while position < len(lines) and lines[position].startswith('  - '):
+                        ids[label].append(lines[position][4:])
+                        position += 1
+                    if not ids[label]:
+                        raise ValueError('Use [] for empty lists')
+            if position != len(lines):
+                raise ValueError('Unexpected plan fields')
+            intent = Intent(lines[0][len('調査項目: '):], tuple(ids['利用データセット']), tuple(ids['利用サービス']))
+            if len(intent.dataset_ids) > 1:
+                raise ValueError('Only one dataset per execution is supported')
+            for id in intent.dataset_ids:
+                datasets.get(id)
+            for id in intent.service_ids:
+                services.get(id)
+            result.append(intent)
+        return result
