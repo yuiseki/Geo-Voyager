@@ -17,6 +17,12 @@ class SkillLibrary:
     def __init__(self, root: Path | None = None) -> None:
         self.root = Path(root) if root is not None else Path(__file__).resolve().parents[1] / "skill_library"
 
+    def add(self, skill: Skill) -> None:
+        directory = self.root / str(skill.id)
+        directory.mkdir(parents=True)
+        (directory / "code.py").write_text(skill.code, encoding="utf-8")
+        (directory / "description.txt").write_text(skill.description, encoding="utf-8")
+
     def _read(self, directory: Path, skill_id: UUID) -> Skill:
         code = directory / "code.py"
         description = directory / "description.txt"

@@ -267,7 +267,10 @@ Control Primitives は各機能を `connect_duckdb.py`、`dataset_url.py`、
 `description.txt` が両方あるものを UTF-8 で読み込みます。
 `vectordb/`、不正な UUID、必須ファイルが欠けたディレクトリは一覧から除外します。
 存在しない・不完全な Skill の `get()` は `KeyError`、不正な id は `ValueError` です。
-書き込み API はありません。
+`add(skill)` は Skill の id を使い、新しい UUID ディレクトリに code と description を
+UTF-8 で保存します。新規 Skill は `Skill(id=uuid4(), description=..., code=...)` として
+呼び出し側で UUID を指定します。既存 UUID は `FileExistsError` で拒否し、上書きしません。
+実行の成功判定や Worker からの自動保存は行いません。
 
 ```text
 skill_library/

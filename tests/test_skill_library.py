@@ -1,8 +1,8 @@
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 
-from geo_voyager.skill import SkillLibrary
+from geo_voyager.skill import Skill, SkillLibrary
 
 ID = UUID('72c549dd-e449-4bef-97f1-e3a2eab27d64')
 
@@ -42,3 +42,25 @@ def test_ignores_incomplete_skills(tmp_path, missing):
     assert library.all() == []
     with pytest.raises(KeyError):
         library.get(ID)
+
+
+def test_add_saves_skill_in_new_uuid_directory(tmp_path):
+
+    skill = Skill(id=uuid4(), description='成功した調査\n', code='print("成功")\n')
+    library = SkillLibrary(tmp_path / 'library')
+    library.add(skill)
+    directory = library.root / str(skill.id)
+    assert (directory / 'code.py').read_text(encoding='utf-8') == skill.code
+    assert (directory / 'description.txt').read_text(encoding='utf-8') == skill.description
+    assert library.get(skill.id) == skill
+    assert library.all() == [skill]
+
+
+def test_add_refuses_to_overwrite_existing_uuid(tmp_path):
+
+    library = SkillLibrary(tmp_path)
+    original = Skill(id=ID, description='元の説明', code='print("original")')
+    library.add(original)
+    with pytest.raises(FileExistsError):
+        library.add(Skill(id=ID, description='変更', code='print("replacement")'))
+    assert library.get(ID) == original
