@@ -725,3 +725,9 @@ Protocol metadata references: [Taginfo API](https://taginfo.openstreetmap.org/ta
 [reasoning-budget request handling](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/server-common.cpp).
 
 [3本の実サービス学習・再利用結果、UUID、生成 Skill code / description](docs/service_learning.md) を記録しています。
+
+Generated Python syntax/runtime errors are returned by `Worker` as bounded,
+redacted `ExecutionFailure` values. The container wrapper reserves exit code 73
+for these errors. Docker startup/daemon failures still raise exceptions. Captured
+stdout and stderr are each limited to 8 KiB; container environment values are
+redacted, and failure diagnostics omit sensitive/environment-dump lines.

@@ -1,3 +1,4 @@
+from geo_voyager.execution_failure import sandbox_program
 from unittest.mock import patch
 
 import pytest
@@ -14,7 +15,7 @@ def test_candidate_execution_returns_observations_only():
     with patch('geo_voyager.worker.DockerSandbox') as sandbox:
         sandbox.return_value.run.return_value = '結果\n'
         assert Worker('internal').execute_candidate(intent, candidate) == [Observation('結果')]
-        assert sandbox.return_value.run.call_args.args[0] == "dataset_id='admin'\n" + candidate.code
+        assert sandbox.return_value.run.call_args.args[0] == sandbox_program("dataset_id='admin'\n" + candidate.code)
 
 
 def test_candidate_execution_error_propagates():

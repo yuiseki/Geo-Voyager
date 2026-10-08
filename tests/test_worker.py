@@ -1,3 +1,4 @@
+from geo_voyager.execution_failure import sandbox_program
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -17,7 +18,7 @@ def test_worker_executes_supplied_skill_and_injects_single_dataset_without_savin
         sandbox.return_value.run.return_value = 'skill result\n'
         observations = Worker(network='test-internal').execute_skill(intent, skill)
     sandbox.assert_called_once_with(image='geo-voyager-worker:duckdb-1.5.6', network='test-internal')
-    assert sandbox.return_value.run.call_args.args[0] == f'dataset_id={dataset_id!r}\n{skill.code}'
+    assert sandbox.return_value.run.call_args.args[0] == sandbox_program(f'dataset_id={dataset_id!r}\n{skill.code}')
     assert observations == [Observation('skill result')]
     import geo_voyager.worker as module
     for name in ('Critic', 'Critique', 'SkillLibrary', 'promote'):
@@ -50,4 +51,4 @@ def test_worker_executes_service_only_code_without_injecting_dummy_dataset():
     with patch('geo_voyager.worker.DockerSandbox') as sandbox:
         sandbox.return_value.run.return_value = 'place'
         assert Worker('internal').execute_skill(intent, skill) == [Observation('place')]
-        assert sandbox.return_value.run.call_args.args[0] == skill.code
+        assert sandbox.return_value.run.call_args.args[0] == sandbox_program(skill.code)
