@@ -51,6 +51,7 @@ def test_validation_and_learning_order(tmp_path, selected, existing_success, can
         result = executor.execute(intent, k=4)
         assert result.retrieved_skill_ids == tuple(skill.id for skill in skills)
         assert result.selected_skill_id == (skills[1].id if selected else None)
+        assert result.selected_skill_critique == (existing_critique if selected else None)
         expected_events = ['retriever.retrieve', 'selector.select']
         if selected:
             expected_events += ['worker.execute_skill', 'critic.check']
@@ -111,6 +112,6 @@ def test_existing_skill_execution_error_does_not_fall_back():
 
 
 def test_intent_execution_is_frozen():
-    result = IntentExecution([], (), None, None, Critique(False, "未実行"))
+    result = IntentExecution([], (), None, None, Critique(False, "未実行"), None)
     with pytest.raises(FrozenInstanceError):
         result.learned_skill_id = uuid4()

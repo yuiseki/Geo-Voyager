@@ -12,3 +12,4 @@ class IntentExecution:
     selected_skill_id: UUID | None
     learned_skill_id: UUID | None
     critique: Critique
+    selected_skill_critique: Critique | None

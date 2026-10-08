@@ -30,3 +30,9 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest -q -s -W error \
 ```
 
 一時ディレクトリを保護するため、毎回新しい basetemp を指定してください。
+
+## 判定の由来の保持
+
+現在の IntentExecution は `selected_skill_critique: Critique | None` も保持します。正常再利用では `selected_skill_critique == critique`、fallback では既存 Skill の失敗判定と Candidate の最終判定を別々に保持します。候補なしでは `selected_skill_critique=None` です。上記 JSON はこのフィールド追加前の記録であり、既存 Skill の失敗はテスト側の `existing_critique` に記録していました。現在は Executor 自体が保持します。
+
+フィールド追加後の実 integration も成功しました（unit 202件、対象 integration 1件）。平均人口 Intent に人口最大 Skill を誤選択した結果は `selected_skill_id=72c549dd-e449-4bef-97f1-e3a2eab27d64`、`selected_skill_critique.success=False`、`learned_skill_id=9a2af065-84e3-4ca7-8ff1-8706efc03fe7`、`critique.success=True`。Observation は平均人口423185.9130434783人でした。学習 Skill は一時 Library だけに保存しました。

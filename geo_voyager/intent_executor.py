@@ -27,11 +27,15 @@ class IntentExecutor:
         skills = self.retriever.retrieve(intent, k)
         retrieved_ids = tuple(skill.id for skill in skills)
         selected = self.selector.select(intent, skills)
+        selected_skill_critique = None
         if selected is not None:
             observations = self.worker.execute_skill(intent, selected)
-            critique = self.critic.check(intent, observations)
-            if critique.success:
-                return IntentExecution(observations, retrieved_ids, selected.id, None, critique)
+            selected_skill_critique = self.critic.check(intent, observations)
+            if selected_skill_critique.success:
+                return IntentExecution(
+                    observations, retrieved_ids, selected.id, None,
+                    selected_skill_critique, selected_skill_critique,
+                )
         candidate = self.generator.generate(intent)
         observations = self.worker.execute_candidate(intent, candidate)
         critique = self.critic.check(intent, observations)
@@ -41,5 +45,5 @@ class IntentExecutor:
             self.skill_library.add(learned)
         return IntentExecution(
             observations, retrieved_ids, selected.id if selected else None,
-            learned.id if learned else None, critique,
+            learned.id if learned else None, critique, selected_skill_critique,
         )

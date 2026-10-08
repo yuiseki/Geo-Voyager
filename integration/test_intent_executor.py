@@ -80,6 +80,7 @@ def test_reuse_admin_and_station_then_learn_average_population(tmp_path):
             result = executor.execute(intent, k=4)
             assert str(result.selected_skill_id) == expected
             assert result.learned_skill_id is None and result.critique.success
+            assert result.selected_skill_critique == result.critique
             assert len(result.retrieved_skill_ids) == 4
             assert result.selected_skill_id in result.retrieved_skill_ids
             assert len(result.observations) == 1 and result.observations[0].text.strip()
@@ -93,6 +94,7 @@ def test_reuse_admin_and_station_then_learn_average_population(tmp_path):
         intent = Intent('東京都23区の平均人口を求める', ('yuiseki/jp-admin-2026-09',))
         result = executor.execute(intent, k=4)
         assert result.selected_skill_id is None
+        assert result.selected_skill_critique is None
         assert result.learned_skill_id is not None
         assert result.critique is not None and result.critique.success
         assert len(result.retrieved_skill_ids) == 4
@@ -136,6 +138,7 @@ with connect_duckdb() as connection:
             assert learned.id in reused.retrieved_skill_ids
             assert reused.selected_skill_id == learned.id
             assert reused.learned_skill_id is None and reused.critique.success
+            assert reused.selected_skill_critique == reused.critique
             assert reused.observations == result.observations
             assert len(library.all()) == 7
             # Generation and save counts remain unchanged; every reuse is checked.
@@ -165,6 +168,8 @@ with connect_duckdb() as connection:
         fallback = executor.execute(intent, k=4)
         assert [checked.success for checked in critiques] == [False, True]
         assert fallback.selected_skill_id == wrong_skill.id
+        assert fallback.selected_skill_critique == critiques[0]
+        assert fallback.critique == critiques[1]
         assert fallback.learned_skill_id is not None and fallback.critique.success
         assert len(library.all()) == 8 and library_spy.add.call_count == 2
         assert generator.generate.call_count == 2 and worker.execute_candidate.call_count == 2

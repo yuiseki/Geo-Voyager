@@ -529,7 +529,10 @@ Critic の成功を確認しています。駅数は収録全レコード数で�
 - retrieved_skill_ids: tuple[UUID, ...]（検索順位の順）
 - selected_skill_id: UUID | None（最初に選んだ既存 Skill。fallback 後も保持）
 - learned_skill_id: UUID | None（Candidate の Critic 成功後だけ）
+- selected_skill_critique: Critique | None（最初に選択した既存 Skill の判定。候補なしなら None）
 - critique: Critique（採用または最終実行結果の成功・失敗理由）
+
+正常再利用では両判定は同じです。fallback 時は selected_skill_critique に既存 Skill の失敗を保持し、critique に最終 Candidate の判定を保持します。
 
 Worker と Executor は Dataset ID が1件だけの Intent を扱います。
 Candidate の Critic 失敗なら Observation と失敗理由を返し、保存・UUID 生成は行いません。
