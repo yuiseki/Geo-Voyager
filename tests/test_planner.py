@@ -27,15 +27,40 @@ def test_planner_returns_hypotheses_for_question():
     assert question.text in client.generate.call_args.args[0]
 
 
-def test_planner_returns_intents_for_hypothesis():
+@pytest.mark.parametrize(
+    ("response", "expected"),
+    [
+        ("  区ごとの人口密度を調べる\n", ["区ごとの人口密度を調べる"]),
+        (
+            "区ごとの人口密度を調べる\n区ごとの駅数を調べる",
+            ["区ごとの人口密度を調べる", "区ごとの駅数を調べる"],
+        ),
+        (
+            "\n 区ごとの人口密度を調べる \n  \n 区ごとの駅数を調べる \n",
+            ["区ごとの人口密度を調べる", "区ごとの駅数を調べる"],
+        ),
+    ],
+)
+def test_planner_returns_intents_for_hypothesis(response, expected):
     hypothesis = Hypothesis("コンビニ密度には区ごとの差がある")
+    client = Mock()
+    client.generate.return_value = response
 
-    intents = Planner().plan_intents(hypothesis)
+    intents = Planner(client).plan_intents(hypothesis)
 
     assert isinstance(intents, list)
-    assert len(intents) >= 1
-    assert all(isinstance(intent, Intent) for intent in intents)
-    assert all(intent.text for intent in intents)
+    assert intents == [Intent(text) for text in expected]
+    client.generate.assert_called_once()
+    assert hypothesis.text in client.generate.call_args.args[0]
+
+
+@pytest.mark.parametrize("response", ["", " \n\t\n "])
+def test_planner_rejects_empty_intent_response(response):
+    client = Mock()
+    client.generate.return_value = response
+
+    with pytest.raises(ValueError):
+        Planner(client).plan_intents(Hypothesis("コンビニ密度には区ごとの差がある"))
 
 
 def test_planner_returns_verdict_for_hypothesis_and_observations():

@@ -19,7 +19,20 @@ class Planner:
         return [Hypothesis(self.llm_client.generate(prompt).strip())]
 
     def plan_intents(self, hypothesis: Hypothesis) -> list[Intent]:
-        return [Intent("東京23区ごとのコンビニ件数を調べる")]
+        prompt = (
+            "次の仮説を検証するために必要な調査を、具体的な実行単位に分解してください。\n\n"
+            "- 1行につき1つ\n"
+            "- 調査内容だけを書く\n"
+            "- 3〜5件程度\n"
+            "- 結論は書かない\n"
+            "- まだ利用可能なデータセットを仮定しない\n\n"
+            f"仮説:\n{hypothesis.text}"
+        )
+        lines = self.llm_client.generate(prompt).splitlines()
+        intents = [Intent(line.strip()) for line in lines if line.strip()]
+        if not intents:
+            raise ValueError("LLM returned no intents")
+        return intents
 
     def judge(
         self, hypothesis: Hypothesis, observations: list[Observation]

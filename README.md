@@ -10,8 +10,10 @@ Python 3.12 以降を使用します。実行時の外部依存関係はあり�
 接続先は `http://10.108.45.102:8080/v1/chat/completions`
 （`knative-pool/llama-server`、モデル名 `gvt-llm`）です。
 HTTP には標準ライブラリを使用し、structured output は使用しません。
-`Planner().plan_intents(hypothesis)` は、入力によらず
-「東京23区ごとのコンビニ件数を調べる」という Intent 1件をリストで返します。
+`Planner().plan_intents(hypothesis)` は、同じ llama.cpp に仮説を送り、
+1行につき1つ、3〜5件程度の調査内容を自由文で返すよう依頼します。
+返答を改行で分割して `strip()` し、空行を除いた `list[Intent]` を返します。
+全行が空なら拒否します。Intent の実行可能性は検証しません。
 `Worker().execute(intent)` は、入力によらず
 「調査対象は東京23区である」という Observation 1件をリストで返します。
 Worker は固定実装で、実際のデータ取得は行いません。
@@ -32,7 +34,8 @@ print(verdict.text)
 ```
 
 unit test は LLM client または HTTP を mock にしており、実モデルを呼びません。
-上の使用例は手動確認用で、`plan()` で実モデルへのリクエストが1回発生します。
+上の使用例は手動確認用で、`plan()` と `plan_intents()` で
+実モデルへのリクエストが各1回発生します。
 
 テスト実行（環境にインストール済みの外部 pytest プラグインを読み込みません）：
 
