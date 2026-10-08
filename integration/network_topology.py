@@ -6,7 +6,7 @@ from uuid import uuid4
 
 
 @contextmanager
-def network_topology(isolated=False):
+def network_topology(isolated=False, gateway_code=None, origin_code=None):
     prefix = f"geo-voyager-nettest-{uuid4().hex}"
     names = {role: f"{prefix}-{role}" for role in ("internal", "external", "worker", "gateway", "origin")}
     try:
@@ -21,12 +21,15 @@ def network_topology(isolated=False):
         for role, network in (("worker", "internal"), ("gateway", "internal"), ("origin", "external")):
             command = [
                 "docker", "run", "--detach", "--name", names[role], "--pull", "never",
-                "--network", names[network], "--user", "65534:65534", "--read-only",
+                "--network", names[network], "--network-alias", role, "--user", "65534:65534", "--read-only",
                 "--tmpfs", "/tmp:rw,noexec,nosuid,size=16m", "--cap-drop", "ALL",
                 "--security-opt", "no-new-privileges", "--memory", "128m",
                 "--cpus", "1", "--pids-limit", "32", "python:3.12-slim", "python",
             ]
-            if role == "worker":
+            custom_code = gateway_code if role == "gateway" else origin_code if role == "origin" else None
+            if custom_code is not None:
+                command += ["-c", custom_code]
+            elif role == "worker":
                 command += ["-c", "import time; time.sleep(120)"]
             else:
                 command += ["-m", "http.server", "8000", "--bind", "0.0.0.0", "--directory", "/tmp"]

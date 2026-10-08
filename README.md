@@ -119,7 +119,8 @@ bind/volume mount と Docker socket の共有は行いません。コードは h
 ## Docker ネットワーク分離の検証
 
 `integration/` にテスト専用の構成があります。実 Worker や DockerSandbox の
-実行設定は変更していません。Fetch Gateway API、proxy、取得ポリシーは未実装です。
+実行設定は変更していません。このネットワーク検証自体では単純な HTTP server を使い、
+Dataset Fetch Gateway の検証は別の integration test で行います。
 
 - Worker: user-defined bridge の internal network のみ
 - Gateway: internal と external の両ネットワーク
@@ -144,3 +145,31 @@ Worker→Gateway と Gateway→Origin の HTTP 200、Worker→Origin の DNS名�
 各コンテナの network 参加状況を確認します。終了・途中失敗時とも、専用の一意な名前の
 コンテナと network を削除します。正常終了時は削除後の不存在もテストします。
 Docker Engine 29.5.3 で両モードの2件が成功しています。
+
+## 最小 Dataset Fetch Gateway
+
+`geo_voyager.fetch_gateway.make_handler(dataset_graph)` を標準ライブラリの
+`HTTPServer` に渡します。API は `GET /datasets/{dataset_id}` と
+`HEAD /datasets/{dataset_id}` だけです。id に `/` が含まれていても取得できます。
+`DatasetGraph.get()` で登録済み id を確認して、その `Dataset.url` だけを使います。
+今回の integration test は公開 catalog を使わず、固定の `test/fixed` 1件を登録します。
+
+- GET: upstream body を返す。Range があればそのまま転送。
+- HEAD: upstream に HEAD を送り、body は読み込まず返さない。
+- Worker の他の header は転送しない。response は Content-Type、Content-Length、
+  Content-Range、Accept-Ranges のみを引き継ぐ。
+- 未登録 id は404、query parameter は400、POST/PUT/PATCH/DELETEは405。
+- redirect は自動追跡せず、Location も返さない。upstream エラーは502。
+- upstream HTTP は同期でtimeout 10秒。retry・cache・authentication はない。
+
+テスト用 topology に実装を載せ、external 側の Origin コンテナが固定文字列
+`0123456789` を返します。ファイル共有や Internet アクセスはしません。
+
+```bash
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest integration/test_fetch_gateway.py -q -s -W error
+```
+
+GETは200と全10バイト、HEADは200とbodyなし、Range GETは206と`01234`を確認します。
+未登録・変更系・任意URL queryの拒否、Worker→Originの名前/IP直接通信の失敗も確認し、
+終了後に全テスト用コンテナ・networkを削除します。
+既存の Worker 分析処理や DockerSandbox は Gateway に接続していません。

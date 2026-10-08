@@ -40,3 +40,15 @@ def test_topology_cleans_up_after_setup_failure():
 
     assert run.call_args_list[-2].args[0][:3] == ["docker", "rm", "--force"]
     assert run.call_args_list[-1].args[0][:3] == ["docker", "network", "rm"]
+
+
+def test_topology_can_run_test_gateway_and_origin_code_without_mounts():
+    with patch("integration.network_topology.subprocess.run") as run:
+        with network_topology(gateway_code="gateway code", origin_code="origin code") as names:
+            commands = [entry.args[0] for entry in run.call_args_list]
+
+    for role in ("gateway", "origin"):
+        command = next(command for command in commands if "--name" in command and names[role] in command)
+        assert command[-2:] == ["-c", f"{role} code"]
+        assert command[command.index("--network-alias") + 1] == role
+        assert not {"-v", "--volume", "--mount"}.intersection(command)
