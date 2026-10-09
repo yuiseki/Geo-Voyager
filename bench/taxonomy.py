@@ -23,6 +23,8 @@ should be spot-checked against the prompts and responses kept in each run direct
 from collections import Counter
 import re
 
+from geo_voyager.repair_stats import OBSERVATION_HEAD_LIMIT
+
 CATEGORIES = ('planning', 'retrieval-selection', 'codegen', 'execution', 'semantic-completion', 'aggregation',
               'critic-format')
 AREA_OFFSET = 3600000000
@@ -52,6 +54,8 @@ def _exhausted(step: dict) -> bool:
 
 
 def _returns_another_target(step: dict, target: int | None) -> bool:
+    if len(step.get('observation_head', '')) >= OBSERVATION_HEAD_LIMIT:
+        return False  # cut off: the target may be in the part that was not recorded
     ids = [int(found) for found in _RELATION_ID.findall(step.get('observation_head', ''))]
     return bool(target) and bool(ids) and target not in ids and target + AREA_OFFSET not in ids
 

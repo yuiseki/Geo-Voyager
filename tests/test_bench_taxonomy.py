@@ -87,6 +87,16 @@ def test_a_step_that_returns_another_target_is_retrieval_selection():
     assert result['category'] == 'retrieval-selection' and result['first_wrong_step'] == 1
 
 
+def test_a_truncated_observation_is_not_judged_for_a_missing_target_id():
+    head = '[{"name": "世田谷区", "relation_id": "1759474"}, ' + ('{"name": "x", "relation_id": "1"}, ' * 30)
+    assert len(head) >= 500
+    head = head[:500]
+    steps = [step(observation_head=head), step(observation_head='{"name": "世田谷区", "relation_id": "1759474", "count": 56}',
+                                                  critic_success=False)]
+    result = classify(row(steps, target_relation=1761717))
+    assert result['category'] == 'retrieval-selection' and result['first_wrong_step'] == 2
+
+
 def test_selection_is_not_flagged_when_the_target_id_is_present():
     steps = [step(observation_head='{"name": "港区", "relation_id": "1761717"}'),
              step(observation_head='{"count": 22}')]
