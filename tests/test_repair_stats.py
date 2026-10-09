@@ -4,7 +4,7 @@ from geo_voyager.execution_failure import ExecutionFailure
 from geo_voyager.intent_execution import IntentExecution
 from geo_voyager.observation import Observation
 from geo_voyager.repair_stats import (
-    classify_failure, intent_record, success_at, summarize,
+    classify_failure, error_line, intent_record, success_at, summarize,
 )
 
 
@@ -43,10 +43,29 @@ def test_classify_assertion_on_count_is_observation_misread():
     assert classify_failure(failure('AssertionError: Expected 23 observations, got 24')) == 'assertion'
 
 
-def test_classify_empty_result_and_api_errors():
+def test_classify_empty_result():
     assert classify_failure(failure('ValueError: No results found')) == 'empty_result'
-    assert classify_failure(failure('RuntimeError: service overpass returned HTTP 400')) == 'api'
-    assert classify_failure(failure('HTTPError: HTTP Error 429')) == 'api'
+
+
+def test_classify_http_400_is_api_syntax_even_when_the_body_is_html():
+    stderr = ('Traceback (most recent call last):\n  File "<candidate>", line 6, in <module>\n'
+              "RuntimeError: Service overpass HTTP 400: <?xml version=\"1.0\"?>\n<html>\n<body>\n"
+              '<p>Error: line 1: parse error: Unknown query clause </p>\n[redacted]\n</body>\n</html>')
+    assert classify_failure(failure(stderr)) == 'api_syntax'
+    assert classify_failure(failure(
+        'RuntimeError: Service yuisekin-geosparql HTTP 400: Parse error: Unresolved prefixed name: rdfs:label')) == 'api_syntax'
+
+
+def test_classify_server_side_and_rate_errors_are_api_transient():
+    assert classify_failure(failure('RuntimeError: Service overpass HTTP 429: busy')) == 'api_transient'
+    assert classify_failure(failure('RuntimeError: Service overpass HTTP 504: gateway timeout')) == 'api_transient'
+    assert classify_failure(failure('TimeoutError: timed out')) == 'api_transient'
+
+
+def test_error_line_is_the_last_exception_line_not_the_last_line():
+    stderr = 'Traceback:\nRuntimeError: Service x HTTP 400: bad\n</body>\n</html>'
+    assert error_line(failure(stderr)) == 'RuntimeError: Service x HTTP 400: bad'
+    assert error_line(failure('')) == ''
 
 
 def test_classify_unknown_is_other():
@@ -107,7 +126,7 @@ def test_output_is_one_json_row_with_code_hashes_not_code():
     record = intent_record('i', execution([failed('secret code', 'KeyError: 1'), passed('b')]))
     assert 'secret code' not in str(record)
     assert len(record['attempts'][0]['code_sha256']) == 64
-    assert record['attempts'][0]['stderr_tail'] == 'KeyError: 1'
+    assert record['attempts'][0]['error_line'] == 'KeyError: 1'
 
 
 def test_success_at_counts_cumulatively_over_candidate_chains():

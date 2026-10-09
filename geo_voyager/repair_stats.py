@@ -1,33 +1,43 @@
 from hashlib import sha256
+import re
 
 from .execution_failure import ExecutionFailure
 from .intent_execution import IntentExecution
 
-STDERR_TAIL_LINES = 3
+ERROR_LINE_LIMIT = 300
+_EXCEPTION_LINE = re.compile(r'^[\w.]*(?:Error|Exception|Exit|Interrupt)\b')
+_HTTP_STATUS = re.compile(r'\bHTTP(?: Error)? (\d{3})\b')
 
-# Checked in order. The final line of a traceback names the exception.
+# Checked in order against the exception line, which names the failure.
 _FAILURE_PATTERNS = (
     ('syntax', ('SyntaxError', 'IndentationError')),
     ('empty_result', ('No results', 'no results', 'not found', 'Not found', 'Empty', 'empty')),
-    ('api', ('HTTP Error', 'HTTPError', 'returned HTTP', 'URLError', 'timed out', 'remark')),
     ('data_shape', ('KeyError', 'IndexError', 'JSONDecodeError', 'string indices must be',
-                    'has no attribute', 'not subscriptable', 'unhashable', 'ValueError: could not convert')),
+                    'has no attribute', 'not subscriptable', 'unhashable', 'could not convert')),
     ('assertion', ('AssertionError',)),
 )
 
 
-def classify_failure(failure: ExecutionFailure) -> str:
+def error_line(failure: ExecutionFailure) -> str:
+    """The last exception line of the traceback. Service error bodies can follow it."""
     lines = [line for line in failure.stderr.splitlines() if line.strip()]
-    last = lines[-1] if lines else ''
+    for line in reversed(lines):
+        if _EXCEPTION_LINE.match(line):
+            return line[:ERROR_LINE_LIMIT]
+    return ''
+
+
+def classify_failure(failure: ExecutionFailure) -> str:
+    line = error_line(failure)
+    status = _HTTP_STATUS.search(line)
+    if status:
+        return 'api_syntax' if status.group(1) in ('400', '404', '405', '414') else 'api_transient'
+    if 'TimeoutError' in line or 'timed out' in line or 'URLError' in line:
+        return 'api_transient'
     for name, needles in _FAILURE_PATTERNS:
-        if any(needle in last for needle in needles):
+        if any(needle in line for needle in needles):
             return name
     return 'other'
-
-
-def _stderr_tail(failure: ExecutionFailure) -> str:
-    lines = [line for line in failure.stderr.splitlines() if line.strip()]
-    return '\n'.join(lines[-STDERR_TAIL_LINES:])
 
 
 def intent_record(intent_text: str, execution: IntentExecution) -> dict:
@@ -49,7 +59,7 @@ def intent_record(intent_text: str, execution: IntentExecution) -> dict:
         'critic_reason': execution.critique.reason,
         'attempts': [
             {'code_sha256': code, 'ok': attempt.failure is None,
-             'stderr_tail': _stderr_tail(attempt.failure) if attempt.failure else ''}
+             'error_line': error_line(attempt.failure) if attempt.failure else ''}
             for code, attempt in zip(hashes, candidates)
         ],
     }

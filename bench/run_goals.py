@@ -1,0 +1,124 @@
+"""Run benchmark goals against the real LLM, Docker sandbox and registered services.
+
+    .venv/bin/python -m bench.run_goals --out ~/tmp/geo-voyager-bench/run1 [--ids a,b] [--repeat N]
+
+Every Goal starts from an empty Skill Library so each Intent goes through the Generator and
+Repairer. One JSON row per Goal is appended to results.jsonl; LLM prompts and responses are
+kept under <out>/<goal id>/ for later failure analysis.
+"""
+import argparse
+from dataclasses import asdict
+import json
+import os
+from pathlib import Path
+import time
+from unittest.mock import Mock
+
+from bench.goals import GOALS
+from geo_voyager.critic import Critic
+from geo_voyager.docker_sandbox import DockerSandbox
+from geo_voyager.embedding_client import EmbeddingClient
+from geo_voyager.goal_executor import GoalExecutor
+from geo_voyager.intent_executor import IntentExecutor
+from geo_voyager.llama_client import LlamaClient
+from geo_voyager.planner import Planner
+from geo_voyager.repair_stats import intent_record
+from geo_voyager.skill import SkillLibrary
+from geo_voyager.skill_candidate_generator import SkillCandidateGenerator
+from geo_voyager.skill_candidate_repairer import SkillCandidateRepairer
+from geo_voyager.skill_retriever import SkillRetriever
+from geo_voyager.skill_selector import SkillSelector
+from geo_voyager.worker import Worker
+from integration.network_topology import network_topology
+from integration.service_gateway_setup import gateway_code, wait_for_gateway
+from integration.test_service_learning import pinned_geosparql
+
+WORKER_IMAGE = 'geo-voyager-worker:duckdb-1.5.6'
+
+
+def logged_llm(directory: Path) -> Mock:
+    directory.mkdir(parents=True, exist_ok=True)
+    llm = Mock(wraps=LlamaClient())
+    generate = llm.generate._mock_wraps
+
+    def log(*args, **kwargs):
+        number = llm.generate.call_count
+        (directory / f'llm_{number:02d}_prompt.txt').write_text(args[0])
+        reply = generate(*args, **kwargs)
+        (directory / f'llm_{number:02d}_response.txt').write_text(reply)
+        return reply
+    llm.generate.side_effect = log
+    return llm
+
+
+def run_goal(goal, names, out: Path, embedding: EmbeddingClient) -> dict:
+    directory = out / goal.id
+    directory.mkdir(parents=True, exist_ok=True)
+    library_path = directory / 'skill_library'
+    library_path.mkdir(exist_ok=True)
+    library = SkillLibrary(library_path)
+    llm = logged_llm(directory)
+    critic = Critic(llm)
+    executor = IntentExecutor(SkillRetriever(library, embedding), SkillSelector(llm),
+                              Worker(names['internal']), SkillCandidateGenerator(llm),
+                              critic, library, SkillCandidateRepairer(llm))
+    started = time.time()
+    row = {'id': goal.id, 'goal': goal.text, 'started': started}
+    try:
+        result = GoalExecutor(Planner(llm), executor, critic).execute(goal.text)
+    except Exception as error:  # a planning or infrastructure error is data too
+        row.update(error=f'{type(error).__name__}: {error}', intents=[], goal_critic_success=False,
+                   correct=False, elapsed=time.time() - started)
+        return row
+    row['elapsed'] = time.time() - started
+    row['intents'] = [intent_record(intent.text, execution)
+                      for intent, execution in zip(result.intents, result.executions)]
+    row['planned_intents'] = len(result.intents)
+    row['goal_critic_success'] = result.critique.success
+    row['goal_critic_reason'] = result.critique.reason
+    final = result.executions[-1].observations[0].text if result.executions[-1].observations else ''
+    row['final_observation'] = final[:2000]
+    (directory / 'goal_report.json').write_text(
+        json.dumps(asdict(result), ensure_ascii=False, default=str, indent=2))
+    try:
+        oracle = json.loads(DockerSandbox(image=WORKER_IMAGE, network=names['internal']).run(goal.oracle_code))
+        row['oracle'] = oracle
+        row['correct'] = bool(final) and goal.judge(final, oracle)
+    except Exception as error:
+        row.update(oracle_error=f'{type(error).__name__}: {error}', correct=None)
+    return row
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--out', required=True)
+    parser.add_argument('--ids', default='')
+    parser.add_argument('--repeat', type=int, default=1)
+    args = parser.parse_args()
+    out = Path(args.out).expanduser()
+    out.mkdir(parents=True, exist_ok=True)
+    wanted = [item for item in args.ids.split(',') if item]
+    goals = [goal for goal in GOALS if not wanted or goal.id in wanted]
+    unknown = set(wanted) - {goal.id for goal in GOALS}
+    if unknown:
+        raise SystemExit(f'unknown goal ids: {sorted(unknown)}')
+    embedding = EmbeddingClient(os.environ['GEO_VOYAGER_EMBEDDING_BASE_URL'],
+                                os.environ['GEO_VOYAGER_EMBEDDING_MODEL'])
+    with network_topology(isolated=True, gateway_code=gateway_code(), worker_image=WORKER_IMAGE,
+                          include_origin=False) as names:
+        wait_for_gateway(names['gateway'])
+        with pinned_geosparql(names):
+            for round_number in range(1, args.repeat + 1):
+                for goal in goals:
+                    run_id = f'{goal.id}.r{round_number}'
+                    row = run_goal(goal, names, out, embedding)
+                    row['id'], row['round'] = goal.id, round_number
+                    with (out / 'results.jsonl').open('a') as file:
+                        file.write(json.dumps(row, ensure_ascii=False, default=str) + '\n')
+                    print(run_id, 'correct=', row.get('correct'), 'critic=', row.get('goal_critic_success'),
+                          'intents=', [(r['outcome_at'], r['failure_types']) for r in row['intents']],
+                          'error=', row.get('error'), flush=True)
+
+
+if __name__ == '__main__':
+    main()
