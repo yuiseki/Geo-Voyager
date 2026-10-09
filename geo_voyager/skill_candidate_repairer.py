@@ -1,5 +1,6 @@
 from typing import Sequence
 
+from .default_fallback import introduced_fallbacks
 from .execution_attempt import ExecutionAttempt
 from .execution_failure import ExecutionFailure, bounded_output
 from .intent import Intent
@@ -16,15 +17,25 @@ UNCHANGED_NOTE = ('\n前回の出力は元のコードと同一だった。同�
                   '失敗した行を必ず書き換えること。\n')
 
 
+def _default_note(hidden: list[str]) -> str:
+    return ('\n直前の出力は、必須の値が無いことを既定値や except で隠す書き方を新しく入れた: ' + ', '.join(hidden) + '。'
+            'これは認めない。Services の説明と Observation の schema にある正しいキーに直す。直せないなら例外のままにする。\n')
+
+
 def _normalized(code: str) -> str:
     lines = (line.rstrip() for line in code.splitlines())
     return '\n'.join(line for line in lines if line.strip() and not line.lstrip().startswith('#'))
 
 
 class SkillCandidateRepairer:
-    def __init__(self, llm_client: LlamaClient | None = None, max_resamples: int = 0) -> None:
+    def __init__(self, llm_client: LlamaClient | None = None, max_resamples: int = 0,
+                 max_default_retries: int = 2) -> None:
         self.llm_client = llm_client if llm_client is not None else LlamaClient()
         self.max_resamples = max_resamples
+        # A repair that hides a missing required value behind a default is asked again this many times, then refused.
+        self.max_default_retries = max_default_retries
+        # What each refused proposal had added, one list per proposal, kept for the record.
+        self.rejected_fallbacks: list[list[str]] = []
 
     def repair(self, intent: Intent, candidate: SkillCandidate,
                failure: ExecutionFailure,
@@ -54,15 +65,29 @@ class SkillCandidateRepairer:
             f'stdout:\n{bounded_output(failure.stdout)}\nstderr:\n{bounded_output(failure.stderr)}\n'
             f'exit code: {failure.exit_code}\n'
             f'{_history_section(candidate, failure, history)}'
+            '必須フィールド（API や Observation の schema にあるキー）が無くて KeyError や欠落になったときは、Services の説明にある実際の API の応答と、'
+            '前段 Observation の schema を確認して、正しいキー名に直す。.get(キー, 0)、.get(キー, "")、.get(キー, [])、.get(キー) のような既定値で隠さない'
+            '（except で握りつぶすのも同じ）。必須の値が無いときは例外のままにする。直した後も、必須フィールドは [] アクセスか明示的な assert で検証する。\n'
             '最後の制約: 説明本文は元 description と同じ分析操作・対象範囲・出力を保つ。'
             '説明に SyntaxError やバグ修正の説明を書かない。元の分析を行う完全なコードを返す。空の結果を自分で raise した場合は直前の JSON の取り出し方を API contract と照合する。失敗の根本原因の行を実際に変更し、壊れた元コードをそのまま返さない。'
         )
         repaired = self._generate(prompt, RESAMPLE_BASE_TEMPERATURE)
-        for resample in range(1, self.max_resamples + 1):
-            if _normalized(repaired.code) != _normalized(candidate.code):
-                break
-            repaired = self._generate(prompt + UNCHANGED_NOTE, RESAMPLE_BASE_TEMPERATURE + 0.2 * resample)
-        return repaired
+        resamples = retries = 0
+        while True:
+            if resamples < self.max_resamples and _normalized(repaired.code) == _normalized(candidate.code):
+                resamples += 1
+                repaired = self._generate(prompt + UNCHANGED_NOTE, RESAMPLE_BASE_TEMPERATURE + 0.2 * resamples)
+                continue
+            hidden = introduced_fallbacks(candidate.code, repaired.code, failure.stderr)
+            if not hidden:
+                return repaired
+            self.rejected_fallbacks.append(hidden)
+            if retries >= self.max_default_retries:
+                # Keep the original code: the run fails the same way and the failure stays visible, which is
+                # better than a run that succeeds with a value the API never gave.
+                return candidate
+            retries += 1
+            repaired = self._generate(prompt + _default_note(hidden), RESAMPLE_BASE_TEMPERATURE + 0.2 * retries)
 
     def _generate(self, prompt: str, temperature: float) -> SkillCandidate:
         return _parse_candidate(self.llm_client.generate(
@@ -75,6 +100,8 @@ class SkillCandidateRepairer:
                 'Description must be one sentence describing the reusable operation, not an explanation of the bug. '
                 'Return complete executable code, no comments, no discussion, no repeated analysis. '
                 'Follow the API contract literally. Do not invent response fields or output formats. '
+                'Never hide a missing required field behind a default (.get with 0, "", [] or None) or an except that swallows it: '
+                'fix the key from the real schema, or leave the error. '
                 'Use runtime previous_observations and intent_text; never paste answers or target IDs. '
                 'Exact format:\n説明:\n<one sentence>\n---\nコード:\n```python\n<complete code>\n```'
             ),

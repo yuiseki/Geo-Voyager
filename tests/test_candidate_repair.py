@@ -181,3 +181,94 @@ def test_default_repairer_does_not_resample():
     SkillCandidateRepairer(llm).repair(
         Intent('対象を数える', service_ids=('overpass',)), SkillCandidate('broken', '元'), FAILURE)
     assert llm.generate.call_count == 1
+
+
+# ---- a missing required value is fixed, not hidden behind a default
+
+ORIGINAL_CODE = 'import json\ndata = json.loads(response)\nrows = [{"value": i["value"], "count": i["count_all"]} for i in data["data"]]\nprint(json.dumps(rows))'
+KEY_ERROR_FAILURE = ExecutionFailure('failed', '', 'Traceback (most recent call last):\n  File "<candidate>", line 3, in <module>\nKeyError: \'count_all\'', 73)
+
+
+def code_reply(code):
+    return f'説明:\n値と使用数を取得する\n---\nコード:\n```python\n{code}\n```'
+
+
+def with_default(replacement='i.get("count_all", 0)'):
+    return code_reply(ORIGINAL_CODE.replace('i["count_all"]', replacement))
+
+
+def fixed_key():
+    return code_reply(ORIGINAL_CODE.replace('count_all', 'count'))
+
+
+def repair_with(replies, **kwargs):
+    llm = Mock(); llm.generate.side_effect = replies
+    repairer = SkillCandidateRepairer(llm, **kwargs)
+    result = repairer.repair(Intent('値と使用数を取る', service_ids=('taginfo',)), SkillCandidate(ORIGINAL_CODE, '値と使用数を取得する'), KEY_ERROR_FAILURE)
+    return result, repairer, llm
+
+
+def test_the_right_key_is_accepted_at_once():
+    result, repairer, llm = repair_with([fixed_key()])
+    assert 'i["count"]' in result.code and llm.generate.call_count == 1 and repairer.rejected_fallbacks == []
+
+
+def test_a_default_in_place_of_a_required_key_is_asked_again_and_the_right_key_is_taken():
+    result, repairer, llm = repair_with([with_default(), fixed_key()])
+    assert 'i["count"]' in result.code and llm.generate.call_count == 2
+    note = llm.generate.call_args_list[1].args[0]
+    assert "i.get('count_all', 0)" in note and '既定値' in note and '例外のまま' in note
+    assert llm.generate.call_args_list[1].kwargs['temperature'] > llm.generate.call_args_list[0].kwargs['temperature']
+    assert repairer.rejected_fallbacks == [["i.get('count_all', 0)"]]                  # the rejection is kept
+
+
+def test_a_model_that_keeps_hiding_the_value_gets_the_original_code_back_so_the_failure_stays():
+    result, repairer, llm = repair_with([with_default(), with_default('i.get("count_all", "")'), with_default('i.get("count_all")')])
+    assert result.code == ORIGINAL_CODE and llm.generate.call_count == 3         # one try and two more, then it gives up
+    assert len(repairer.rejected_fallbacks) == 3
+
+
+def test_the_number_of_retries_is_bounded_and_can_be_zero():
+    result, repairer, llm = repair_with([with_default()], max_default_retries=0)
+    assert result.code == ORIGINAL_CODE and llm.generate.call_count == 1
+
+
+def test_an_optional_get_the_original_already_had_is_not_mistaken_for_a_fallback():
+    original = ORIGINAL_CODE + '\nremark = data.get("remark", "")'
+    llm = Mock(); llm.generate.return_value = code_reply(original.replace('count_all', 'count'))
+    repairer = SkillCandidateRepairer(llm)
+    result = repairer.repair(Intent('値と使用数を取る', service_ids=('taginfo',)), SkillCandidate(original, '値と使用数を取得する'), KEY_ERROR_FAILURE)
+    assert 'data.get("remark", "")' in result.code and llm.generate.call_count == 1
+
+
+def test_a_new_get_for_an_optional_key_is_allowed():
+    llm = Mock(); llm.generate.return_value = code_reply(ORIGINAL_CODE.replace('count_all', 'count') + '\nremark = data.get("remark")')
+    result = SkillCandidateRepairer(llm).repair(Intent('値', service_ids=('taginfo',)), SkillCandidate(ORIGINAL_CODE, 'd'), KEY_ERROR_FAILURE)
+    assert 'data.get("remark")' in result.code and llm.generate.call_count == 1
+
+
+def test_a_handler_that_swallows_the_missing_key_is_refused_like_a_default():
+    swallowing = ORIGINAL_CODE.replace('rows = [{"value": i["value"], "count": i["count_all"]} for i in data["data"]]',
+                                       'rows = []\nfor i in data["data"]:\n    try:\n        rows.append({"value": i["value"], "count": i["count_all"]})\n    except KeyError:\n        pass')
+    result, repairer, llm = repair_with([code_reply(swallowing), fixed_key()])
+    assert 'i["count"]' in result.code and llm.generate.call_count == 2 and 'KeyError' in repairer.rejected_fallbacks[0][0]
+
+
+def test_the_default_repairer_has_the_checks_on():
+    assert SkillCandidateRepairer(Mock()).max_default_retries == 2
+
+
+def test_the_prompt_says_to_fix_the_key_from_the_real_schema_and_not_to_hide_it():
+    llm = Mock(); llm.generate.return_value = fixed_key()
+    SkillCandidateRepairer(llm).repair(Intent('値', service_ids=('taginfo',)), SkillCandidate(ORIGINAL_CODE, 'd'), KEY_ERROR_FAILURE)
+    prompt = llm.generate.call_args.args[0]
+    for rule in ['必須フィールド', '実際の API', 'Observation の schema', '正しいキー', '.get(', '既定値で隠さない', '例外のまま', '[] アクセス', 'assert']:
+        assert rule in prompt, rule
+    assert 'count（使用数）' in prompt          # the schema the repair is told to check against is in the same prompt
+
+
+def test_the_system_prompt_forbids_defaults_too():
+    llm = Mock(); llm.generate.return_value = fixed_key()
+    SkillCandidateRepairer(llm).repair(Intent('値', service_ids=('taginfo',)), SkillCandidate(ORIGINAL_CODE, 'd'), KEY_ERROR_FAILURE)
+    system = llm.generate.call_args.kwargs['system_prompt']
+    assert 'default' in system and 'missing' in system
