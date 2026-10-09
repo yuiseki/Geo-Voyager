@@ -15,6 +15,25 @@ def bounded_output(text: str | bytes | None) -> str:
     return '\n'.join(safe).encode('utf-8')[:OUTPUT_LIMIT].decode('utf-8', errors='ignore')
 
 
+_CANDIDATE_FRAME = re.compile(r'(File "<candidate>", line )(\d+)')
+
+
+def candidate_lines(stderr: str, offset: int) -> str:
+    """Number the <candidate> frames of a traceback by the candidate's own code.
+
+    The Worker puts `offset` lines of runtime variables in front of the code it runs, so Python
+    counts that many lines more than the code the Generator or the Repairer wrote. A frame at or
+    before the injected lines is left as it is.
+    """
+    if offset <= 0:
+        return stderr
+
+    def shift(match):
+        line = int(match.group(2))
+        return match.group(1) + str(line - offset if line > offset else line)
+    return _CANDIDATE_FRAME.sub(shift, stderr)
+
+
 @dataclass(frozen=True)
 class ExecutionFailure:
     message: str

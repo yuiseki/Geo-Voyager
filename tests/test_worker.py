@@ -93,3 +93,26 @@ def test_worker_defines_no_target_when_the_intent_names_none():
         sandbox.return_value.run.return_value = '1'
         Worker('internal').execute_skill(intent, skill)
     assert 'intent_target' not in sandbox.return_value.run.call_args.args[0]
+
+
+def test_worker_reports_a_failure_with_line_numbers_of_the_candidates_own_code():
+    import subprocess
+    from geo_voyager.execution_failure import GENERATED_ERROR_EXIT
+    from geo_voyager.skill_candidate import SkillCandidate
+    intent = Intent('港区の件数', service_ids=('overpass',), target_name='港区',
+                    previous_observations=(Observation('{"name": "港区"}'),))
+    # target (1 line) + previous_observations and intent_text (2 lines) are in front of the code
+    stderr = 'Traceback (most recent call last):\n  File "<candidate>", line 7, in <module>\nKeyError: 0\n'
+    with patch('geo_voyager.worker.DockerSandbox') as sandbox:
+        sandbox.return_value.run.side_effect = subprocess.CalledProcessError(GENERATED_ERROR_EXIT, 'docker', '', stderr)
+        failure = Worker('internal').execute_candidate(intent, SkillCandidate('print(1)', '説明'))
+    assert 'File "<candidate>", line 4, in <module>' in failure.stderr and failure.stderr.endswith('KeyError: 0')
+
+
+def test_injected_lines_keep_the_order_dataset_target_then_observations():
+    from geo_voyager.worker import injected_lines
+    intent = Intent('集計', dataset_ids=('yuiseki/jp-admin-2026-09',), target_name='港区',
+                    previous_observations=(Observation('1'),))
+    lines = injected_lines(intent).splitlines()
+    assert [line.split('=')[0] for line in lines] == ['dataset_id', 'intent_target', 'previous_observations', 'intent_text']
+    assert injected_lines(Intent('件数', service_ids=('overpass',))) == ''
