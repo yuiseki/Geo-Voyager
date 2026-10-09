@@ -15,6 +15,14 @@ from .datasets import load_dataset_graph
 TARGET_PREFIXES = ('対象:', '対象：')
 
 
+class PlannerRejected(ValueError):
+    """The model's reply to Planner.next could not be used. It carries the reason and the reply itself."""
+
+    def __init__(self, reason: str, reply: str) -> None:
+        super().__init__(reason)
+        self.reason, self.reply = reason, reply
+
+
 @dataclass(frozen=True, repr=False)
 class Done:
     """What Planner.next returns when the history already answers the Goal."""
@@ -206,6 +214,9 @@ class Planner:
             '履歴は、これまでに実行した Intent と、その Observation、Critic の判定、失敗、判明した対象です。履歴を読んで次の1件を決める。\n'
             'Goal の答えが履歴の成功した Observation で揃っているときは、Intent の代わりに DONE とだけ返す。まだ足りないときに DONE を返さない。\n'
             '履歴で成功した Intent を繰り返さない。失敗した Intent は、同じ内容で繰り返さず、失敗の理由を読んで方法・対象・使うサービスを変える。\n'
+            '履歴に「計画の失敗」があるときは、前回のあなたの応答がその理由で使えなかったということ。理由が示す契約を守った Intent を返し、同じ誤りを繰り返さない。'
+            '対象が複数あるときは、対象ごとに Intent を分ける。1つの Intent に「対象:」は1行だけ書く。\n'
+            '履歴に「Goal の最終判定が未達」があるときは、DONE を返したが Critic が不足を指摘したということ。その理由が示す不足を埋める Intent を返し、同じ DONE を繰り返さない。\n'
             '「判明した対象」は、前段の Observation で分かった名前と安定IDです。その対象を測る Intent は、名前を「対象: 名前」に書き、調査項目にも同じ名前を書く。IDをコードや調査項目に書き写さなくてよい。\n'
             + SHARED_RULES
             + 'DONE とだけ返すか、次の Intent を以下の形式で1件だけ返す。複数返さない。前置き、番号、コードフェンス禁止。\n'
@@ -223,10 +234,13 @@ class Planner:
         lines = [line for line in text.strip().splitlines() if line.strip()]
         if lines and lines[0].strip() == 'DONE':
             return DONE
-        blocks = _plan_blocks(text)
-        if not blocks:
-            raise ValueError('Plan must start with 調査項目:')
-        return _parse_intent(blocks[0], datasets, services, allow_local=bool(history.observations()))
+        try:
+            blocks = _plan_blocks(text)
+            if not blocks:
+                raise ValueError('Plan must start with 調査項目:')
+            return _parse_intent(blocks[0], datasets, services, allow_local=bool(history.observations()))
+        except (ValueError, KeyError) as problem:
+            raise PlannerRejected(f'{type(problem).__name__}: {problem}', text) from problem
 
     def plan_goal(self, goal: str) -> list[Intent]:
         if not goal.strip():

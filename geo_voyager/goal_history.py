@@ -130,12 +130,22 @@ def _bounded(text: str, limit: int = OBSERVATION_LIMIT) -> str:
 
 
 def render_history(history: GoalHistory) -> str:
-    """The history as text for the Planner: each step with its outcome, then the targets made known."""
+    """The history as text for the Planner, in the order it happened, then the targets made known."""
     from .repair_stats import error_line
-    if not len(history):
+    if not history.events:
         return 'まだ何も実行していない。'
-    parts = []
-    for entry in history:
+    parts = [] if len(history) else ['まだ何も実行していない。']
+    for event in history.events:
+        if isinstance(event, PlannerFailure):
+            lines = [f'計画の失敗: {event.reason}']
+            if event.reply:
+                lines.append('  あなたの応答: ' + _bounded(event.reply))
+            parts.append('\n'.join(lines))
+            continue
+        if isinstance(event, FinalCriticFailure):
+            parts.append(f'Goal の最終判定が未達: DONE を返したが、Critic は次の理由で Goal の答えが揃っていないと判定した。\n  理由: {event.reason}')
+            continue
+        entry = event
         intent = entry.intent
         resources = ', '.join(intent.service_ids + intent.dataset_ids) or 'なし（前段の Observation の集計）'
         status = '成功' if entry.succeeded else ('実行失敗' if entry.failure is not None else 'Critic が不十分と判定')

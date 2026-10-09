@@ -129,3 +129,79 @@ def test_the_history_is_not_changed_by_planning():
     h = history(LOOKED_UP)
     plan.next('g', h)
     assert len(h) == 1
+
+
+from geo_voyager.goal_history import FinalCriticFailure, PlannerFailure
+from geo_voyager.planner import PlannerRejected
+
+TWO_TARGETS = '調査項目: 両方の件数\n利用データセット: []\n利用サービス:\n  - overpass\n対象: 渋谷区\n対象: 新宿区'
+
+
+def test_an_unusable_reply_is_rejected_with_its_reason_and_the_reply_that_caused_it():
+    plan, client = planner(TWO_TARGETS)
+    with pytest.raises(PlannerRejected) as raised:
+        plan.next('g', GoalHistory())
+    assert isinstance(raised.value, ValueError)                  # callers that catch ValueError still work
+    assert 'more than one 対象' in raised.value.reason and raised.value.reply == TWO_TARGETS
+    assert client.generate.call_count == 1                       # a rejection is not retried inside next()
+
+
+def test_every_kind_of_unusable_reply_carries_its_reply():
+    for reply in ('ただの文章', STEP.replace('yuisekin-geosparql', 'unknown'), STEP.replace('利用サービス:', 'service:'), LOCAL):
+        with pytest.raises(PlannerRejected) as raised:
+            planner(reply)[0].next('g', GoalHistory())
+        assert raised.value.reply == reply and raised.value.reason
+
+
+def test_an_empty_goal_is_not_a_planner_failure():
+    with pytest.raises(ValueError) as raised:
+        planner(STEP)[0].next(' ', GoalHistory())
+    assert not isinstance(raised.value, PlannerRejected)
+
+
+def test_a_planner_failure_in_the_history_is_shown_with_its_reason_and_what_was_written():
+    h = history(LOOKED_UP)
+    h.append(PlannerFailure('ValueError: An Intent has more than one 対象 line', reply=TWO_TARGETS, after_step=1))
+    plan, client = planner(NEXT)
+    plan.next('g', h)
+    prompt = client.generate.call_args.args[0]
+    for shown in ['計画の失敗', 'more than one 対象', '対象: 渋谷区', '対象: 新宿区']:
+        assert shown in prompt, shown
+
+
+def test_a_final_critic_failure_in_the_history_is_shown_with_the_critics_reason():
+    h = history(LOOKED_UP)
+    h.append(FinalCriticFailure('上位3つの値が示されていない', after_step=1))
+    plan, client = planner(NEXT)
+    plan.next('g', h)
+    prompt = client.generate.call_args.args[0]
+    assert 'Goal の最終判定が未達' in prompt and '上位3つの値が示されていない' in prompt
+
+
+def test_failures_appear_between_the_steps_in_the_order_they_happened():
+    h = history(LOOKED_UP)
+    h.append(PlannerFailure('bad plan one', after_step=1))
+    second = Intent('港区の件数', service_ids=('overpass',), target_name='港区')
+    h.append(entry(2, second, '{"count": 22}'))
+    h.append(FinalCriticFailure('late reason', after_step=2))
+    plan, client = planner(NEXT)
+    plan.next('g', h)
+    prompt = client.generate.call_args.args[0]
+    assert prompt.index('step 1') < prompt.index('bad plan one') < prompt.index('step 2') < prompt.index('late reason')
+
+
+def test_a_history_of_failures_only_still_says_nothing_was_executed():
+    h = GoalHistory()
+    h.append(PlannerFailure('bad plan', after_step=0))
+    plan, client = planner(STEP)
+    plan.next('g', h)
+    prompt = client.generate.call_args.args[0]
+    assert 'まだ何も実行していない' in prompt and 'bad plan' in prompt
+
+
+def test_the_prompt_tells_the_model_how_to_recover_from_each_kind_of_failure():
+    plan, client = planner(NEXT)
+    plan.next('g', history(LOOKED_UP))
+    prompt = client.generate.call_args.args[0]
+    for rule in ['計画の失敗', '最終判定が未達', '同じ DONE を繰り返さない', '対象ごとに Intent を分ける']:
+        assert rule in prompt, rule
