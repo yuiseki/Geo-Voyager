@@ -187,3 +187,34 @@ def test_record_keeps_the_head_of_the_final_observation_for_later_analysis():
 def test_record_observation_head_is_empty_when_the_chain_failed():
     record = intent_record('i', execution([failed('a', 'KeyError: 0')], success=False))
     assert record['observation_head'] == ''
+
+
+def semantic(note, critic_success=None, failure_=None, executed=True):
+    critique = None if critic_success is None else Critique(critic_success, 'after')
+    return ExecutionAttempt('sem', [Observation('{"x": 1}')] if executed and failure_ is None else [], failure_,
+                            route='semantic', critique=critique, trigger='before', executed=executed, note=note)
+
+
+def test_a_semantic_repair_attempt_is_not_part_of_the_runtime_chain():
+    attempts = [passed('a'), semantic('critic failed', critic_success=False)]
+    record = intent_record('i', execution(attempts, success=False))
+    assert record['candidate_attempts'] == 1 and record['outcome_at'] == 0
+    assert len(record['attempts']) == 1
+    assert record['failure_types'] == [] and record['oscillation'] is False
+
+
+def test_the_record_summarises_a_semantic_repair_that_rescued_the_intent():
+    attempts = [passed('a'), semantic('critic passed', critic_success=True)]
+    summary = intent_record('i', execution(attempts))['semantic_repair']
+    assert summary == {'note': 'critic passed', 'executed': True, 'trigger': 'before',
+                       'critic_success': True, 'critic_reason': 'after', 'execution_failed': False}
+
+
+def test_the_record_shows_a_semantic_repair_whose_run_failed():
+    attempts = [passed('a'), semantic('execution failed', failure_=failure('KeyError: 0'), executed=True)]
+    summary = intent_record('i', execution(attempts, success=False))['semantic_repair']
+    assert summary['execution_failed'] is True and summary['critic_success'] is None
+
+
+def test_the_record_has_no_semantic_summary_when_none_was_tried():
+    assert intent_record('i', execution([passed('a')]))['semantic_repair'] is None
