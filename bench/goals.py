@@ -168,6 +168,11 @@ GOALS = [
               overpass_counts([('amenity', 'cafe', WARDS['渋谷区']), ('amenity', 'restaurant', WARDS['渋谷区'])]),
               partial(judge_winner, labels=('cafe', 'restaurant')), required=('overpass',),
               target_relation=WARDS['渋谷区']),
+    # Two targets in one Goal: the second count can reuse what the first one taught.
+    BenchGoal('cafe_shibuya_vs_shinjuku',
+              '渋谷区と新宿区の amenity=cafe の OSM 地物数をそれぞれ求め、どちらが多いかを示す。',
+              overpass_counts([('amenity', 'cafe', WARDS['渋谷区']), ('amenity', 'cafe', WARDS['新宿区'])]),
+              partial(judge_winner, labels=('渋谷区', '新宿区')), required=('overpass',)),
     # Taginfo
     BenchGoal('tag_sushi_count', 'Taginfo で cuisine=sushi のタグの使用数（OSM 全体の件数）を求める。',
               taginfo_value('sushi'), judge_count, required=('taginfo',)),
