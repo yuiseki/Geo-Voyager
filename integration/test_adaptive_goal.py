@@ -2,8 +2,8 @@
 
 The LLM is not deterministic, so this asserts what the route has to guarantee, not an exact plan: a target an
 earlier step made known is known to the Planner at a later step, and the Goal reaches DONE with an answer the
-independent oracle agrees with. It is flaky: in a few runs of the committed code it passed in about half of
-them, and in four runs of the commit before the replanning change it passed in three.
+independent oracle agrees with. It can still fail when the model writes a wrong candidate that the Critic
+accepts (once in the runs recorded in docs/observation_driven_recovery.md).
 """
 import os
 

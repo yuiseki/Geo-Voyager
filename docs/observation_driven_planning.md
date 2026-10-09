@@ -34,10 +34,10 @@ Planner は、履歴の「判明した対象」にある名前を `対象: 名�
 
 | 条件 | 停止理由 | 結果 |
 |---|---|---|
-| Planner が `DONE` を返した | `done` | 成功した step の Observation 全体を、Goal の文に対して Critic が判定する |
+| Planner が `DONE` を返した | `done` | 成功した step の Observation 全体を、Goal の文に対して Critic が判定する。失敗した場合は履歴に追記して Planner に戻る（[observation_driven_recovery.md](observation_driven_recovery.md)） |
 | step 数が上限（既定 8）に達した | `max_steps` | Goal は失敗 |
 | 成功済みの Intent をもう一度計画した、または失敗した同じ Intent を 2 回試した後にまた計画した | `repeated_intent` | Goal は失敗 |
-| Planner の出力が不正、または Executor が Intent を拒否した | `planner_error` | Goal は失敗（理由を記録） |
+| Planner の出力が不正 | `planner_failure` | 履歴に追記して再計画する。上限に達するか同じ失敗が繰り返されたら Goal は失敗 |
 
 同じ Intent かどうかは、空白を揃えた文面、リソース、対象で比べる。step が失敗しても Goal は終わらず、Planner は失敗を見て再計画する。失敗した step の出力は、次の step には渡さない。
 
@@ -65,7 +65,7 @@ Planner は、履歴の「判明した対象」にある名前を `対象: 名�
 
 ### 分かったこと
 
-- `cafe_shibuya_vs_shinjuku`（制限なし）は、step 3 で止まった。Planner が「渋谷区と新宿区の件数」を 1 つの Intent にまとめ、`対象:` を 2 行書いたため、「1 つの Intent は対象を 1 つしか持たない」という契約に反するとして、パーサが拒否した。Goal は失敗したが、理由つきで止まり、無限に続くことはなかった。出力形式を間違えたときに、誤りを伝えて 1 回だけ決め直させる処理は、入れていない。
+- `cafe_shibuya_vs_shinjuku`（制限なし）は、step 3 で止まった。Planner が「渋谷区と新宿区の件数」を 1 つの Intent にまとめ、`対象:` を 2 行書いたため、「1 つの Intent は対象を 1 つしか持たない」という契約に反するとして、パーサが拒否した。Goal は失敗したが、理由つきで止まり、無限に続くことはなかった。出力形式を間違えたときの再計画は、この時点では入れていなかった。その後、計画の失敗を履歴に追記して再計画する処理を入れた（[observation_driven_recovery.md](observation_driven_recovery.md)）。
 - `tag_top3_cuisine` は、5 step かけて DONE に至った。step 1 から 3 は実行が失敗し、step 4 は Critic が棄却し（`cuisine` でなく `name` キーの値が返った）、step 5 は Critic が成功としたが、答えは不正解だった。DONE の後の Goal 全体の Critic が、「上位 3 つの値が提示されていない」と失敗にした。step の Critic の偽陽性を、最後の判定が止めた例である。
 - Planner は、対象でないもの（「飲食店タグの値上位 3 件」「飲食」）を `対象:` に書くことがある。既に分かっている課題で、今回の変更では直していない。
 - 5 件とも 1 回ずつの実行で、LLM の揺らぎは測っていない。注入した失敗の実行は、失敗の再計画を見るための意図的な注入である。
