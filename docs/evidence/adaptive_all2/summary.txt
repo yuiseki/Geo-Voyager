@@ -1,0 +1,25 @@
+22 runs
+cafe_shibuya                 correct                  steps=3 planner_calls=4   58.9s generator_contract_refused=1
+ramen_shinjuku               correct                  steps=2 planner_calls=3   36.4s 
+hospital_minato              correct                  steps=2 planner_calls=5   46.6s final_critic_failure=1, planner_refused:two_targets=1
+hotel_taito                  correct                  steps=2 planner_calls=3   35.7s 
+library_setagaya             correct                  steps=2 planner_calls=3   30.0s 
+cafe_vs_restaurant_shibuya   stopped:repeated_intent+ steps=5 planner_calls=7  141.1s final_critic_failure=1
+cafe_shibuya_vs_shinjuku     correct                  steps=6 planner_calls=8  106.9s final_critic_failure=1
+tag_sushi_count              stopped:final_critic_failed+ steps=4 planner_calls=8   87.8s final_critic_failure=3, planner_refused:api_detail=1
+tag_top3_cuisine             correct                  steps=1 planner_calls=2   16.4s 
+tag_ramen_vs_sushi           correct                  steps=3 planner_calls=6   53.5s final_critic_failure=1, planner_refused:target_not_entity=1
+nom_shibuya_relation         correct                  steps=1 planner_calls=2   11.3s 
+nom_setagaya_south           correct                  steps=1 planner_calls=2   12.2s 
+nom_tokyo_tower              correct                  steps=1 planner_calls=2   11.1s 
+route_auto_km                correct                  steps=1 planner_calls=2   16.6s 
+route_walk_minutes           correct                  steps=1 planner_calls=2   16.8s 
+sparql_ward_count            correct                  steps=1 planner_calls=3   27.6s planner_refused:target_not_entity=1
+sparql_min_relation_ward     stopped:planner_failure  steps=2 planner_calls=4   42.8s planner_refused:target_not_entity=2
+sparql_four_char_wards       stopped:planner_failure  steps=1 planner_calls=4   33.9s planner_refused:other=1, planner_refused:target_not_entity=2
+ward_pop_max                 stopped:planner_failure  steps=2 planner_calls=4   65.9s planner_refused:format=2
+ward_pop_total               stopped:planner_failure  steps=1 planner_calls=4   37.7s planner_refused:format=1, planner_refused:target_not_entity=1, planner_refused:two_targets=1
+stations_count               correct                  steps=1 planner_calls=2   18.3s 
+stations_northmost           stopped:planner_failure  steps=6 planner_calls=10  212.4s final_critic_failure=1, planner_refused:format=2, planner_refused:target_not_entity=1
+outcomes: {'correct': 15, 'stopped:repeated_intent+': 1, 'stopped:final_critic_failed+': 1, 'stopped:planner_failure': 5}
+checks fired: {'final_critic_failure': 8, 'generator_contract_refused': 1, 'planner_refused:api_detail': 1, 'planner_refused:format': 5, 'planner_refused:other': 1, 'planner_refused:target_not_entity': 8, 'planner_refused:two_targets': 2}
