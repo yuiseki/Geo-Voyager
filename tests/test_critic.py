@@ -2,6 +2,7 @@ from unittest.mock import Mock
 
 import pytest
 
+from geo_voyager.target_ref import TargetRef
 from geo_voyager.critic import Critic
 from geo_voyager.critique import Critique
 from geo_voyager.intent import Intent
@@ -87,7 +88,7 @@ def test_critic_receives_prior_observations_for_target_references():
     from geo_voyager.observation import Observation
     from geo_voyager.critic import Critic
     llm = Mock(); llm.generate.return_value = '判定: 成功\n理由: 対象に回答'
-    intent = Intent('対象Bを測定', service_ids=('overpass',), target_name='対象B',
+    intent = Intent('対象Bを測定', service_ids=('overpass',), target=TargetRef('対象B'),
                     previous_observations=(Observation('[{"name":"対象A"},{"name":"対象B"}]'),))
     Critic(llm).check(intent, [Observation('対象Bの件数は4')])
     assert '対象A' in llm.generate.call_args.args[0] and '対象B' in llm.generate.call_args.args[0]
@@ -95,7 +96,7 @@ def test_critic_receives_prior_observations_for_target_references():
 
 def test_critic_context_does_not_refer_to_list_positions():
     client = Mock(); client.generate.return_value = '判定: 失敗\n理由: 対象が違う'
-    intent = Intent('乙を測定', service_ids=('overpass',), target_name='乙',
+    intent = Intent('乙を測定', service_ids=('overpass',), target=TargetRef('乙'),
                     previous_observations=(Observation('[{"name":"甲"},{"name":"乙"}]'),))
     Critic(client).check(intent, [Observation('{"name":"甲","count":5}')])
     prompt = client.generate.call_args.args[0]
@@ -107,14 +108,14 @@ def test_critic_gets_the_target_resolved_by_name_wherever_it_is_in_the_list():
     for listing in ('[{"name":"甲","relation_id":"1"},{"name":"乙","relation_id":"2"}]',
                     '[{"name":"乙","relation_id":"2"},{"name":"甲","relation_id":"1"}]'):
         client = Mock(); client.generate.return_value = '判定: 成功\n理由: 対象が一致'
-        intent = Intent('乙を測定', service_ids=('overpass',), target_name='乙', previous_observations=(Observation(listing),))
+        intent = Intent('乙を測定', service_ids=('overpass',), target=TargetRef('乙'), previous_observations=(Observation(listing),))
         Critic(client).check(intent, [Observation('{"name":"乙","count":5}')])
-        assert '解決済み参照対象: {"name": "乙", "relation_id": "2"}' in client.generate.call_args.args[0]
+        assert '解決済み参照対象: {"name": "乙", "id_type": "relation_id", "id_value": "2"}' in client.generate.call_args.args[0]
 
 
 def test_critic_says_so_when_the_target_cannot_be_identified_uniquely():
     client = Mock(); client.generate.return_value = '判定: 失敗\n理由: 対象が不明'
-    intent = Intent('丙を測定', service_ids=('overpass',), target_name='丙',
+    intent = Intent('丙を測定', service_ids=('overpass',), target=TargetRef('丙'),
                     previous_observations=(Observation('[{"name":"甲","relation_id":"1"}]'),))
     Critic(client).check(intent, [Observation('{"name":"甲","count":5}')])
     prompt = client.generate.call_args.args[0]
@@ -123,7 +124,7 @@ def test_critic_says_so_when_the_target_cannot_be_identified_uniquely():
 
 def test_critic_states_the_target_of_the_intent_even_without_prior_observations():
     client = Mock(); client.generate.return_value = '判定: 成功\n理由: 対象が一致'
-    Critic(client).check(Intent('渋谷区の ID を取得', service_ids=('overpass',), target_name='渋谷区'),
+    Critic(client).check(Intent('渋谷区の ID を取得', service_ids=('overpass',), target=TargetRef('渋谷区')),
                          [Observation('{"name":"渋谷区","relation_id":"1759477"}')])
     assert 'Intent の対象: 渋谷区' in client.generate.call_args.args[0]
 

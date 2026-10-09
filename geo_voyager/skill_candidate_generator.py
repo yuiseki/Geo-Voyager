@@ -141,24 +141,42 @@ class SkillCandidateGenerator:
                          'previous_observations や intent_text を代入で上書きしない。json.loads(previous_observations[index]) を使う。'
                          '最終結果は意味の分かるキーを持つ JSON を print する。')
         if not intent.dataset_ids:
-            if intent.target_name is not None:
+            if intent.target is not None:
                 prompt += ('\n最後の重要な制約: 対象は実行時変数 intent_target であり、Skill の固定対象ではありません。'
                            '説明に対象の名前を書かず、「実行時に指定された対象」と書いてください。'
-                           '説明の例: 実行時に指定された対象について、指定条件に一致する地物の件数を取得する。'
-                           '使用サービス、条件、出力は説明に残す。コードは対象の名前を intent_target["name"] から取り、名前もIDもコードへ固定しない。')
-                if intent.previous_observations:
-                    prompt += ('\n対象は名前で特定する。位置では選ばない。previous_observations の JSON（list でも単一の object でもよい）から、'
-                               'name が intent_target["name"] と完全一致する object を探し、その安定ID（relation_id など）を使う。'
-                               '同じ名前で同じIDの object は同一対象。一致する対象が無い、またはIDが異なる対象が複数あれば例外にする。接続例:\n'
-                               'import json\n'
-                               'candidates = []\n'
-                               'for text in previous_observations:\n'
-                               '    value = json.loads(text)\n'
-                               '    candidates += value if isinstance(value, list) else [value]\n'
-                               'matches = [t for t in candidates if isinstance(t, dict) and t.get("name") == intent_target["name"]]\n'
-                               'assert matches and len({t["relation_id"] for t in matches}) == 1\n'
-                               'target = matches[0]\n'
-                               'ID のキー名は前段の形に合わせる。この target からIDを取り、要求された測定を続ける。')
+                           '説明の例: 実行時に指定された対象について、指定条件に一致する地物の件数を取得する。')
+                if intent.target.resolved:
+                    prompt += ('使用サービス、条件、出力は説明に残す。コードは対象を ID で扱う。対象の主キーは intent_target["id_value"]'
+                               '（ID の種類は intent_target["id_type"]）で、名前 intent_target["name"] は表示用。'
+                               '名前は前段の Observation の名前と違っていてもよいので、名前の一致で対象を選ばない。名前もIDもコードへ固定しない。')
+                    if intent.previous_observations:
+                        prompt += ('\n前段 Observation の JSON（list でも単一の object でもよい）に対象の object があるときは、'
+                                   'ID が一致するものを使う。ID が一致する object が無ければ例外にする。'
+                                   '同じ名前でも ID が違う object は別の対象なので使わない。接続例:\n'
+                                   'import json\n'
+                                   'candidates = []\n'
+                                   'for text in previous_observations:\n'
+                                   '    value = json.loads(text)\n'
+                                   '    candidates += value if isinstance(value, list) else [value]\n'
+                                   'matches = [t for t in candidates if isinstance(t, dict) and str(t.get(intent_target["id_type"])) == intent_target["id_value"]]\n'
+                                   'assert matches\n'
+                                   'target = matches[0]\n'
+                                   '対象の ID は intent_target["id_value"] から直接使ってもよい。')
+                else:
+                    prompt += ('使用サービス、条件、出力は説明に残す。コードは対象の名前を intent_target["name"] から取り、名前もIDもコードへ固定しない。')
+                    if intent.previous_observations:
+                        prompt += ('\n対象は名前で特定する。位置では選ばない。previous_observations の JSON（list でも単一の object でもよい）から、'
+                                   'name が intent_target["name"] と完全一致する object を探し、その安定ID（relation_id など）を使う。'
+                                   '同じ名前で同じIDの object は同一対象。一致する対象が無い、またはIDが異なる対象が複数あれば例外にする。接続例:\n'
+                                   'import json\n'
+                                   'candidates = []\n'
+                                   'for text in previous_observations:\n'
+                                   '    value = json.loads(text)\n'
+                                   '    candidates += value if isinstance(value, list) else [value]\n'
+                                   'matches = [t for t in candidates if isinstance(t, dict) and t.get("name") == intent_target["name"]]\n'
+                                   'assert matches and len({t["relation_id"] for t in matches}) == 1\n'
+                                   'target = matches[0]\n'
+                                   'ID のキー名は前段の形に合わせる。この target からIDを取り、要求された測定を続ける。')
             if 'overpass' in intent.service_ids:
                 prompt += ('\n件数測定の場合の抽象構文（メタ変数を実行時値へ置換）: '
                            '[out:json][timeout:12];nwr["<key>"="<value>"](area:<area_id>);out count;'
@@ -185,7 +203,7 @@ class SkillCandidateGenerator:
                     'Use only the Service ids declared by the Intent. '
                     'Use the supplied API contracts literally. Explicitly import primitives. '
                     'When the Intent names a target, describe the operation on a runtime-resolved target, never on the current name. '
-                    'The code MUST take the target name from the runtime variable intent_target["name"] and, if previous_observations exist, resolve the target there by matching that name against the name field of the objects. '
+                    'The code MUST use the runtime variable intent_target. If it has id_value, that id (of type id_type) is the key and the name is only for display: never choose a target by its name, and if previous_observations exist, find the target there by that id. If it has only a name, take it from intent_target["name"] and match it against the name field of the objects. '
                     'Do not fix current IDs or names in code or description. '
                     'Discover answers from service responses, never invent them. Print the concrete results. '
                     'Exact layout, with every label on a separate line:\n説明:\n<description>\n---\nコード:\n```python\n<executable code>\n```'

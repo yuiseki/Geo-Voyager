@@ -2,6 +2,7 @@ from uuid import uuid4
 
 import pytest
 
+from geo_voyager.target_ref import TargetRef
 from geo_voyager.critique import Critique
 from geo_voyager.execution_failure import ExecutionFailure
 from geo_voyager.goal_history import GoalHistory, HistoryEntry, intent_key
@@ -63,10 +64,10 @@ def test_a_step_succeeds_only_without_failure_and_with_a_passing_critique():
 
 def test_targets_found_in_successful_steps_accumulate_without_repeats():
     history = GoalHistory()
-    history.append(entry(1, targets=({'name': '渋谷区', 'relation_id': '1'},)))
-    history.append(entry(2, ok=False, targets=({'name': '港区', 'relation_id': '2'},)))
-    history.append(entry(3, targets=({'name': '渋谷区', 'relation_id': '1'}, {'name': '新宿区', 'relation_id': '3'})))
-    assert history.targets() == ({'name': '渋谷区', 'relation_id': '1'}, {'name': '新宿区', 'relation_id': '3'})
+    history.append(entry(1, targets=(TargetRef('渋谷区', 'relation_id', '1'),)))
+    history.append(entry(2, ok=False, targets=(TargetRef('港区', 'relation_id', '2'),)))
+    history.append(entry(3, targets=(TargetRef('渋谷区', 'relation_id', '1'), TargetRef('新宿区', 'relation_id', '3'))))
+    assert history.targets() == (TargetRef('渋谷区', 'relation_id', '1'), TargetRef('新宿区', 'relation_id', '3'))
 
 
 def test_an_entry_is_built_from_an_intent_execution_with_the_targets_that_are_new():
@@ -78,7 +79,7 @@ def test_an_entry_is_built_from_an_intent_execution_with_the_targets_that_are_ne
                               Observation('{"name": "港区", "relation_id": "2"}')],
                              (), reused, learned, Critique(True, 'ok'), Critique(True, 'skill ok'))
     built = HistoryEntry.from_execution(2, intent('港区の件数'), second, history)
-    assert built.targets == ({'name': '港区', 'relation_id': '2'},)        # 渋谷区 was already known
+    assert built.targets == (TargetRef('港区', 'relation_id', '2'),)        # 渋谷区 was already known
     assert built.reused_skill_id == reused and built.learned_skill_id == learned
 
 
@@ -96,7 +97,7 @@ def test_a_failed_execution_keeps_its_failure_and_discovers_no_targets():
 
 def test_the_intent_key_ignores_whitespace_but_not_the_target_or_resources():
     assert intent_key(intent('渋谷区  の件数')) == intent_key(intent('渋谷区 の件数'))
-    assert intent_key(intent(target_name='渋谷区')) != intent_key(intent(target_name='港区'))
+    assert intent_key(intent(target=TargetRef('渋谷区'))) != intent_key(intent(target=TargetRef('港区')))
     assert intent_key(Intent('x', service_ids=('overpass',))) != intent_key(Intent('x', service_ids=('nominatim',)))
 
 

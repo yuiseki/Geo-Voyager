@@ -14,11 +14,14 @@ from .intent import Intent
 from .intent_execution import IntentExecution
 from .observation import Observation
 from .target_identity import discover_targets
+from .target_ref import TargetRef
 
 
 def intent_key(intent: Intent) -> tuple:
     """What makes two Intents the same step: the wording, the resources and the target."""
-    return (' '.join(intent.text.split()), intent.dataset_ids, intent.service_ids, intent.target_name)
+    target = intent.target
+    target_key = None if target is None else (target.key or ('name', target.name))
+    return (' '.join(intent.text.split()), intent.dataset_ids, intent.service_ids, target_key)
 
 
 @dataclass(frozen=True)
@@ -50,8 +53,8 @@ class HistoryEntry:
     failure: ExecutionFailure | None
     reused_skill_id: UUID | None
     learned_skill_id: UUID | None
-    # Targets this step made known for the first time. Empty for a step that did not succeed.
-    targets: tuple[dict, ...]
+    # Targets this step made known for the first time, each with its stable id. Empty for a step that did not succeed.
+    targets: tuple[TargetRef, ...]
 
     @property
     def succeeded(self) -> bool:
@@ -60,8 +63,8 @@ class HistoryEntry:
     @classmethod
     def from_execution(cls, step: int, intent: Intent, execution: IntentExecution, history: 'GoalHistory') -> 'HistoryEntry':
         succeeded = execution.failure is None and execution.critique.success
-        known = history.targets()
-        new = tuple(target for target in discover_targets(tuple(execution.observations)) if target not in known) if succeeded else ()
+        known = {target.key for target in history.targets()}
+        new = tuple(target for target in discover_targets(tuple(execution.observations)) if target.key not in known) if succeeded else ()
         skill_ok = execution.selected_skill_critique is not None and execution.selected_skill_critique.success
         return cls(step, intent, tuple(execution.observations), execution.critique, execution.failure,
                    execution.selected_skill_id if skill_ok else None, execution.learned_skill_id, new)
@@ -102,13 +105,17 @@ class GoalHistory:
         """The Observations of the steps that succeeded. A failed step's output is not carried forward."""
         return tuple(observation for entry in self.entries if entry.succeeded for observation in entry.observations)
 
-    def targets(self) -> tuple[dict, ...]:
-        """The targets known so far, in the order they were first made known. Failed steps add none."""
-        known: list[dict] = []
+    def targets(self) -> tuple[TargetRef, ...]:
+        """The targets known so far, in the order they were first made known. Failed steps add none.
+
+        A target is its stable id: the same id under another name is not a new target.
+        """
+        known: dict[tuple, TargetRef] = {}
         for entry in self.entries:
             if entry.succeeded:
-                known.extend(target for target in entry.targets if target not in known)
-        return tuple(known)
+                for target in entry.targets:
+                    known.setdefault(target.key, target)
+        return tuple(known.values())
 
     def entries_for(self, intent: Intent) -> list[HistoryEntry]:
         return [entry for entry in self.entries if intent_key(entry.intent) == intent_key(intent)]
@@ -150,7 +157,7 @@ def render_history(history: GoalHistory) -> str:
         resources = ', '.join(intent.service_ids + intent.dataset_ids) or 'なし（前段の Observation の集計）'
         status = '成功' if entry.succeeded else ('実行失敗' if entry.failure is not None else 'Critic が不十分と判定')
         lines = [f'step {entry.step}: {intent.text}',
-                 f'  リソース: {resources}' + (f' / 対象: {intent.target_name}' if intent.target_name else ''),
+                 f'  リソース: {resources}' + (f' / 対象: {intent.target.display()}' if intent.target else ''),
                  f'  結果: {status}']
         if entry.failure is not None:
             lines.append('  実行失敗: ' + (error_line(entry.failure) or entry.failure.message))
@@ -164,6 +171,6 @@ def render_history(history: GoalHistory) -> str:
         parts.append('\n'.join(lines))
     targets = history.targets()
     if targets:
-        parts.append('判明した対象（前段の Observation で分かった名前と安定ID）:\n' + '\n'.join(
-            '- ' + ', '.join(f'{key}: {value}' for key, value in target.items()) for target in targets))
+        parts.append('判明した対象（前段の Observation で分かった名前と安定ID。対象は ID で区別する）:\n' + '\n'.join(
+            f'- {target.display()}' for target in targets))
     return '\n'.join(parts)

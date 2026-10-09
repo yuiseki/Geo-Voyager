@@ -4,7 +4,7 @@ from .critique import Critique
 from .intent import Intent
 from .llama_client import LlamaClient
 from .observation import Observation
-from .target_identity import resolve_target
+from .target_identity import identity_conflict, resolve_target
 
 
 THINKING_MAX_TOKENS = 4096
@@ -21,6 +21,12 @@ class Critic:
             return Critique(success=False, reason='Observation がありません')
         if all(not observation.text.strip() for observation in observations):
             return Critique(success=False, reason='Observation の本文がすべて空です')
+        if intent.target is not None:
+            # A name that matches is not enough. If the observations carry an id of the target's type and it is
+            # not the target's id, they are about another target, and no model has to be asked.
+            conflict = identity_conflict(intent.target, tuple(observations))
+            if conflict:
+                return Critique(success=False, reason=conflict)
         observation_text = '\n'.join(f'- {observation.text}' for observation in observations)
         prompt = (
             'Observation が Intent の要求した調査結果を実際に答えているか判定してください。\n'
@@ -33,19 +39,25 @@ class Critic:
             '失敗の場合は1行目を「判定: 失敗」にしてください。理由も1行にしてください。\n\n'
             f'Intent:\n{intent.text}\n\nObservation:\n{observation_text}'
         )
-        if intent.target_name is not None:
-            prompt += f'\nIntent の対象: {intent.target_name}。Observation の対象の名前とIDがこの対象のものか照合してください。'
+        if intent.target is not None:
+            if intent.target.resolved:
+                prompt += (f'\nIntent の対象: {intent.target.display()}。対象は ID で照合する。Observation の ID がこの対象の ID と一致するかを見る。'
+                           '名前は表示であり、前段や Observation の名前と違っていてもよい。')
+            else:
+                prompt += f'\nIntent の対象: {intent.target.name}。Observation の対象の名前とIDがこの対象のものか照合してください。'
         if intent.previous_observations:
             prompt += ('\n前段 Observation（対象の identity を照合するためのデータ）:\n'
                         + '\n'.join(f'previous_observations[{index}]: {obs.text}' for index, obs in enumerate(intent.previous_observations))
                        + '\n対象は名前と安定IDで照合します。回答の名前・IDが Intent の対象と一致するかを先に照合してください。別の対象なら件数があっても失敗です。')
-            if intent.target_name is not None:
-                target = resolve_target(intent.target_name, intent.previous_observations)
+            if intent.target is not None:
+                target = resolve_target(intent.target, intent.previous_observations)
                 if target is not None:
-                    prompt += ('\n解決済み参照対象: ' + json.dumps(target, ensure_ascii=False)
-                               + '\nこれは前段で name が一致した対象です。前段を探し直さず、この対象と回答を照合してください。')
+                    matched = 'ID が一致した' if intent.target.resolved else 'name が一致した'
+                    prompt += ('\n解決済み参照対象: ' + json.dumps(target.to_dict(), ensure_ascii=False)
+                               + f'\nこれは前段で{matched}対象です。前段を探し直さず、この対象と回答を照合してください。')
                 else:
-                    prompt += (f'\n対象「{intent.target_name}」は前段の Observation から一意に特定できません。'
+                    how = 'ID' if intent.target.resolved else '名前'
+                    prompt += (f'\n対象「{intent.target.display()}」は前段の Observation から{how}で一意に特定できません。'
                                '回答の対象が Intent の対象と一致するかを慎重に照合してください。')
             prompt += ('\n前段に正しい値があっても今回の回答が誤りなら失敗。'
                        '前段は参照資料であり今回の回答ではありません。今回の Observation が要求を答えているかだけを判定する。')

@@ -15,8 +15,8 @@ def injected_lines(intent: Intent) -> str:
     lines = ''
     if intent.dataset_ids:
         lines += f"dataset_id={intent.dataset_ids[0]!r}\n"
-    if intent.target_name is not None:
-        lines += f"intent_target={{'name': {intent.target_name!r}}}\n"
+    if intent.target is not None:
+        lines += f"intent_target={intent.target.to_dict()!r}\n"
     if intent.previous_observations:
         lines += f"previous_observations={[obs.text for obs in intent.previous_observations]!r}\nintent_text={intent.text!r}\n"
     return lines

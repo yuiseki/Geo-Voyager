@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import pytest
 
+from geo_voyager.target_ref import TargetRef
 from geo_voyager.execution_failure import ExecutionFailure
 from geo_voyager.intent import Intent
 from geo_voyager.skill_candidate import SkillCandidate
@@ -80,7 +81,7 @@ def test_a_real_traceback_points_the_failing_line_excerpt_at_the_right_statement
     from geo_voyager.worker import injected_lines
 
     candidate = 'import json\ndata = json.loads(previous_observations[0])\nname = data[0]\nprint(name)'
-    intent = Intent('港区の件数', service_ids=('overpass',), target_name='港区',
+    intent = Intent('港区の件数', service_ids=('overpass',), target=TargetRef('港区'),
                     previous_observations=(Observation('{"name": "港区"}'),))
     prefix = injected_lines(intent)
     result = subprocess.run([sys.executable, '-I', '-B', '-'], input=sandbox_program(prefix + candidate),

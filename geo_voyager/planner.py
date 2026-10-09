@@ -9,6 +9,8 @@ from .observation import Observation
 from .question import Question
 from .verdict import Verdict
 from .services import load_service_graph
+from .target_identity import resolve_reference
+from .target_ref import TargetRef
 from .datasets import load_dataset_graph
 
 
@@ -94,9 +96,9 @@ def _extract_target(block: list[str]) -> tuple[list[str], str | None]:
     return [line for line in block if not line.startswith(TARGET_PREFIXES)], (names[0] if names else None)
 
 
-def _parse_intent(block: list[str], datasets, services, *, allow_local: bool) -> Intent:
+def _parse_intent(block: list[str], datasets, services, *, allow_local: bool, known: tuple[TargetRef, ...] = ()) -> Intent:
     """One Intent from its block of lines. A step that only works on earlier output needs allow_local."""
-    lines, target_name = _extract_target(block)
+    lines, reference = _extract_target(block)
     if not lines or not lines[0].startswith('調査項目: '):
         raise ValueError('Plan must start with 調査項目:')
     ids = {'利用データセット': [], '利用サービス': []}
@@ -116,7 +118,8 @@ def _parse_intent(block: list[str], datasets, services, *, allow_local: bool) ->
     if local and not allow_local:
         raise ValueError('First step requires an external resource')
     intent = Intent(lines[0][len('調査項目: '):], tuple(ids['利用データセット']), tuple(ids['利用サービス']),
-                    requires_context=local, target_name=target_name)
+                    requires_context=local,
+                    target=resolve_reference(reference, known) if reference is not None else None)
     if len(intent.dataset_ids) > 1:
         raise ValueError('Only one dataset per execution is supported')
     for id in intent.dataset_ids:
@@ -217,7 +220,7 @@ class Planner:
             '履歴に「計画の失敗」があるときは、前回のあなたの応答がその理由で使えなかったということ。理由が示す契約を守った Intent を返し、同じ誤りを繰り返さない。'
             '対象が複数あるときは、対象ごとに Intent を分ける。1つの Intent に「対象:」は1行だけ書く。\n'
             '履歴に「Goal の最終判定が未達」があるときは、DONE を返したが Critic が不足を指摘したということ。その理由が示す不足を埋める Intent を返し、同じ DONE を繰り返さない。\n'
-            '「判明した対象」は、前段の Observation で分かった名前と安定IDです。その対象を測る Intent は、名前を「対象: 名前」に書き、調査項目にも同じ名前を書く。IDをコードや調査項目に書き写さなくてよい。\n'
+            '「判明した対象」は、前段の Observation で分かった名前と安定IDです。対象は ID で区別する。その対象を測る Intent は、「対象:」に判明した対象の名前、または ID（例: 対象: relation_id=1761717）を書く。同じ名前の対象が複数あるときは ID で書く。調査項目には対象の名前を書く。IDをコードに書き写さなくてよい。\n'
             + SHARED_RULES
             + 'DONE とだけ返すか、次の Intent を以下の形式で1件だけ返す。複数返さない。前置き、番号、コードフェンス禁止。\n'
             + '調査項目: 調査内容\n利用データセット: []\n利用サービス:\n  - 登録済みid\n対象: 名前\n'
@@ -238,7 +241,7 @@ class Planner:
             blocks = _plan_blocks(text)
             if not blocks:
                 raise ValueError('Plan must start with 調査項目:')
-            return _parse_intent(blocks[0], datasets, services, allow_local=bool(history.observations()))
+            return _parse_intent(blocks[0], datasets, services, allow_local=bool(history.observations()), known=history.targets())
         except (ValueError, KeyError) as problem:
             raise PlannerRejected(f'{type(problem).__name__}: {problem}', text) from problem
 

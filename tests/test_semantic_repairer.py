@@ -1,5 +1,6 @@
 from unittest.mock import Mock
 
+from geo_voyager.target_ref import TargetRef
 from geo_voyager.execution_attempt import ExecutionAttempt
 from geo_voyager.intent import Intent
 from geo_voyager.observation import Observation
@@ -12,7 +13,7 @@ REASON = '件数が0で、対象の地物が数えられていない'
 
 
 def intent(**overrides):
-    base = dict(text='港区の amenity=hospital の地物数を取得する', service_ids=('overpass',), target_name='港区',
+    base = dict(text='港区の amenity=hospital の地物数を取得する', service_ids=('overpass',), target=TargetRef('港区'),
                 previous_observations=(Observation('{"name": "港区", "relation_id": "1761717"}'),))
     base.update(overrides)
     return Intent(**base)
@@ -45,7 +46,7 @@ def test_the_prompt_forbids_changing_the_intent_and_hardcoding_answers():
 
 
 def test_a_dataset_intent_gets_the_dataset_contract():
-    result, client = repair(intent=intent(service_ids=(), dataset_ids=('yuiseki/jp-admin-2026-09',), target_name=None,
+    result, client = repair(intent=intent(service_ids=(), dataset_ids=('yuiseki/jp-admin-2026-09',), target=None,
                                           previous_observations=()))
     prompt = client.generate.call_args.args[0]
     assert 'yuiseki/jp-admin-2026-09' in prompt and 'load_admin_units' in prompt

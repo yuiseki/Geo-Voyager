@@ -1,3 +1,4 @@
+from geo_voyager.target_ref import TargetRef
 from geo_voyager.execution_failure import sandbox_program
 from unittest.mock import patch
 from uuid import uuid4
@@ -77,7 +78,7 @@ def test_local_execution_requires_actual_prior_observations():
 
 
 def test_worker_passes_the_target_identity_as_data_even_without_prior_observations():
-    intent = Intent('港区の件数', service_ids=('overpass',), target_name='港区')
+    intent = Intent('港区の件数', service_ids=('overpass',), target=TargetRef('港区'))
     skill = Skill(uuid4(), '測定', 'print(intent_target)')
     with patch('geo_voyager.worker.DockerSandbox') as sandbox:
         sandbox.return_value.run.return_value = 'answer'
@@ -99,7 +100,7 @@ def test_worker_reports_a_failure_with_line_numbers_of_the_candidates_own_code()
     import subprocess
     from geo_voyager.execution_failure import GENERATED_ERROR_EXIT
     from geo_voyager.skill_candidate import SkillCandidate
-    intent = Intent('港区の件数', service_ids=('overpass',), target_name='港区',
+    intent = Intent('港区の件数', service_ids=('overpass',), target=TargetRef('港区'),
                     previous_observations=(Observation('{"name": "港区"}'),))
     # target (1 line) + previous_observations and intent_text (2 lines) are in front of the code
     stderr = 'Traceback (most recent call last):\n  File "<candidate>", line 7, in <module>\nKeyError: 0\n'
@@ -111,7 +112,7 @@ def test_worker_reports_a_failure_with_line_numbers_of_the_candidates_own_code()
 
 def test_injected_lines_keep_the_order_dataset_target_then_observations():
     from geo_voyager.worker import injected_lines
-    intent = Intent('集計', dataset_ids=('yuiseki/jp-admin-2026-09',), target_name='港区',
+    intent = Intent('集計', dataset_ids=('yuiseki/jp-admin-2026-09',), target=TargetRef('港区'),
                     previous_observations=(Observation('1'),))
     lines = injected_lines(intent).splitlines()
     assert [line.split('=')[0] for line in lines] == ['dataset_id', 'intent_target', 'previous_observations', 'intent_text']

@@ -8,14 +8,15 @@ OBSERVATION_SHOWN = 300
 
 def trace_steps(result: AdaptiveGoalExecution, injected: set[int] | None = None) -> list[dict]:
     injected = injected or set()
-    known: list[dict] = []
+    known: list = []
     steps = []
     for entry, execution in zip(result.history, result.executions):
         intent = entry.intent
         steps.append({
             'step': entry.step, 'intent': intent.text, 'target': intent.target_name,
+            'target_ref': intent.target.to_dict() if intent.target else None,
             'resources': list(intent.service_ids + intent.dataset_ids), 'local': intent.requires_context,
-            'known_before': list(known), 'succeeded': entry.succeeded,
+            'known_before': [target.to_dict() for target in known], 'succeeded': entry.succeeded,
             'critic_success': entry.critique.success if entry.critique else None,
             'critic_reason': entry.critique.reason if entry.critique else None,
             'failure': (error_line(entry.failure) or entry.failure.message) if entry.failure else '',
@@ -23,9 +24,9 @@ def trace_steps(result: AdaptiveGoalExecution, injected: set[int] | None = None)
             'attempts': len([a for a in execution.attempts if a.route == 'runtime']),
             'reused_skill': str(entry.reused_skill_id)[:8] if entry.reused_skill_id else None,
             'learned_skill': str(entry.learned_skill_id)[:8] if entry.learned_skill_id else None,
-            'new_targets': list(entry.targets), 'injected': entry.step in injected,
+            'new_targets': [target.to_dict() for target in entry.targets], 'injected': entry.step in injected,
         })
-        known.extend(target for target in entry.targets if target not in known)
+        known.extend(target for target in entry.targets if target.key not in {k.key for k in known})
     return steps
 
 
@@ -43,10 +44,16 @@ def trace_events(result: AdaptiveGoalExecution, injected: set[int] | None = None
     return events
 
 
+def _shown(ref: dict | None, name: str | None) -> str:
+    if ref and ref.get('id_value') is not None:
+        return f"{ref['name']} ({ref['id_type']}={ref['id_value']})"
+    return name or 'なし'
+
+
 def _render_step(step: dict) -> list[str]:
     status = '成功' if step['succeeded'] else ('実行失敗' if step['failure'] else 'Critic 失敗')
     lines = ['', f"step {step['step']}: {step['intent']}",
-             f"- 対象: {step['target'] or 'なし'} / リソース: {', '.join(step['resources']) or 'なし（前段の集計）'}"
+             f"- 対象: {_shown(step.get('target_ref'), step['target'])} / リソース: {', '.join(step['resources']) or 'なし（前段の集計）'}"
              + (' / 失敗を注入した step' if step['injected'] else ''),
              f"- この step の前に判明していた対象: {step['known_before'] or 'なし'}",
              f"- 結果: {status}（実行 {step['attempts']} 回）" + (f"、失敗: {step['failure']}" if step['failure'] else ''),

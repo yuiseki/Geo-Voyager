@@ -2,6 +2,7 @@ from unittest.mock import Mock
 
 import pytest
 
+from geo_voyager.target_ref import TargetRef
 from geo_voyager.intent import Intent
 from geo_voyager.skill_candidate import SkillCandidate
 from geo_voyager.skill_candidate_generator import SkillCandidateGenerator
@@ -263,7 +264,7 @@ def test_service_candidate_emits_machine_readable_output_and_rejects_missing_req
 
 def test_service_contract_prefers_simple_runtime_uri_and_resolves_the_target_by_name():
     client = Mock(); client.generate.return_value = VALID
-    intent = Intent('港区の件数を測定', service_ids=('yuisekin-geosparql',), target_name='港区',
+    intent = Intent('港区の件数を測定', service_ids=('yuisekin-geosparql',), target=TargetRef('港区'),
                     previous_observations=(__import__('geo_voyager.observation', fromlist=['Observation']).Observation('[]'),))
     SkillCandidateGenerator(client).generate(intent)
     prompt = client.generate.call_args.args[0]
@@ -273,7 +274,7 @@ def test_service_contract_prefers_simple_runtime_uri_and_resolves_the_target_by_
 
 def test_service_system_contract_resolves_the_named_target_at_runtime():
     client = Mock(); client.generate.return_value = VALID
-    SkillCandidateGenerator(client).generate(Intent('港区の件数を測定', service_ids=('overpass',), target_name='港区'))
+    SkillCandidateGenerator(client).generate(Intent('港区の件数を測定', service_ids=('overpass',), target=TargetRef('港区')))
     system = client.generate.call_args.kwargs['system_prompt']
     assert 'intent_target' in system and 'ordinal' not in system
     assert 're.search' not in system and '([0-9]+)番' not in system
@@ -289,7 +290,7 @@ def test_overpass_contract_requires_existing_area_before_measuring():
 def test_final_generation_instruction_distinguishes_parameter_from_fixed_scope():
     client = Mock(); client.generate.return_value = VALID
     from geo_voyager.observation import Observation
-    SkillCandidateGenerator(client).generate(Intent('港区の件数を測定', service_ids=('overpass',), target_name='港区',
+    SkillCandidateGenerator(client).generate(Intent('港区の件数を測定', service_ids=('overpass',), target=TargetRef('港区'),
                                                     previous_observations=(Observation('[]'),)))
     tail = client.generate.call_args.args[0].split('Intent:')[-1]
     assert '対象は実行時変数 intent_target' in tail and '実行時に指定された対象' in tail
@@ -298,7 +299,7 @@ def test_final_generation_instruction_distinguishes_parameter_from_fixed_scope()
 def test_target_context_example_matches_by_name_and_never_by_position():
     from geo_voyager.observation import Observation
     client = Mock(); client.generate.return_value = VALID
-    intent = Intent('港区の件数を測定', service_ids=('overpass',), target_name='港区', previous_observations=(Observation('[]'),))
+    intent = Intent('港区の件数を測定', service_ids=('overpass',), target=TargetRef('港区'), previous_observations=(Observation('[]'),))
     SkillCandidateGenerator(client).generate(intent)
     prompt = client.generate.call_args.args[0]
     assert 't.get("name") == intent_target["name"]' in prompt
@@ -307,7 +308,7 @@ def test_target_context_example_matches_by_name_and_never_by_position():
 
 def test_a_target_without_prior_observations_still_reads_its_name_at_runtime():
     client = Mock(); client.generate.return_value = VALID
-    SkillCandidateGenerator(client).generate(Intent('港区の ID を取得', service_ids=('yuisekin-geosparql',), target_name='港区'))
+    SkillCandidateGenerator(client).generate(Intent('港区の ID を取得', service_ids=('yuisekin-geosparql',), target=TargetRef('港区')))
     prompt = client.generate.call_args.args[0]
     assert 'intent_target["name"]' in prompt and 'previous_observations' not in prompt.split('Intent:')[-1]
 

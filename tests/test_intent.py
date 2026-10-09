@@ -1,5 +1,6 @@
 import pytest
 
+from geo_voyager.target_ref import TargetRef
 from geo_voyager.intent import Intent
 
 
@@ -56,10 +57,21 @@ def test_intent_rejects_empty_service_ids():
 
 def test_intent_target_name_is_optional_and_defaults_to_none():
     assert Intent("駅数を集計する", ("yuiseki/ekidata-jp",)).target_name is None
-    assert Intent("港区の件数", service_ids=("overpass",), target_name="港区").target_name == "港区"
+    assert Intent("港区の件数", service_ids=("overpass",), target=TargetRef("港区")).target_name == "港区"
 
 
 @pytest.mark.parametrize("name", ["", "  "])
-def test_intent_rejects_an_empty_target_name(name):
+def test_an_empty_target_name_is_refused_when_the_target_is_made(name):
     with pytest.raises(ValueError):
-        Intent("港区の件数", service_ids=("overpass",), target_name=name)
+        TargetRef(name)
+
+
+def test_an_intent_target_must_be_a_target_ref_not_a_bare_name():
+    with pytest.raises(TypeError):
+        Intent("港区の件数", service_ids=("overpass",), target="港区")
+
+
+def test_the_target_name_is_the_display_name_of_the_target_ref():
+    intent = Intent("港区の件数", service_ids=("overpass",), target=TargetRef("港区, 東京都, 日本", "relation_id", "1761717"))
+    assert intent.target_name == "港区, 東京都, 日本" and intent.target.id_value == "1761717"
+    assert Intent("件数", service_ids=("overpass",)).target is None

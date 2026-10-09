@@ -23,13 +23,21 @@ from geo_voyager.intent import Intent
 from geo_voyager.observation import Observation
 from geo_voyager.semantic_repairer import SemanticRepairer
 from geo_voyager.skill_candidate import SkillCandidate
+from geo_voyager.target_ref import TargetRef
 from geo_voyager.worker import Worker
+
+
+def target_of(raw: dict) -> TargetRef | None:
+    """The target of a recorded Intent. Runs recorded before TargetRef kept only the name."""
+    if raw.get('target'):
+        return TargetRef.from_dict(raw['target'])
+    return TargetRef(raw['target_name']) if raw.get('target_name') else None
 
 
 def build_intent(raw: dict) -> Intent:
     return Intent(raw['text'], tuple(raw['dataset_ids']), tuple(raw['service_ids']),
                   tuple(Observation(o['text']) for o in raw['previous_observations']),
-                  raw['requires_context'], raw.get('target_name'))
+                  raw['requires_context'], target_of(raw))
 
 
 def replay_case(case: dict, repairer: SemanticRepairer, worker: Worker, llm, judges: dict) -> dict:

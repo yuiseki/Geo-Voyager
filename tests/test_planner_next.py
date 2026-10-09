@@ -3,6 +3,7 @@ from uuid import uuid4
 
 import pytest
 
+from geo_voyager.target_ref import TargetRef
 from geo_voyager.critique import Critique
 from geo_voyager.execution_failure import ExecutionFailure
 from geo_voyager.goal_history import GoalHistory, HistoryEntry
@@ -31,8 +32,8 @@ def history(*entries):
     return result
 
 
-FIRST = Intent('港区の relation_id を取得する', service_ids=('yuisekin-geosparql',), target_name='港区')
-LOOKED_UP = entry(1, FIRST, '{"name": "港区", "relation_id": "1761717"}', targets=({'name': '港区', 'relation_id': '1761717'},))
+FIRST = Intent('港区の relation_id を取得する', service_ids=('yuisekin-geosparql',), target=TargetRef('港区'))
+LOOKED_UP = entry(1, FIRST, '{"name": "港区", "relation_id": "1761717"}', targets=(TargetRef('港区', 'relation_id', '1761717'),))
 
 
 def test_done_is_an_explicit_value():
@@ -66,9 +67,9 @@ def test_a_reply_that_only_mentions_done_is_not_done():
 
 def test_the_prompt_shows_what_the_history_holds():
     failure = ExecutionFailure('failed', '', 'Traceback\nKeyError: 0', 73)
-    second = Intent('港区内の病院数', service_ids=('overpass',), target_name='港区')
+    second = Intent('港区内の病院数', service_ids=('overpass',), target=TargetRef('港区'))
     learned, reused = uuid4(), uuid4()
-    third = Intent('新宿区内の病院数', service_ids=('overpass',), target_name='新宿区')
+    third = Intent('新宿区内の病院数', service_ids=('overpass',), target=TargetRef('新宿区'))
     plan, client = planner(DONE.__repr__())
     plan.next('港区の病院数を求める', history(
         LOOKED_UP,
@@ -181,7 +182,7 @@ def test_a_final_critic_failure_in_the_history_is_shown_with_the_critics_reason(
 def test_failures_appear_between_the_steps_in_the_order_they_happened():
     h = history(LOOKED_UP)
     h.append(PlannerFailure('bad plan one', after_step=1))
-    second = Intent('港区の件数', service_ids=('overpass',), target_name='港区')
+    second = Intent('港区の件数', service_ids=('overpass',), target=TargetRef('港区'))
     h.append(entry(2, second, '{"count": 22}'))
     h.append(FinalCriticFailure('late reason', after_step=2))
     plan, client = planner(NEXT)

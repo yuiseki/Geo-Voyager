@@ -1,6 +1,7 @@
 from uuid import uuid4
 
 from bench.adaptive_trace import render_trace, trace_steps
+from geo_voyager.target_ref import TargetRef
 from geo_voyager.critique import Critique
 from geo_voyager.execution_attempt import ExecutionAttempt
 from geo_voyager.execution_failure import ExecutionFailure
@@ -20,12 +21,12 @@ def execution_of(obs, ok=True, failure=None, attempts=1, learned=None, reused=No
 def result():
     failure = ExecutionFailure('failed', '', 'Traceback\nKeyError: 0', 73)
     learned, reused = uuid4(), uuid4()
-    first = Intent('港区の ID', service_ids=('yuisekin-geosparql',), target_name='港区')
-    second = Intent('港区の件数', service_ids=('overpass',), target_name='港区')
-    third = Intent('新宿区の件数', service_ids=('overpass',), target_name='新宿区')
+    first = Intent('港区の ID', service_ids=('yuisekin-geosparql',), target=TargetRef('港区'))
+    second = Intent('港区の件数', service_ids=('overpass',), target=TargetRef('港区'))
+    third = Intent('新宿区の件数', service_ids=('overpass',), target=TargetRef('新宿区'))
     entries = (
         HistoryEntry(1, first, (Observation('{"name": "港区", "relation_id": "1"}'),), Critique(True, 'ok'), None, None, None,
-                     ({'name': '港区', 'relation_id': '1'},)),
+                     (TargetRef('港区', 'relation_id', '1'),)),
         HistoryEntry(2, second, (), Critique(False, 'crashed'), failure, None, None, ()),
         HistoryEntry(3, third, (Observation('{"count": 3}'),), Critique(True, 'ok'), None, reused, learned, ()),
     )
@@ -38,7 +39,7 @@ def test_each_step_is_summarised_with_its_outcome_targets_and_skills():
     value, learned, reused = result()
     steps = trace_steps(value, injected={2})
     assert [s['step'] for s in steps] == [1, 2, 3]
-    assert steps[0]['target'] == '港区' and steps[0]['succeeded'] and steps[0]['new_targets'] == [{'name': '港区', 'relation_id': '1'}]
+    assert steps[0]['target'] == '港区' and steps[0]['succeeded'] and steps[0]['new_targets'] == [{'name': '港区', 'id_type': 'relation_id', 'id_value': '1'}]
     assert steps[1]['succeeded'] is False and steps[1]['failure'] == 'KeyError: 0' and steps[1]['attempts'] == 3
     assert steps[1]['injected'] is True and steps[0]['injected'] is False
     assert steps[2]['reused_skill'] == str(reused)[:8] and steps[2]['learned_skill'] == str(learned)[:8]
@@ -47,8 +48,8 @@ def test_each_step_is_summarised_with_its_outcome_targets_and_skills():
 def test_the_targets_the_planner_knew_before_each_step_are_derived_from_earlier_steps():
     value, _, _ = result()
     steps = trace_steps(value)
-    assert steps[0]['known_before'] == [] and steps[1]['known_before'] == [{'name': '港区', 'relation_id': '1'}]
-    assert steps[2]['known_before'] == [{'name': '港区', 'relation_id': '1'}]
+    assert steps[0]['known_before'] == [] and steps[1]['known_before'] == [{'name': '港区', 'id_type': 'relation_id', 'id_value': '1'}]
+    assert steps[2]['known_before'] == [{'name': '港区', 'id_type': 'relation_id', 'id_value': '1'}]
 
 
 def test_the_rendered_trace_names_the_stop_reason_and_each_step():

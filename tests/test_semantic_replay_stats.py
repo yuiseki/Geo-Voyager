@@ -113,3 +113,13 @@ def test_refresh_keys_finds_a_removed_id_inside_a_list_of_objects():
 def test_refresh_keys_leaves_a_result_without_an_output_alone():
     from bench.semantic_replay_stats import refresh_keys
     assert refresh_keys(result(after=None, execution_failed=True))['keys_removed'] == []
+
+
+def test_a_recorded_intent_gives_back_its_target_from_either_form_of_the_record():
+    from bench.replay_semantic import build_intent
+    from geo_voyager.target_ref import TargetRef
+    base = {'text': 't', 'dataset_ids': [], 'service_ids': ['overpass'], 'previous_observations': [], 'requires_context': False}
+    assert build_intent({**base, 'target_name': '港区'}).target == TargetRef('港区')                       # older runs: a name
+    recorded = {'name': '港区', 'id_type': 'relation_id', 'id_value': '1761717'}
+    assert build_intent({**base, 'target': recorded}).target == TargetRef('港区', 'relation_id', '1761717')
+    assert build_intent({**base, 'target': None, 'target_name': None}).target is None

@@ -1,6 +1,7 @@
 from unittest.mock import Mock
 from uuid import uuid4
 
+from geo_voyager.target_ref import TargetRef
 from geo_voyager.critique import Critique
 from geo_voyager.execution_failure import ExecutionFailure
 from geo_voyager.goal_executor import GoalExecutor
@@ -88,10 +89,10 @@ def test_a_failure_does_not_end_the_goal_and_the_planner_sees_it_before_replanni
 
 
 def test_a_target_first_made_known_by_a_step_is_known_to_the_planner_at_the_next_step():
-    planner = Script(intent('港区の ID'), intent('港区の件数', target_name='港区'), DONE)
+    planner = Script(intent('港区の ID'), intent('港区の件数', target=TargetRef('港区')), DONE)
     run(planner, [ok('{"name": "港区", "relation_id": "1761717"}'), ok('{"name": "港区", "relation_id": "1761717", "count": 22}')])
-    assert planner.seen[0][2] == () and planner.seen[1][2] == ({'name': '港区', 'relation_id': '1761717'},)
-    assert planner.seen[2][2] == ({'name': '港区', 'relation_id': '1761717'},)         # not added twice
+    assert planner.seen[0][2] == () and planner.seen[1][2] == (TargetRef('港区', 'relation_id', '1761717'),)
+    assert planner.seen[2][2] == (TargetRef('港区', 'relation_id', '1761717'),)         # not added twice
 
 
 def test_the_history_keeps_which_skill_was_learned_and_which_was_reused():
@@ -129,7 +130,7 @@ def test_a_failed_intent_may_be_tried_once_more_and_then_the_goal_stops():
 
 
 def test_a_different_target_is_a_different_intent():
-    planner = Script(intent('件数', target_name='港区'), intent('件数', target_name='新宿区'), DONE)
+    planner = Script(intent('件数', target=TargetRef('港区')), intent('件数', target=TargetRef('新宿区')), DONE)
     result, executor, _ = run(planner, [ok('1'), ok('2')])
     assert result.stop_reason == 'done' and executor.execute.call_count == 2
 
