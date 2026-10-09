@@ -1,0 +1,1 @@
+cafe_shibuya_vs_shinjuku | stop done | steps 6 | goal critic True | matches oracle True | 96.1 s

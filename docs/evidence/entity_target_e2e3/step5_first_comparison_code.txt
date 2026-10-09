@@ -1,0 +1,27 @@
+説明:
+previous_observationsから渋谷区と新宿区のamenity=cafe地物数を抽出し、比較して多い方を出力する。
+---
+コード:
+```python
+from geo_voyager.control_primitives import call_service
+import json
+
+decoded = [json.loads(text) for text in previous_observations]
+shibuya = next((o for o in decoded if o.get('name') == '渋谷区'), None)
+shinjuku = next((o for o in decoded if o.get('name') == '新宿区'), None)
+
+assert shibuya is not None, "渋谷区のデータが見つかりません"
+assert shinjuku is not None, "新宿区のデータが見つかりません"
+
+shibuya_count = shibuya.get('count', 0)
+shinjuku_count = shinjuku.get('count', 0)
+
+if shibuya_count > shinjuku_count:
+    result = {"winner": "渋谷区", "shibuya_count": shibuya_count, "shinjuku_count": shinjuku_count}
+elif shinjuku_count > shibuya_count:
+    result = {"winner": "新宿区", "shibuya_count": shibuya_count, "shinjuku_count": shinjuku_count}
+else:
+    result = {"winner": "同数", "shibuya_count": shibuya_count, "shinjuku_count": shinjuku_count}
+
+print(json.dumps(result))
+```

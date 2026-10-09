@@ -71,3 +71,27 @@
 - 正解の実行を新たに落とした例はなかった。正解のうち 1 件（`adaptive_recovery2/tag_top3_cuisine`）は、変更の前後どちらでも落ちている。
 - 6 件は同じ Goal の実行で、独立ではない。1 回ずつの再生で、他の種類の Goal での副作用（答えが出力されているのに落とす）は、この 11 件の正解の範囲でしか見ていない。
 - 失敗のあとで Planner が実際に比較の Intent を出し、DONE まで行くかは、LLM を回して確かめていない（E2E は流していない）。
+
+## 追記: repair への `id_type` 検査と、最終 Critic の変更後の E2E（`cafe_shibuya_vs_shinjuku` を 1 回）
+
+repair（`SkillCandidateRepairer`）にも、Generator と同じ `id_type` の検査を足した。対象に ID があるとき、repair 後のコードが `id_type` を固定の文字列と比べていたら、理由を添えて最大 2 回作り直させ、それでも残るなら元のコードを返す（失敗が見えたままになる）。拒否は `rejected_fallbacks` に残る。単体テスト 781 件が通る。
+
+E2E の記録は [evidence/entity_target_e2e3/](evidence/entity_target_e2e3/)。
+
+| 確認項目 | 結果 |
+|---|---|
+| 誤った `id_type` の修正が repair で通らない | この実行では確かめられていない。実行時の失敗が 1 回も無く、repair は呼ばれなかった（`rejected_fallbacks` は空）。単体テストでだけ確かめた |
+| 459 と 343 を取得 | 取得した（step 3 が 459、step 4 が 343） |
+| premature DONE を最終 Critic が拒否 | 拒否した（step 4 の後の DONE に、「どちらが多いかという比較結果が Observation に含まれていない」で `FinalCriticFailure`） |
+| Planner が比較用のローカル Intent を追加 | 追加した（step 5、6。`local` が真） |
+| 勝者を Observation に出力 | 出力した（`{"winner": "渋谷区", "count": 459, "loser": "新宿区", "loser_count": 343}`） |
+| DONE と最終 Critic の成功 | 達成（done、6 step、Planner の失敗 0） |
+| oracle 一致 | 一致（harness の判定も正解） |
+
+前回の 2 つの失敗（件数 0 が続く、比較が無いまま DONE）は、この 1 回では再現しなかった。1 回なので、直ったとまでは言えない。
+
+この実行で見つかった、直していないこと:
+
+- step 5 の比較コードは `shibuya.get('count', 0)` を使い、前段の最初に当たった「名前が渋谷区の object」（ID だけで count を持たない step 1 の出力）から count を 0 として取った。結果は `{"winner": "同数", 0, 0}` で、step の Critic が（Intent に 459 と 343 が書かれていたため）失敗にして、step 6 で出し直した。必須の値の欠落を既定値で隠す書き方が、Generator の段で出た例になる。この既定値の検査は repair にだけかかっていて、Generator にはかかっていない。
+- step 6 の比較コードは、前段の Observation を `decoded[2]` と `decoded[3]` と位置で選んでいた。今回は正しい object に当たったが、番号参照の書き方である。Generator の契約（位置で選ばない）が、ローカル集計の Intent では守られていない。
+- 比較の Intent の文面に、件数（459、343）が書かれていた。Planner が履歴の値を Intent に書き写している。
