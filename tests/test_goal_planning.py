@@ -185,3 +185,15 @@ def test_the_planner_prompt_says_a_target_line_is_one_per_intent():
     client = Mock(); client.generate.return_value = PLAN
     Planner(client).plan('複数の対象を測る')
     assert '「対象:」は1つの Intent につき1行だけ' in client.generate.call_args.args[0]
+
+
+def test_plan_goal_prompt_is_unchanged_by_the_step_by_step_planner():
+    """The text of the first-plan prompt is the contract of the old route. A golden copy guards it."""
+    from pathlib import Path
+    golden = Path(__file__).with_name('plan_goal_prompt.golden.txt')
+    client = Mock(); client.generate.return_value = PLAN
+    Planner(client).plan_goal('ゴール文')
+    kwargs = client.generate.call_args.kwargs
+    actual = (client.generate.call_args.args[0] + '\n=====SYSTEM\n' + kwargs['system_prompt'] + '\n=====KW\n'
+              + repr({k: v for k, v in kwargs.items() if k != 'system_prompt'}))
+    assert actual == golden.read_text()
