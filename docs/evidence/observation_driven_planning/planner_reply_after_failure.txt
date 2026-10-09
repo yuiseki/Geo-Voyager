@@ -1,0 +1,5 @@
+調査項目: 港区の relation_id の取得
+利用データセット: []
+利用サービス:
+  - yuisekin-geosparql
+対象: 港区
