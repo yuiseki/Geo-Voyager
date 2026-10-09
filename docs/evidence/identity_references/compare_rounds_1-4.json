@@ -1,0 +1,178 @@
+{
+  "old": {
+    "runs": 84,
+    "measured": 83,
+    "correct": 39,
+    "correct_rate": 0.46987951807228917,
+    "step12_failure_rate": 0.40963855421686746,
+    "categories": {
+      "aggregation": 3,
+      "codegen": 18,
+      "execution": 5,
+      "planning": 4,
+      "retrieval-selection": 3,
+      "semantic-completion": 11
+    },
+    "by_family": {
+      "dataset": "3/16",
+      "geosparql": "9/12",
+      "nominatim": "10/12",
+      "overpass": "10/24",
+      "taginfo": "6/12",
+      "valhalla": "1/8"
+    },
+    "critic": {
+      "false_positive": 2,
+      "false_negative": 7
+    },
+    "success_at": {
+      "0": 0.6370967741935484,
+      "1": 0.8064516129032258,
+      "2": 0.8387096774193549
+    },
+    "planner": {
+      "mean_distinct_plans": 1.6666666666666667,
+      "mean_modal_share": 0.7777777777777777,
+      "plan_errors": 7
+    }
+  },
+  "new": {
+    "runs": 84,
+    "measured": 83,
+    "correct": 42,
+    "correct_rate": 0.5060240963855421,
+    "step12_failure_rate": 0.27710843373493976,
+    "categories": {
+      "aggregation": 3,
+      "codegen": 17,
+      "execution": 3,
+      "planning": 12,
+      "semantic-completion": 6
+    },
+    "by_family": {
+      "dataset": "4/16",
+      "geosparql": "9/12",
+      "nominatim": "11/12",
+      "overpass": "10/24",
+      "taginfo": "8/12",
+      "valhalla": "0/8"
+    },
+    "critic": {
+      "false_positive": 3,
+      "false_negative": 5
+    },
+    "success_at": {
+      "0": 0.6296296296296297,
+      "1": 0.7962962962962963,
+      "2": 0.8611111111111112
+    },
+    "planner": {
+      "mean_distinct_plans": 1.5238095238095237,
+      "mean_modal_share": 0.8253968253968254,
+      "plan_errors": 17
+    }
+  },
+  "by_goal": {
+    "cafe_shibuya": {
+      "old": "2/4",
+      "new": "1/4"
+    },
+    "cafe_vs_restaurant_shibuya": {
+      "old": "0/4",
+      "new": "0/4"
+    },
+    "hospital_minato": {
+      "old": "2/4",
+      "new": "2/4"
+    },
+    "hotel_taito": {
+      "old": "2/4",
+      "new": "1/4"
+    },
+    "library_setagaya": {
+      "old": "2/4",
+      "new": "3/4"
+    },
+    "nom_setagaya_south": {
+      "old": "3/4",
+      "new": "3/4"
+    },
+    "nom_shibuya_relation": {
+      "old": "3/4",
+      "new": "4/4"
+    },
+    "nom_tokyo_tower": {
+      "old": "4/4",
+      "new": "4/4"
+    },
+    "ramen_shinjuku": {
+      "old": "2/4",
+      "new": "3/4"
+    },
+    "route_auto_km": {
+      "old": "1/4",
+      "new": "0/4"
+    },
+    "route_walk_minutes": {
+      "old": "0/4",
+      "new": "0/4"
+    },
+    "sparql_four_char_wards": {
+      "old": "2/4",
+      "new": "2/4"
+    },
+    "sparql_min_relation_ward": {
+      "old": "4/4",
+      "new": "4/4"
+    },
+    "sparql_ward_count": {
+      "old": "3/4",
+      "new": "3/4"
+    },
+    "stations_count": {
+      "old": "3/4",
+      "new": "4/4"
+    },
+    "stations_northmost": {
+      "old": "0/4",
+      "new": "0/4"
+    },
+    "tag_ramen_vs_sushi": {
+      "old": "3/4",
+      "new": "4/4"
+    },
+    "tag_sushi_count": {
+      "old": "2/4",
+      "new": "2/4"
+    },
+    "tag_top3_cuisine": {
+      "old": "1/4",
+      "new": "2/4"
+    },
+    "ward_pop_max": {
+      "old": "0/4",
+      "new": "0/4"
+    },
+    "ward_pop_total": {
+      "old": "0/4",
+      "new": "0/4"
+    }
+  },
+  "planner": {
+    "old": {
+      "mean_distinct_plans": 1.6666666666666667,
+      "mean_modal_share": 0.7777777777777777,
+      "plan_errors": 7
+    },
+    "new": {
+      "mean_distinct_plans": 1.5238095238095237,
+      "mean_modal_share": 0.8253968253968254,
+      "plan_errors": 17
+    }
+  },
+  "difference": {
+    "correct_rate": 0.03614457831325296,
+    "step12_failure_rate": -0.1325301204819277,
+    "fisher_p": 0.7562551142483777
+  }
+}
