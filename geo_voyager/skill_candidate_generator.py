@@ -109,7 +109,8 @@ class SkillCandidateGenerator:
                 'Do not guess tags or use a hardcoded tag fallback. Do not make broad unfiltered geographic queries.\n'
                 'Every call_service call must explicitly supply path, chosen from the registered endpoint paths above. Never omit path.\n'
                 'call_service is not a global: you MUST import it with from geo_voyager.control_primitives import call_service.\n'
-                'Print exactly one JSON value for this Intent; no headings or logs. Use stable keys such as name, relation_id, count.\n'
+                'Print exactly one JSON value for this Intent; no headings or logs. Name each key for what its value is, for example '
+                'value, count, distance_km, label. Never put a value under a key that means something else, such as a count or a tag key under relation_id.\n'
                 'Print discovered keys/values when tag discovery is requested, inside the JSON.\n'
                 'Write at most 40 lines of code. No comments, no function definitions, no speculation or alternative approaches.\n'
                 'Before returning, check imports, every endpoint path, balanced square brackets in tag filters, and the protocol grammar.\n'
@@ -120,8 +121,10 @@ class SkillCandidateGenerator:
                 '探索結果を変数に取り、後続サービスの問い合わせに使う。答えやタグを事前に固定しない。\n'
                 '無駄なコメント・仮定・未実装の分岐は書かない。最終結果の具体的な回答を stdout に出す。\n'
                 '結果が空なら例外にする。必須フィールドが無い場合も例外にし、N/A やデフォルト値で成功を装わない。\n'
-                '後続が解析できるよう stdout は JSON のみ（json.dumps）。列名は意味の分かる安定したキーを使う。\n'
-                '対象一覧には name と relation_id 等の必須IDを含め、順番を固定する。一意なIDと指定件数を assert し、合わなければ例外にする。\n'
+                '後続が解析できるよう stdout は JSON のみ（json.dumps）。キーは、その値が何かを表す意味の分かる名前にする（例: value、count、distance_km）。固定のスキーマはない。\n'
+                '出力が対象（区域・地物など、安定した ID を持つ実体）の一覧や、その対象についての測定なら、各対象を name と relation_id 等の ID で出力し、'
+                '順番を固定する。一意なIDと指定件数を assert し、合わなければ例外にする。'
+                '対象でないもの（タグの値、件数のランキング、距離など）は、name や relation_id のキーを使わず、意味に沿ったキー（例: {"value": "pizza", "count": 132565}）で出力する。\n'
                 'description は任意対象の測定という再利用可能な操作を説明し、対象の名前や答えを固定しない。\n'
                 'UUID や Skill 保存処理を書かない。\n'
                 f'Intent:\n{intent.text}\n\n'
@@ -142,6 +145,7 @@ class SkillCandidateGenerator:
                          '最終結果は意味の分かるキーを持つ JSON を print する。')
         if not intent.dataset_ids:
             if intent.target is not None:
+                prompt += ('\nこの Intent は対象についての Intent なので、出力に対象の name と ID を含める。')
                 prompt += ('\n最後の重要な制約: 対象は実行時変数 intent_target であり、Skill の固定対象ではありません。'
                            '説明に対象の名前を書かず、「実行時に指定された対象」と書いてください。'
                            '説明の例: 実行時に指定された対象について、指定条件に一致する地物の件数を取得する。')
