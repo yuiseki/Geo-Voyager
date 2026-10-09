@@ -15,7 +15,7 @@ import time
 from bench.goals import GOALS
 from bench.infra import benchmark_environment
 from bench.run_goals import logged_llm
-from bench.semantic_replay_stats import categorize, select_cases, summarize
+from bench.semantic_replay_stats import categorize, output_keys, select_cases, summarize
 from geo_voyager.critic import Critic
 from geo_voyager.execution_attempt import ExecutionAttempt
 from geo_voyager.execution_failure import ExecutionFailure
@@ -30,14 +30,6 @@ def build_intent(raw: dict) -> Intent:
     return Intent(raw['text'], tuple(raw['dataset_ids']), tuple(raw['service_ids']),
                   tuple(Observation(o['text']) for o in raw['previous_observations']),
                   raw['requires_context'], raw.get('target_name'))
-
-
-def json_keys(text: str) -> set[str] | None:
-    try:
-        value = json.loads(text)
-    except ValueError:
-        return None
-    return set(value) if isinstance(value, dict) else None
 
 
 def replay_case(case: dict, repairer: SemanticRepairer, worker: Worker, llm, judges: dict) -> dict:
@@ -69,7 +61,7 @@ def replay_case(case: dict, repairer: SemanticRepairer, worker: Worker, llm, jud
             if outcome:
                 verdict = Critic(llm, thinking=case['critic_thinking']).check(intent, outcome)
                 result['critic_success'], result['critic_after'] = verdict.success, verdict.reason
-            old_keys, new_keys = json_keys(before), json_keys(after)
+            old_keys, new_keys = output_keys(before), output_keys(after)
             if old_keys is not None and new_keys is not None:
                 result['keys_removed'], result['keys_added'] = sorted(old_keys - new_keys), sorted(new_keys - old_keys)
             if judge and case['oracle'] is not None and after:

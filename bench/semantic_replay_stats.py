@@ -47,6 +47,27 @@ def select_cases(results_path: Path) -> tuple[list[dict], dict]:
     return cases, dict(skipped)
 
 
+def output_keys(text: str) -> set[str] | None:
+    """The keys of a JSON object output, or of the objects in a JSON list. None when there are none."""
+    try:
+        value = json.loads(text)
+    except ValueError:
+        return None
+    if isinstance(value, dict):
+        return set(value)
+    if isinstance(value, list) and value and all(isinstance(item, dict) for item in value):
+        return set().union(*value)
+    return None
+
+
+def refresh_keys(result: dict) -> dict:
+    """Recompute which output keys a repair removed or added, from the stored before and after texts."""
+    old, new = (output_keys(result[name]) if result.get(name) else None for name in ('before', 'after'))
+    if old is None or new is None:
+        return dict(result, keys_removed=[], keys_added=[])
+    return dict(result, keys_removed=sorted(old - new), keys_added=sorted(new - old))
+
+
 def categorize(result: dict) -> str:
     if result['status'] != 'proposed':
         return _BY_STATUS[result['status']]
@@ -64,3 +85,16 @@ def summarize(results: list[dict]) -> dict:
     summary = {'cases': len(results), **{name: counts.get(name, 0) for name in CATEGORIES}}
     summary['output_keys_changed'] = sum(1 for r in results if r.get('keys_added') or r.get('keys_removed'))
     return summary
+
+
+def main() -> None:
+    """Recompute the summary of a replay from its stored results: python -m bench.semantic_replay_stats replay.jsonl"""
+    import sys
+    results = [refresh_keys(json.loads(line)) for line in Path(sys.argv[1]).read_text().splitlines() if line.strip()]
+    for result in results:
+        result['category'] = categorize(result)
+    print(json.dumps({'summary': summarize(results), 'results': results}, ensure_ascii=False, indent=1))
+
+
+if __name__ == '__main__':
+    main()

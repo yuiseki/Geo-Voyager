@@ -88,3 +88,28 @@ def test_summary_counts_every_case_once():
     assert summary['rescued'] == 1 and summary['still_failing'] == 1 and summary['worsened'] == 1 and summary['unchanged'] == 1
     assert sum(summary[key] for key in ('rescued', 'still_failing', 'worsened', 'unchanged', 'vibration',
                                         'hardcoded_rejected', 'invalid')) == 4
+
+
+def test_output_keys_of_an_object_and_of_a_list_of_objects():
+    from bench.semantic_replay_stats import output_keys
+    assert output_keys('{"name": "x", "count": 1}') == {'name', 'count'}
+    assert output_keys('[{"name": "x", "relation_id": "1"}, {"name": "y", "uri": "u"}]') == {'name', 'relation_id', 'uri'}
+
+
+def test_output_keys_are_none_when_there_is_no_object_shape():
+    from bench.semantic_replay_stats import output_keys
+    assert output_keys('plain text') is None and output_keys('[1, 2]') is None and output_keys('') is None
+
+
+def test_refresh_keys_finds_a_removed_id_inside_a_list_of_objects():
+    from bench.semantic_replay_stats import refresh_keys
+    refreshed = refresh_keys(result(before='[{"name": "a", "relation_id": "1"}]',
+                                    after='[{"name": "a", "relation_uri": "u"}]', critic_success=True))
+    assert refreshed['keys_removed'] == ['relation_id'] and refreshed['keys_added'] == ['relation_uri']
+    assert categorize(refreshed) == 'rescued'          # the Critic accepted it, the contract still changed
+    assert summarize([refreshed])['output_keys_changed'] == 1
+
+
+def test_refresh_keys_leaves_a_result_without_an_output_alone():
+    from bench.semantic_replay_stats import refresh_keys
+    assert refresh_keys(result(after=None, execution_failed=True))['keys_removed'] == []
