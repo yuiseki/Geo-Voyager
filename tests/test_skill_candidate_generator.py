@@ -261,20 +261,22 @@ def test_service_candidate_emits_machine_readable_output_and_rejects_missing_req
     assert 'geo:osmRelation ではない' in prompt
 
 
-def test_service_contract_prefers_simple_runtime_uri_and_position_parsing():
+def test_service_contract_prefers_simple_runtime_uri_and_resolves_the_target_by_name():
     client = Mock(); client.generate.return_value = VALID
-    intent = Intent('一覧の1番目を測定', service_ids=('yuisekin-geosparql',), previous_observations=(__import__('geo_voyager.observation', fromlist=['Observation']).Observation('[]'),))
+    intent = Intent('港区の件数を測定', service_ids=('yuisekin-geosparql',), target_name='港区',
+                    previous_observations=(__import__('geo_voyager.observation', fromlist=['Observation']).Observation('[]'),))
     SkillCandidateGenerator(client).generate(intent)
     prompt = client.generate.call_args.args[0]
-    assert '([0-9]+)番' in prompt
+    assert 'intent_target' in prompt and '([0-9]+)番' not in prompt
     assert 'SPARQL の REPLACE' in prompt
 
 
-def test_service_system_contract_parameterizes_target_position_and_description():
+def test_service_system_contract_resolves_the_named_target_at_runtime():
     client = Mock(); client.generate.return_value = VALID
-    SkillCandidateGenerator(client).generate(Intent('一覧の1番目を測定', service_ids=('overpass',)))
+    SkillCandidateGenerator(client).generate(Intent('港区の件数を測定', service_ids=('overpass',), target_name='港区'))
     system = client.generate.call_args.kwargs['system_prompt']
-    assert 'never the current ordinal' in system and 'intent_text' in system
+    assert 'intent_target' in system and 'ordinal' not in system
+    assert 're.search' not in system and '([0-9]+)番' not in system
 
 
 def test_overpass_contract_requires_existing_area_before_measuring():
@@ -287,16 +289,27 @@ def test_overpass_contract_requires_existing_area_before_measuring():
 def test_final_generation_instruction_distinguishes_parameter_from_fixed_scope():
     client = Mock(); client.generate.return_value = VALID
     from geo_voyager.observation import Observation
-    SkillCandidateGenerator(client).generate(Intent('一覧の1番目を測定', service_ids=('overpass',), previous_observations=(Observation('[]'),)))
-    assert '対象番号は実行時パラメータ' in client.generate.call_args.args[0].split('Intent:')[-1]
+    SkillCandidateGenerator(client).generate(Intent('港区の件数を測定', service_ids=('overpass',), target_name='港区',
+                                                    previous_observations=(Observation('[]'),)))
+    tail = client.generate.call_args.args[0].split('Intent:')[-1]
+    assert '対象は実行時変数 intent_target' in tail and '実行時に指定された対象' in tail
 
 
-def test_target_context_example_uses_runtime_intent_instead_of_literal_text():
+def test_target_context_example_matches_by_name_and_never_by_position():
     from geo_voyager.observation import Observation
     client = Mock(); client.generate.return_value = VALID
-    intent = Intent('一覧の1番目を測定', service_ids=('overpass',), previous_observations=(Observation('[]'),))
+    intent = Intent('港区の件数を測定', service_ids=('overpass',), target_name='港区', previous_observations=(Observation('[]'),))
     SkillCandidateGenerator(client).generate(intent)
-    assert 'position = int(re.search(r"([0-9]+)番", intent_text).group(1)) - 1' in client.generate.call_args.args[0]
+    prompt = client.generate.call_args.args[0]
+    assert 't.get("name") == intent_target["name"]' in prompt
+    assert 're.search' not in prompt and '添字' not in prompt.split('Intent:')[-1]
+
+
+def test_a_target_without_prior_observations_still_reads_its_name_at_runtime():
+    client = Mock(); client.generate.return_value = VALID
+    SkillCandidateGenerator(client).generate(Intent('港区の ID を取得', service_ids=('yuisekin-geosparql',), target_name='港区'))
+    prompt = client.generate.call_args.args[0]
+    assert 'intent_target["name"]' in prompt and 'previous_observations' not in prompt.split('Intent:')[-1]
 
 
 def test_positive_service_contracts_distinguish_area_filter_and_external_relation():
@@ -307,18 +320,18 @@ def test_positive_service_contracts_distinguish_area_filter_and_external_relatio
     assert '?ward gs:osmRelation ?relation' in prompt and 'isdigit()' in prompt
 
 
-def test_standalone_service_generation_does_not_require_a_target_position():
+def test_standalone_service_generation_does_not_mention_a_target():
     client = Mock(); client.generate.return_value = VALID
     SkillCandidateGenerator(client).generate(Intent('地名から位置を調べる', service_ids=('nominatim',)))
-    assert '対象番号は実行時パラメータ' not in client.generate.call_args.args[0]
+    assert 'intent_target' not in client.generate.call_args.args[0]
 
 
-def test_prior_tag_context_does_not_make_collection_discovery_positional():
+def test_prior_tag_context_without_a_target_does_not_ask_for_target_resolution():
     from geo_voyager.observation import Observation
     client = Mock(); client.generate.return_value = VALID
     intent = Intent('対象集合を取得する', service_ids=('yuisekin-geosparql',), previous_observations=(Observation('{"key":"example"}'),))
     SkillCandidateGenerator(client).generate(intent)
-    assert 'position = int(re.search' not in client.generate.call_args.args[0]
+    assert 'intent_target' not in client.generate.call_args.args[0]
 
 
 def test_local_aggregation_reads_all_outputs_and_requires_metric_fields():

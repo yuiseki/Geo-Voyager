@@ -1,4 +1,3 @@
-import re
 
 from .intent import Intent
 from .llama_client import LlamaClient
@@ -123,9 +122,7 @@ class SkillCandidateGenerator:
                 '結果が空なら例外にする。必須フィールドが無い場合も例外にし、N/A やデフォルト値で成功を装わない。\n'
                 '後続が解析できるよう stdout は JSON のみ（json.dumps）。列名は意味の分かる安定したキーを使う。\n'
                 '対象一覧には name と relation_id 等の必須IDを含め、順番を固定する。一意なIDと指定件数を assert し、合わなければ例外にする。\n'
-                '1対象の測定コードは、対象番号を実行時 intent_text から取り、previous_observations の一覧から対象を選ぶ。対象番号や対象IDをコードへ固定しない。\n'
-                '日本語の N番目 の入力は re.search(r"([0-9]+)番", intent_text) で1始まりの番号を取り、list の添字は番号-1にする。0や1を対象添字へ固定しない。\n'
-                'description は任意対象の測定という再利用可能な操作を説明し、対象の番号や答えを固定しない。\n'
+                'description は任意対象の測定という再利用可能な操作を説明し、対象の名前や答えを固定しない。\n'
                 'UUID や Skill 保存処理を書かない。\n'
                 f'Intent:\n{intent.text}\n\n'
                 '出力形式は厳密に次の形式。前置きや追記は禁止。返答の1行目は必ず「説明:」だけ。説明本文を同じ行に書かない。説明本文は2行目から。\n'
@@ -144,16 +141,24 @@ class SkillCandidateGenerator:
                          'previous_observations や intent_text を代入で上書きしない。json.loads(previous_observations[index]) を使う。'
                          '最終結果は意味の分かるキーを持つ JSON を print する。')
         if not intent.dataset_ids:
-            if intent.previous_observations and re.search(r'一覧の[0-9]+番目', intent.text):
-                prompt += ('\n最後の重要な制約: 対象番号は実行時パラメータであり、Skill の固定対象ではありません。'
-                           '説明に「1番目」「2番目」など現在の番号を書かず、「実行時に指定された対象」と書いてください。'
-                           '説明の例: 前段一覧から実行時に指定された対象を選び、指定条件に一致する地物の件数を取得する。'
-                           '使用サービス、条件、出力は説明に残す。コードも intent_text から対象番号を取り出す。')
-                prompt += ('\n対象位置を指定する Intent の接続例。文字列リテラルでなく実行時変数を使う:\n'
-                           'import json, re\n'
-                           'position = int(re.search(r"([0-9]+)番", intent_text).group(1)) - 1\n'
-                           'target = json.loads(previous_observations[0])[position]\n'
-                           'この target からIDを取り、要求された測定を続ける。説明の対象は実行時に指定された対象。')
+            if intent.target_name is not None:
+                prompt += ('\n最後の重要な制約: 対象は実行時変数 intent_target であり、Skill の固定対象ではありません。'
+                           '説明に対象の名前を書かず、「実行時に指定された対象」と書いてください。'
+                           '説明の例: 実行時に指定された対象について、指定条件に一致する地物の件数を取得する。'
+                           '使用サービス、条件、出力は説明に残す。コードは対象の名前を intent_target["name"] から取り、名前もIDもコードへ固定しない。')
+                if intent.previous_observations:
+                    prompt += ('\n対象は名前で特定する。位置では選ばない。previous_observations の JSON（list でも単一の object でもよい）から、'
+                               'name が intent_target["name"] と完全一致する object を探し、その安定ID（relation_id など）を使う。'
+                               '同じ名前で同じIDの object は同一対象。一致する対象が無い、またはIDが異なる対象が複数あれば例外にする。接続例:\n'
+                               'import json\n'
+                               'candidates = []\n'
+                               'for text in previous_observations:\n'
+                               '    value = json.loads(text)\n'
+                               '    candidates += value if isinstance(value, list) else [value]\n'
+                               'matches = [t for t in candidates if isinstance(t, dict) and t.get("name") == intent_target["name"]]\n'
+                               'assert matches and len({t["relation_id"] for t in matches}) == 1\n'
+                               'target = matches[0]\n'
+                               'ID のキー名は前段の形に合わせる。この target からIDを取り、要求された測定を続ける。')
             if 'overpass' in intent.service_ids:
                 prompt += ('\n件数測定の場合の抽象構文（メタ変数を実行時値へ置換）: '
                            '[out:json][timeout:12];nwr["<key>"="<value>"](area:<area_id>);out count;'
@@ -179,9 +184,9 @@ class SkillCandidateGenerator:
                     'First line must be exactly 説明:, with description on the next line. '
                     'Use only the Service ids declared by the Intent. '
                     'Use the supplied API contracts literally. Explicitly import primitives. '
-                    'For a target-list position, describe the operation on a runtime-selected target, never the current ordinal. '
-                    'When a target-list position is requested, code MUST read that position from intent_text with re.search(r"([0-9]+)番", intent_text) and use it to index the runtime list. '
-                    'No constant target indices. Do not fix current IDs or names in code or description. '
+                    'When the Intent names a target, describe the operation on a runtime-resolved target, never on the current name. '
+                    'The code MUST take the target name from the runtime variable intent_target["name"] and, if previous_observations exist, resolve the target there by matching that name against the name field of the objects. '
+                    'Do not fix current IDs or names in code or description. '
                     'Discover answers from service responses, never invent them. Print the concrete results. '
                     'Exact layout, with every label on a separate line:\n説明:\n<description>\n---\nコード:\n```python\n<executable code>\n```'
                 ),
