@@ -47,3 +47,27 @@
 - step 3 の生成コードは、`get_area_id(id_value, id_type)` の関数の引数として `id_type == 'relation'` と比べていた。`target_type = intent_target["id_type"]` を関数に渡す形で、このときの検査は、`intent_target["id_type"]` を直接比べる形しか見ていなかったため通した。実行は `ValueError: Unsupported id_type: relation_id` で失敗し、step 4 で同じ Intent を出し直して正しく通った。この関数の引数を追う形（値の受け渡しを 3 段まで）は、この実行のあとで検査に足した。足したあとの E2E は流していない。
 - harness の oracle 判定が不一致だったのは、`judge_winner` が最終 Observation に勝者（渋谷区）が書かれていることを求めるのに、最終 step の出力が新宿区の 343 だけだったため。どちらが多いかを比べる step は無く、Planner は 2 つの件数を得た時点で DONE を返した。最終 Critic は「比較の結果（渋谷区が多い）が示されている」と成功にしたが、比較を出力した step は無い。最終 Critic が、履歴にある 2 つの数字から自分で比べた答えを、出力されたものとして扱った可能性がある（仮説。最終 Critic のプロンプトは確かめていない）。件数は正しいので、Goal の答えとしては材料が揃っているが、「どちらが多いか」を出力する step が欠けている。
 - 前回の失敗（件数 0 が 4 回続き 8 step で停止）は、この 1 回では再現しなかった。1 回なので、直ったとまでは言えない。
+
+## 追記: `id_type` 検査の確認と、最終 Critic の変更（LLM を回した E2E はなし）
+
+### `id_type` の検査を保存済みの生成コードに当てた
+
+`~/tmp/geo-voyager-bench/` に保存された Python の応答 1,275 件のうち `id_type` を含むのは 8 件で、7 件が検出され、1 件（`id_type` を `t.get(id_type)` の辞書のキーとして使う正しい書き方）は検出されなかった。誤検出は 0 件、見逃しも 0 件だった。ただし 7 件は同じ Goal の 2 回の実行（`adaptive_entity`、`adaptive_entity2`）から出ていて、独立ではない。`id_type` の契約を入れたのは最近なので、母数が小さい。
+
+見つかったこと: `adaptive_entity2` の step 3 では、runtime repair の 2 回（`llm_10`、`llm_11`）も同じ `id_type == 'relation'` を残して失敗していた。repair は Generator の検査を通らないので、この誤りを直せない。repair にも同じ検査をかけるかは、決めていない。
+
+### 最終 Critic は答えそのものが出力されていることを求める
+
+最終判定（`GoalExecutor` の DONE の後）の Critic に、`final=True` を渡すようにした。このときプロンプトに次を足す。Goal が求める答え（比較の勝者、最大・最小、選択、合計など）は Observation のどれかに値として出力されていなければならない。複数の Observation の数値から自分で比較・計算して導かない。答えの材料だけが別々の Observation にあるときは失敗とし、どの材料からどんな答えを出す作業が足りないかを理由に書く。理由は `FinalCriticFailure` として履歴に入り、Planner が次の Intent（比較して勝者を出すローカル Intent）を決める材料になる。step ごとの判定には、この指示を付けない。単体テストは 778 件が通る。
+
+保存済みの 21 回の実行（`adaptive_*` の `results.jsonl`）の、成功した step の Observation を最終 Critic に聞き直した（`bench/replay_final_critic.py`。変更前と変更後を同じ入力で比べる）。
+
+| 実行の種類（Goal judge の判定） | 実行数 | 変更前に通した | 変更後に通した |
+|---|---|---|---|
+| 正解 | 11 | 10 | 10 |
+| 不正解 | 10 | 6 | 0 |
+
+- 変更前に通した不正解 6 件は、すべて `cafe_shibuya_vs_shinjuku` で、2 つの件数（459 と 343）はあるが、どちらが多いかを出力した step が無い実行だった。変更後は 6 件とも「どちらが多いかという比較結果が Observation に出力されていない」で失敗になった。比較の step がある正解の実行（`adaptive_injected`、`adaptive_recovery2` の各 1 件）は、変更後も通った。
+- 正解の実行を新たに落とした例はなかった。正解のうち 1 件（`adaptive_recovery2/tag_top3_cuisine`）は、変更の前後どちらでも落ちている。
+- 6 件は同じ Goal の実行で、独立ではない。1 回ずつの再生で、他の種類の Goal での副作用（答えが出力されているのに落とす）は、この 11 件の正解の範囲でしか見ていない。
+- 失敗のあとで Planner が実際に比較の Intent を出し、DONE まで行くかは、LLM を回して確かめていない（E2E は流していない）。

@@ -66,7 +66,7 @@ class GoalExecutor:
             previous.extend(execution.observations)
         final = Intent(goal, dataset_ids=tuple(dict.fromkeys(id for intent in intents for id in intent.dataset_ids)),
                        service_ids=tuple(dict.fromkeys(id for intent in intents for id in intent.service_ids)))
-        critique = self.critic.check(final, previous)
+        critique = self.critic.check(final, previous, final=True)
         return GoalExecution(tuple(executed_intents), tuple(executions), critique)
 
     def execute_adaptive(self, goal: str, *, max_steps: int = DEFAULT_MAX_STEPS,
@@ -101,7 +101,7 @@ class GoalExecutor:
                 stop, error = 'planner_error', f'{type(problem).__name__}: {problem}'
                 break
             if isinstance(decision, Done):
-                critique = self.critic.check(self._goal_intent(goal, history), history.observations())
+                critique = self.critic.check(self._goal_intent(goal, history), history.observations(), final=True)
                 if critique.success:
                     stop = 'done'
                     break

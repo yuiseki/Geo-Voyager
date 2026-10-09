@@ -1,0 +1,23 @@
+adaptive_contract2/tag_top3_cuisine | stop done | correct True | accepted before True | after True | Intentで要求された上位3つのcuisine値が、使用数の多い順に並べられたリストとしてObservationに出力されているため。
+adaptive_e2e/hospital_minato | stop done | correct True | accepted before True | after True | 港区の amenity=hospital の OSM 地物数（22）が Observation に出力されているため。
+adaptive_e2e/cafe_shibuya_vs_shinjuku | stop planner_error | correct False | accepted before False | after False | 渋谷区と新宿区のamenity=cafeの地物数および比較結果が出力されていない
+adaptive_e2e/hospital_minato | stop done | correct True | accepted before True | after True | 港区の amenity=hospital の地物数（22）が Observation に明記されているため、要求された調査結果が得られている。
+adaptive_e2e/tag_top3_cuisine | stop done | correct False | accepted before False | after False | 上位3つの値を示すという要求に対し、Observationは3つのエントリを提供しているが、それらが「使用数の多い順」に並べられていることの根拠や、それらが実際に上位3つであること
+adaptive_e2e/cafe_shibuya_vs_shinjuku | stop max_steps | correct False | accepted before False | after False | 渋谷区と新宿区のamenity=cafeの地物数および比較結果が出力されていない
+adaptive_entity/tag_top3_cuisine | stop done | correct True | accepted before True | after True | Intentで要求された上位3つのcuisine値とその使用数が、Observationに具体的な数値と共に出力されているため。
+adaptive_entity/cafe_shibuya_vs_shinjuku | stop max_steps | correct False | accepted before False | after False | 各行政区のamenity=cafeの地物数（count）は0と報告されているが、渋谷区と新宿区のどちらが多いかという比較結果がObservationに含まれていないため、Goalで
+adaptive_entity2/cafe_shibuya_vs_shinjuku | stop done | correct False | accepted before True | after False | 各行政区のamenity=cafeの件数は取得されているが、どちらが多いかという比較結果がObservationに含まれていない。
+adaptive_injected/cafe_shibuya_vs_shinjuku | stop done | correct False | accepted before True | after False | 各行政区のamenity=cafeの地物数（459と343）は取得されているが、どちらが多いかという比較結果（勝者）がObservationに含まれていない。
+adaptive_injected/cafe_shibuya_vs_shinjuku | stop done | correct False | accepted before True | after False | 各行政区のamenity=cafeの地物数（渋谷区459、新宿区343）は取得されているが、どちらが多いかという比較結果がObservationに含まれていない。
+adaptive_injected/cafe_shibuya_vs_shinjuku | stop done | correct True | accepted before True | after True | 渋谷区と新宿区のamenity=cafeの地物数（それぞれ459と343）と、比較結果（渋谷区が多い）がObservationに含まれているため。
+adaptive_nofallback/tag_top3_cuisine | stop done | correct True | accepted before True | after True | Intentで要求された上位3つのcuisine値とその使用数が、Observationに具体的な数値と共に出力されているため。
+adaptive_nofallback/tag_top3_cuisine | stop done | correct True | accepted before True | after True | Intentで要求された上位3つのcuisine値とその使用数が、Observationに具体的な数値と共に出力されているため。
+adaptive_nofallback/tag_top3_cuisine | stop done | correct True | accepted before True | after True | Intentで要求された上位3つのcuisine値とその使用数が、Observationに具体的な数値と共に出力されているため。
+adaptive_recovery/cafe_shibuya_vs_shinjuku | stop done | correct False | accepted before True | after False | 各行政区のamenity=cafeの地物数（渋谷区459、新宿区343）は取得されているが、どちらが多いかという比較結果がObservationに含まれていない。
+adaptive_recovery2/cafe_shibuya_vs_shinjuku | stop done | correct True | accepted before True | after True | 各行政区のamenity=cafeの地物数（渋谷区459、新宿区343）と、比較結果（渋谷区が多い）がObservationに明記されているため。
+adaptive_recovery2/cafe_shibuya_vs_shinjuku | stop done | correct False | accepted before True | after False | 各行政区のamenity=cafeの地物数（渋谷区459、新宿区343）は取得されているが、どちらが多いかという比較結果がObservationに含まれていない。
+adaptive_recovery2/cafe_shibuya_vs_shinjuku | stop done | correct False | accepted before True | after False | 各行政区のamenity=cafeの地物数（渋谷区459、新宿区343）は取得されているが、どちらが多いかという比較結果がObservationに含まれていない。
+adaptive_recovery2/tag_top3_cuisine | stop done | correct True | accepted before False | after False | 上位3つの値を示すという要求に対し、単なるデータリストの出力であり、使用数の多い順に並べられた具体的な値（例: pizza, burger, coffee_shop）が明確に回答と
+adaptive_smoke/hospital_minato | stop done | correct True | accepted before True | after True | 港区の amenity=hospital の OSM 地物数（22）が Observation に出力されているため。
+correct=True: 11 runs | accepted before 10 | after 10
+correct=False: 10 runs | accepted before 6 | after 0

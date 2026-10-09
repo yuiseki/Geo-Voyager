@@ -161,3 +161,23 @@ def test_the_prompt_does_not_accept_a_bare_zero_or_a_contradicting_value():
     Critic(client).check(Intent('cuisine=sushi の使用数を取得する', service_ids=('taginfo',)), [Observation('{"count": 0}')])
     prompt = client.generate.call_args.args[0]
     assert '0' in prompt and '空' in prompt and '矛盾' in prompt and '根拠が Observation に' in prompt
+
+
+def _prompt(final):
+    from geo_voyager.critic import Critic
+    from geo_voyager.intent import Intent
+    from geo_voyager.observation import Observation
+    from unittest.mock import Mock
+    client = Mock(); client.generate.return_value = '判定: 失敗\n理由: x'
+    Critic(client).check(Intent('渋谷区と新宿区のカフェ数を求め、どちらが多いかを示す', service_ids=('overpass',), requires_context=True),
+                         [Observation('{"name": "渋谷区", "count": 459}'), Observation('{"name": "新宿区", "count": 343}')], final=final)
+    return client.generate.call_args.args[0]
+
+
+def test_the_final_check_wants_the_answer_itself_in_an_observation():
+    prompt = _prompt(True)
+    assert '最終判定' in prompt and '自分で比較・計算して答えを導かない' in prompt and '答えそのものを出力した Observation' in prompt
+
+
+def test_a_step_check_does_not_carry_the_final_instruction():
+    assert '最終判定' not in _prompt(False)

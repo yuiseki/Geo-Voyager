@@ -349,3 +349,8 @@ def test_every_event_is_kept_in_order_in_the_result():
 def test_a_goal_that_ended_on_a_failure_still_lists_it():
     result, _, _ = run(Script(rejected(), rejected()), [])
     assert [type(e).__name__ for e in result.events] == ['PlannerFailure', 'PlannerFailure']
+
+
+def test_the_final_check_is_marked_as_the_final_one():
+    _, _, critic = run(Script(intent('a'), DONE), [ok('1')])
+    assert critic.check.call_args.kwargs == {'final': True}

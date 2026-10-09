@@ -16,7 +16,7 @@ class Critic:
         self.llm_client = llm_client if llm_client is not None else LlamaClient()
         self.thinking = thinking
 
-    def check(self, intent: Intent, observations: list[Observation]) -> Critique:
+    def check(self, intent: Intent, observations: list[Observation], *, final: bool = False) -> Critique:
         if not observations:
             return Critique(success=False, reason='Observation がありません')
         if all(not observation.text.strip() for observation in observations):
@@ -63,6 +63,11 @@ class Critic:
                                '回答の対象が Intent の対象と一致するかを慎重に照合してください。')
             prompt += ('\n前段に正しい値があっても今回の回答が誤りなら失敗。'
                        '前段は参照資料であり今回の回答ではありません。今回の Observation が要求を答えているかだけを判定する。')
+        if final:
+            prompt += ('\nこれは Goal 全体の最終判定。Goal が求める答え（比較の勝者、最大・最小、一覧からの選択、合計など）は、'
+                       'Observation のどれかに値として実際に出力されていなければならない。複数の Observation の数値から自分で比較・計算して答えを導かない。'
+                       '答えの材料だけが別々の Observation にあり、答えそのものを出力した Observation が無いときは失敗とし、'
+                       '理由に、どの材料からどんな答えを出す作業が足りないかを書く。')
         system_prompt = None
         if intent.previous_observations:
             system_prompt = ('Judge only the current returned Observation. Previous observations are reference evidence, '
