@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 from .dataset_graph import DatasetGraph
 from .goal_history import GoalHistory, render_history
+from .intent_text import api_details_in
 from .hypothesis import Hypothesis
 from .intent import Intent
 from .llama_client import LlamaClient
@@ -198,9 +199,17 @@ class Planner:
         return Verdict("仮説はまだ十分に検証されていない")
 
     @staticmethod
-    def _resource_text(datasets, services) -> str:
+    def _resource_text(datasets, services, *, full: bool = False) -> str:
+        """The resources as the prompt lists them. The first-plan prompt shows the first two sentences of a service.
+
+        With full the whole description is shown, so the Planner knows what each service can do. It does not need the
+        endpoint or the parameters to write an Intent, but a model that sees only a piece of the description makes the
+        rest up.
+        """
         resources = '\n'.join(f'Dataset {item.id}: {item.description}' for item in datasets.all())
-        resources += '\n' + '\n'.join(f'Service {item.id}: {item.protocol}: ' + '。'.join(item.description.split('。')[:2]) for item in services.all())
+        resources += '\n' + '\n'.join(
+            f'Service {item.id}: {item.protocol}: ' + (item.description if full else '。'.join(item.description.split('。')[:2]))
+            for item in services.all())
         return resources
 
     def next(self, goal: str, history: GoalHistory) -> Intent | Done:
@@ -220,12 +229,14 @@ class Planner:
             '履歴に「計画の失敗」があるときは、前回のあなたの応答がその理由で使えなかったということ。理由が示す契約を守った Intent を返し、同じ誤りを繰り返さない。'
             '対象が複数あるときは、対象ごとに Intent を分ける。1つの Intent に「対象:」は1行だけ書く。\n'
             '履歴に「Goal の最終判定が未達」があるときは、DONE を返したが Critic が不足を指摘したということ。その理由が示す不足を埋める Intent を返し、同じ DONE を繰り返さない。\n'
+            'Service の説明は、そのサービスで何ができるかを知るためのものです。Intent の調査項目には、何を調べるか（調べる対象、条件、得たい値）だけを書く。'
+            'API のパス（/api/... など）やパラメータ（limit=3 など）は書かない。サービスの呼び方は実行側が決める。書いた Intent は拒否される。\n'
             '「判明した対象」は、前段の Observation で分かった名前と安定IDです。対象は ID で区別する。その対象を測る Intent は、「対象:」に判明した対象の名前、または ID（例: 対象: relation_id=1761717）を書く。同じ名前の対象が複数あるときは ID で書く。調査項目には対象の名前を書く。IDをコードに書き写さなくてよい。\n'
             + SHARED_RULES
             + 'DONE とだけ返すか、次の Intent を以下の形式で1件だけ返す。複数返さない。前置き、番号、コードフェンス禁止。\n'
             + '調査項目: 調査内容\n利用データセット: []\n利用サービス:\n  - 登録済みid\n対象: 名前\n'
             + '利用データセットと利用サービスは空なら []、非空なら半角2空白の - id の行を続ける。「対象:」は対象を測る Intent だけが付ける。\n'
-            + f'INPUT: 利用可能リソース:\n{self._resource_text(datasets, services)}\nGoal:\n{goal}\n履歴:\n{render_history(history)}\n'
+            + f'INPUT: 利用可能リソース:\n{self._resource_text(datasets, services, full=True)}\nGoal:\n{goal}\n履歴:\n{render_history(history)}\n'
             + 'OUTPUT: DONE、または調査項目、利用データセット、利用サービス、必要なら対象の行だけ。INPUT のメタデータを繰り返さない。'
         )
         text = self.llm_client.generate(
@@ -241,7 +252,12 @@ class Planner:
             blocks = _plan_blocks(text)
             if not blocks:
                 raise ValueError('Plan must start with 調査項目:')
-            return _parse_intent(blocks[0], datasets, services, allow_local=bool(history.observations()), known=history.targets())
+            intent = _parse_intent(blocks[0], datasets, services, allow_local=bool(history.observations()), known=history.targets())
+            details = api_details_in(intent.text)
+            if details:
+                raise ValueError(f'Intent の調査項目に API の詳細が書かれている: {", ".join(details)}。'
+                                 '何を調べるかだけを書き、API のパスやパラメータは書かない。サービスの呼び方は実行側が決める')
+            return intent
         except (ValueError, KeyError) as problem:
             raise PlannerRejected(f'{type(problem).__name__}: {problem}', text) from problem
 

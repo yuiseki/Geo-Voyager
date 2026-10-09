@@ -206,3 +206,65 @@ def test_the_prompt_tells_the_model_how_to_recover_from_each_kind_of_failure():
     prompt = client.generate.call_args.args[0]
     for rule in ['計画の失敗', '最終判定が未達', '同じ DONE を繰り返さない', '対象ごとに Intent を分ける']:
         assert rule in prompt, rule
+
+
+# ---- the Planner sees the whole service contract, and does not write how to call a service
+
+from geo_voyager.services import load_service_graph
+
+HOW = '調査項目: taginfo API /api/4/keys/cuisine/values に limit=3 を指定して上位3件を取得する\n利用データセット: []\n利用サービス:\n  - taginfo'
+WHAT = '調査項目: cuisine キーの値を使用数の多い順に並べ、上位3つを求める\n利用データセット: []\n利用サービス:\n  - taginfo'
+
+
+def test_the_prompt_shows_every_service_description_in_full():
+    plan, client = planner(WHAT)
+    plan.next('g', GoalHistory())
+    prompt = client.generate.call_args.args[0]
+    for service in load_service_graph().all():
+        for sentence in service.description.split('。'):
+            if sentence.strip():
+                assert sentence in prompt, (service.id, sentence)
+    assert '/api/4/key/values は key を受け取る' in prompt          # the endpoint the first-plan prompt cut off
+
+
+def test_the_first_plan_prompt_is_still_the_short_one():
+    client = Mock(); client.generate.return_value = STEP
+    Planner(client).plan_goal('ゴール')
+    assert '/api/4/key/values' not in client.generate.call_args.args[0]
+
+
+def test_an_intent_that_names_an_endpoint_or_a_parameter_is_rejected_with_what_it_named():
+    plan, client = planner(HOW)
+    with pytest.raises(PlannerRejected) as raised:
+        plan.next('g', GoalHistory())
+    reason = raised.value.reason
+    assert '/api/4/keys/cuisine/values' in reason and 'limit=3' in reason and '何を調べるか' in reason
+    assert raised.value.reply == HOW and client.generate.call_count == 1       # still one model call
+
+
+def test_an_intent_that_says_what_to_find_is_accepted_even_with_an_osm_tag_in_it():
+    result = planner(WHAT)[0].next('g', GoalHistory())
+    assert result.text.startswith('cuisine キーの値') and result.service_ids == ('taginfo',)
+    tag = '調査項目: 渋谷区の amenity=cafe の OSM 地物数を求める\n利用データセット: []\n利用サービス:\n  - overpass'
+    assert planner(tag)[0].next('g', GoalHistory()).service_ids == ('overpass',)
+
+
+def test_the_rejection_is_kept_in_the_history_so_the_planner_can_write_it_again():
+    from geo_voyager.goal_history import PlannerFailure
+    plan, client = planner(HOW)
+    with pytest.raises(PlannerRejected) as raised:
+        plan.next('g', GoalHistory())
+    history = GoalHistory()
+    history.append(PlannerFailure(raised.value.reason, raised.value.reply))
+    plan2, client2 = planner(WHAT)
+    plan2.next('g', history)
+    prompt = client2.generate.call_args.args[0]
+    assert '計画の失敗' in prompt and '/api/4/keys/cuisine/values' in prompt and 'limit=3' in prompt
+
+
+def test_the_prompt_tells_the_planner_to_say_what_to_find_and_not_how_to_call():
+    plan, client = planner(WHAT)
+    plan.next('g', GoalHistory())
+    prompt = client.generate.call_args.args[0]
+    for rule in ['API のパス', 'パラメータ', '書かない', '呼び方は実行側が決める']:
+        assert rule in prompt, rule
