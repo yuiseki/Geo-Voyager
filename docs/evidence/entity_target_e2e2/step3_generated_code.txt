@@ -1,0 +1,39 @@
+説明:
+実行時に指定された対象について、amenity=cafe に一致する地物の件数を取得し、対象名と件数を出力する。
+---
+コード:
+```python
+from geo_voyager.control_primitives import call_service
+import json
+
+def get_area_id(id_value, id_type):
+    if id_type == 'relation':
+        return int(id_value) + 3600000000
+    raise ValueError(f"Unsupported id_type: {id_type}")
+
+def verify_area(area_id):
+    ql = f'[out:json];area({area_id});out ids;'
+    res = call_service('overpass', path='/api/interpreter', body=ql, content_type='text/plain')
+    data = json.loads(res)
+    if not data.get('elements'):
+        raise ValueError(f"Area {area_id} not found")
+
+def count_features(area_id, key, value):
+    ql = f'[out:json][timeout:12];nwr["{key}"="{value}"](area:{area_id});out count;'
+    res = call_service('overpass', path='/api/interpreter', body=ql, content_type='text/plain')
+    data = json.loads(res)
+    if not data.get('elements'):
+        return 0
+    return int(data['elements'][0]['tags']['total'])
+
+target_id = intent_target["id_value"]
+target_type = intent_target["id_type"]
+target_name = intent_target["name"]
+
+area_id = get_area_id(target_id, target_type)
+verify_area(area_id)
+
+count = count_features(area_id, "amenity", "cafe")
+
+print(json.dumps({"name": target_name, "relation_id": target_id, "count": count}))
+```

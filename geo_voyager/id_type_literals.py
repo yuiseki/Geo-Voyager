@@ -29,10 +29,17 @@ def id_type_comparisons(code: str) -> list[str]:
         tree = ast.parse(code)
     except SyntaxError:
         return []
-    names: set[str] = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Assign) and _reads_id_type(node.value, set()):
-            names.update(target.id for target in node.targets if isinstance(target, ast.Name))
+    names: set[str] = {'id_type'}
+    functions = {node.name: [arg.arg for arg in node.args.args] for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)}
+    # a name assigned from the id_type, or a parameter of a function that is called with one, holds the id_type too
+    for _ in range(3):
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Assign) and _reads_id_type(node.value, names):
+                names.update(target.id for target in node.targets if isinstance(target, ast.Name))
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in functions:
+                for parameter, argument in zip(functions[node.func.id], node.args):
+                    if _reads_id_type(argument, names):
+                        names.add(parameter)
     found = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Compare) and len(node.ops) == 1 and isinstance(node.ops[0], (ast.Eq, ast.NotEq, ast.In, ast.NotIn)):

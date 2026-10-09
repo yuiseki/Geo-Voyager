@@ -45,3 +45,28 @@ def test_a_fixed_string_compared_with_the_id_type_is_found(code):
 ])
 def test_using_the_id_type_as_a_key_or_comparing_other_things_is_not_found(code):
     assert id_type_comparisons(code) == []
+
+
+FROM_THE_SECOND_TRACE = '''
+def get_area_id(id_value, id_type):
+    if id_type == 'relation':
+        return int(id_value) + 3600000000
+    raise ValueError(f"Unsupported id_type: {id_type}")
+
+target_id = intent_target["id_value"]
+target_type = intent_target["id_type"]
+area_id = get_area_id(target_id, target_type)
+'''
+
+
+def test_a_value_read_from_the_id_type_and_passed_to_a_function_is_followed():
+    assert id_type_comparisons(FROM_THE_SECOND_TRACE) == ["id_type == 'relation'"]
+
+
+def test_a_parameter_that_is_given_something_else_is_not_followed():
+    code = 'def pick(kind):\n    return kind == "relation"\npick(intent_target["name"])'
+    assert id_type_comparisons(code) == []
+
+
+def test_a_name_called_id_type_is_the_id_type():
+    assert id_type_comparisons('id_type = something()\nif id_type == "relation":\n    pass')
