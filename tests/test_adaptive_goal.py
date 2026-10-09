@@ -224,13 +224,47 @@ def test_an_error_that_is_not_a_rejected_reply_still_ends_the_goal_at_once():
     assert result.stop_reason == 'planner_error' and planner_failures(result) == [] and executor.execute.call_count == 0
 
 
-def test_an_intent_the_executor_refuses_is_a_planner_failure_to_recover_from():
-    executor = Mock(); executor.execute.side_effect = [ValueError('At most one dataset_id'), ok('1')]
+def test_an_intent_that_breaks_the_execution_contract_is_a_planner_failure_and_is_not_run():
+    two_datasets = Intent('二つのデータ', dataset_ids=('yuiseki/jp-admin-2026-09', 'yuiseki/ekidata-jp'))
+    executor = Mock(); executor.execute.side_effect = [ok('1')]
     critic = Mock(); critic.check.return_value = Critique(True, 'answered')
-    result = GoalExecutor(Script(intent('too many'), intent('one dataset'), DONE), executor, critic).execute_adaptive('目標')
+    result = GoalExecutor(Script(two_datasets, intent('one dataset'), DONE), executor, critic).execute_adaptive('目標')
     [failure] = planner_failures(result)
-    assert 'At most one dataset_id' in failure.reason and failure.reply == 'too many'
-    assert result.stop_reason == 'done' and len(result.history) == 1
+    assert 'At most one dataset_id' in failure.reason and failure.reply == '二つのデータ'
+    assert executor.execute.call_count == 1 and result.stop_reason == 'done'
+
+
+def test_a_local_step_with_nothing_to_work_on_is_a_planner_failure_too():
+    local = Intent('前段を集計', requires_context=True)
+    executor = Mock(); executor.execute.side_effect = [ok('1')]
+    critic = Mock(); critic.check.return_value = Critique(True, 'answered')
+    result = GoalExecutor(Script(local, intent('a'), DONE), executor, critic).execute_adaptive('目標')
+    assert len(planner_failures(result)) == 1 and executor.execute.call_count == 1
+
+
+def test_a_format_error_inside_the_executor_is_a_failed_step_not_a_planner_failure():
+    executor = Mock(); executor.execute.side_effect = [ValueError('Candidate code must use a Python code fence'), ok('1')]
+    critic = Mock(); critic.check.return_value = Critique(True, 'answered')
+    planner = Script(intent('a'), intent('a again'), DONE)
+    result = GoalExecutor(planner, executor, critic).execute_adaptive('目標')
+    assert planner_failures(result) == [] and [e.succeeded for e in result.history] == [False, True]
+    failed = result.history[0]
+    assert failed.failure is not None and 'code fence' in failed.failure.stderr
+    assert not failed.critique.success and failed.observations == ()
+    assert result.stop_reason == 'done'
+
+
+def test_a_step_that_failed_inside_the_executor_is_shown_to_the_planner_as_an_execution_failure():
+    from geo_voyager.goal_history import render_history
+    executor = Mock(); executor.execute.side_effect = [ValueError('Critique must contain 判定'), ok('1')]
+    critic = Mock(); critic.check.return_value = Critique(True, 'answered')
+    texts = []
+    class Watch(Script):
+        def next(self, goal, history):
+            texts.append(render_history(history))
+            return super().next(goal, history)
+    GoalExecutor(Watch(intent('a'), intent('b'), DONE), executor, critic).execute_adaptive('目標')
+    assert '実行失敗' in texts[1] and 'Critique must contain' in texts[1] and '計画の失敗' not in texts[1]
 
 
 # ---- final critic failures

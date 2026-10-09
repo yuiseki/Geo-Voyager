@@ -1,6 +1,7 @@
 from dataclasses import dataclass, replace
 
 from .critique import Critique
+from .execution_failure import ExecutionFailure
 from .critic import Critic
 from .goal_history import FinalCriticFailure, GoalHistory, HistoryEntry, PlannerFailure
 from .intent import Intent
@@ -35,6 +36,19 @@ DEFAULT_MAX_PLANNER_FAILURES = 3
 DEFAULT_MAX_FINAL_CRITIC_FAILURES = 3
 
 
+def _execution_refusal(intent: Intent) -> str | None:
+    """Why IntentExecutor would refuse this Intent, by the same precondition it checks. None if it would run."""
+    if len(intent.dataset_ids) > 1 or (not intent.dataset_ids and not intent.service_ids
+                                       and not (intent.requires_context and intent.previous_observations)):
+        return 'At most one dataset_id or registered service_ids are required'
+    return None
+
+
+def _failed_execution(reason: str) -> IntentExecution:
+    failure = ExecutionFailure(reason, '', reason, None)
+    return IntentExecution([], (), None, None, Critique(False, reason), None, failure=failure)
+
+
 class GoalExecutor:
     def __init__(self, planner: Planner, executor: IntentExecutor, critic: Critic) -> None:
         self.planner, self.executor, self.critic = planner, executor, critic
@@ -64,7 +78,7 @@ class GoalExecutor:
         The full plan is not used. Three kinds of setback do not end the Goal; each is recorded in the history so
         that the next call to the Planner can read it and plan again:
           - a step that fails (the Planner sees the failure),
-          - a Planner reply that can not be used, or an Intent the executor refuses (a PlannerFailure),
+          - a Planner reply that can not be used, or an Intent that breaks the execution contract (a PlannerFailure),
           - a DONE after which the Critic finds the Goal not answered (a FinalCriticFailure, with its reason).
         Every pass of the loop executes a step, records a failure, or stops, and each of the three has a limit, so
         the loop ends. It stops early when the same failure comes back, or an Intent that already succeeded (or has
@@ -101,15 +115,20 @@ class GoalExecutor:
                 stop = 'repeated_intent'
                 break
             current = replace(decision, previous_observations=history.observations())
-            try:
-                execution = self.executor.execute(current)
-            except ValueError as problem:
-                reason = f'ValueError: {problem}'
+            refusal = _execution_refusal(current)
+            if refusal:
+                reason = f'ValueError: {refusal}'
                 history.append(PlannerFailure(reason, current.text, len(history)))
                 if self._give_up(history.planner_failures(), max_planner_failures):
                     stop, error = 'planner_failure', reason
                     break
                 continue
+            try:
+                execution = self.executor.execute(current)
+            except ValueError as problem:
+                # A format error inside the executor (a candidate or a verdict the model wrote badly) is a failed
+                # step, not a mistake of the Planner. The Planner reads it as an execution failure.
+                execution = _failed_execution(f'ValueError: {problem}')
             executions.append(execution)
             history.append(HistoryEntry.from_execution(len(history) + 1, current, execution, history))
         if stop != 'done':
