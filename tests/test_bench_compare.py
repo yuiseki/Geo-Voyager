@@ -60,3 +60,10 @@ def test_compare_includes_per_goal_pairs_and_planner_variance():
     assert result['by_goal']['a'] == {'old': '0/2', 'new': '2/2'}
     assert result['planner']['old']['mean_distinct_plans'] == 2
     assert result['planner']['new']['mean_distinct_plans'] == 1
+
+
+def test_up_to_round_keeps_only_the_complete_rounds_asked_for():
+    from bench.compare import up_to_round
+    rows = [{'id': 'a', 'round': n} for n in (1, 2, 3, 4)]
+    assert [r['round'] for r in up_to_round(rows, 3)] == [1, 2, 3]
+    assert up_to_round(rows, None) == rows

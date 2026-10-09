@@ -1,4 +1,4 @@
-"""Compare two benchmark runs: python -m bench.compare OLD.jsonl NEW.jsonl
+"""Compare two benchmark runs: python -m bench.compare OLD.jsonl NEW.jsonl [--max-round N]
 
 Rows are re-judged with the current judges first, so both sides are scored the same way.
 The Fisher test is there to keep a difference between two runs of about a hundred Goals honest.
@@ -20,6 +20,11 @@ def fisher_exact(a: int, b: int, c: int, d: int) -> float:
     observed = probability(a)
     low, high = max(0, row1 - (total - col1)), min(row1, col1)
     return min(1.0, sum(p for p in (probability(x) for x in range(low, high + 1)) if p <= observed * (1 + 1e-9)))
+
+
+def up_to_round(rows: list[dict], last: int | None) -> list[dict]:
+    """Only the first `last` rounds, so both runs are compared over the same complete rounds."""
+    return rows if last is None else [row for row in rows if row['round'] <= last]
 
 
 def _side(rows: list[dict]) -> dict:
@@ -62,7 +67,10 @@ def compare(old_rows: list[dict], new_rows: list[dict]) -> dict:
 
 
 def main() -> None:
-    old, new = (rejudge(load([path])) for path in sys.argv[1:3])
+    args = sys.argv[1:]
+    last = int(args[args.index('--max-round') + 1]) if '--max-round' in args else None
+    paths = [arg for arg in args if arg.endswith('.jsonl')]
+    old, new = (up_to_round(rejudge(load([path])), last) for path in paths[:2])
     print(json.dumps(compare(old, new), ensure_ascii=False, indent=2))
 
 
