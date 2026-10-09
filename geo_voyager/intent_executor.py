@@ -1,7 +1,9 @@
+from dataclasses import replace
 from .critic import Critic
 from .critique import Critique
 from .execution_failure import ExecutionFailure
 from .execution_attempt import ExecutionAttempt
+from .semantic_repairer import SemanticRepairer
 from .skill_candidate_repairer import SkillCandidateRepairer
 from .intent import Intent
 from .intent_execution import IntentExecution
@@ -18,8 +20,11 @@ class IntentExecutor:
         self, retriever: SkillRetriever, selector: SkillSelector, worker: Worker,
         generator: SkillCandidateGenerator, critic: Critic, skill_library: SkillLibrary,
         repairer: SkillCandidateRepairer | None = None,
+        semantic_repairer: SemanticRepairer | None = None,
     ) -> None:
         self.repairer = repairer if repairer is not None else SkillCandidateRepairer()
+        # Off unless given: one more model call and one more run for every Critic rejection.
+        self.semantic_repairer = semantic_repairer
         self.retriever = retriever
         self.selector = selector
         self.worker = worker
@@ -63,6 +68,10 @@ class IntentExecutor:
             candidate = self.repairer.repair(intent, candidate, observations,
                                              history=tuple(candidate_attempts))
         critique = self.critic.check(intent, observations)
+        attempts[-1] = replace(attempts[-1], critique=critique)
+        if not critique.success and self.semantic_repairer is not None:
+            candidate, observations, critique = self._semantic_repair(
+                intent, candidate, observations, critique, tuple(candidate_attempts), attempts)
         learned = None
         if critique.success:
             learned = promote(candidate)
@@ -73,6 +82,30 @@ class IntentExecutor:
             learned.id if learned else None, critique, selected_skill_critique,
             attempts=tuple(attempts),
         )
+
+    def _semantic_repair(self, intent, candidate, observations, critique, history, attempts):
+        """One repair after the Critic rejected a run that had succeeded. Never more than one.
+
+        It is a separate route from the runtime repair: no traceback is involved. The repaired candidate
+        is run and judged again. It replaces the original result only when the Critic accepts it, so a
+        repair can not leave the Intent worse than it was.
+        """
+        proposal = self.semantic_repairer.repair(intent, candidate, observations, critique.reason, history=history)
+        if proposal.status != 'proposed':
+            attempts.append(ExecutionAttempt(proposal.candidate.code if proposal.candidate else candidate.code, [], None,
+                                             route='semantic', trigger=critique.reason, executed=False, note=proposal.status))
+            return candidate, observations, critique
+        result = self.worker.execute_candidate(intent, proposal.candidate)
+        if isinstance(result, ExecutionFailure):
+            attempts.append(ExecutionAttempt(proposal.candidate.code, [], result, route='semantic',
+                                             trigger=critique.reason, note='execution failed'))
+            return candidate, observations, critique
+        repaired = self.critic.check(intent, result)
+        attempts.append(ExecutionAttempt(proposal.candidate.code, result, None, route='semantic', critique=repaired,
+                                         trigger=critique.reason, note='critic passed' if repaired.success else 'critic failed'))
+        if repaired.success:
+            return proposal.candidate, result, repaired
+        return candidate, observations, critique
 
     @staticmethod
     def _attempt(code: str, result: list | ExecutionFailure) -> ExecutionAttempt:
