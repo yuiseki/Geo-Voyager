@@ -22,6 +22,26 @@ def intent_key(intent: Intent) -> tuple:
 
 
 @dataclass(frozen=True)
+class PlannerFailure:
+    """The Planner's reply could not be used: it broke the output format or a contract.
+
+    It is kept so that the next call to the Planner can read what went wrong and plan again.
+    """
+    reason: str
+    # What the model wrote, so the Planner can see the mistake it made.
+    reply: str = ''
+    # How many steps had been executed when it happened.
+    after_step: int = 0
+
+
+@dataclass(frozen=True)
+class FinalCriticFailure:
+    """The Planner said DONE, but the Critic found the Goal not answered by what the steps produced."""
+    reason: str
+    after_step: int = 0
+
+
+@dataclass(frozen=True)
 class HistoryEntry:
     step: int
     intent: Intent
@@ -48,38 +68,56 @@ class HistoryEntry:
 
 
 class GoalHistory:
+    """Append-only. Executed steps and the two kinds of failure, in the order they happened.
+
+    len() and iteration are about the executed steps only: a failure is not a step.
+    """
+
     def __init__(self) -> None:
-        self._entries: list[HistoryEntry] = []
+        self._events: list = []
+
+    @property
+    def events(self) -> tuple:
+        return tuple(self._events)
 
     @property
     def entries(self) -> tuple[HistoryEntry, ...]:
-        return tuple(self._entries)
+        return tuple(event for event in self._events if isinstance(event, HistoryEntry))
 
-    def append(self, entry: HistoryEntry) -> None:
-        if entry.step != len(self._entries) + 1:
-            raise ValueError(f'Step {entry.step} does not follow step {len(self._entries)}')
-        self._entries.append(entry)
+    def append(self, event) -> None:
+        if isinstance(event, HistoryEntry):
+            if event.step != len(self) + 1:
+                raise ValueError(f'Step {event.step} does not follow step {len(self)}')
+        elif not isinstance(event, (PlannerFailure, FinalCriticFailure)):
+            raise TypeError(f'Not a history event: {event!r}')
+        self._events.append(event)
+
+    def planner_failures(self) -> tuple[PlannerFailure, ...]:
+        return tuple(event for event in self._events if isinstance(event, PlannerFailure))
+
+    def final_critic_failures(self) -> tuple[FinalCriticFailure, ...]:
+        return tuple(event for event in self._events if isinstance(event, FinalCriticFailure))
 
     def observations(self) -> tuple[Observation, ...]:
         """The Observations of the steps that succeeded. A failed step's output is not carried forward."""
-        return tuple(observation for entry in self._entries if entry.succeeded for observation in entry.observations)
+        return tuple(observation for entry in self.entries if entry.succeeded for observation in entry.observations)
 
     def targets(self) -> tuple[dict, ...]:
         """The targets known so far, in the order they were first made known. Failed steps add none."""
         known: list[dict] = []
-        for entry in self._entries:
+        for entry in self.entries:
             if entry.succeeded:
                 known.extend(target for target in entry.targets if target not in known)
         return tuple(known)
 
     def entries_for(self, intent: Intent) -> list[HistoryEntry]:
-        return [entry for entry in self._entries if intent_key(entry.intent) == intent_key(intent)]
+        return [entry for entry in self.entries if intent_key(entry.intent) == intent_key(intent)]
 
     def __len__(self) -> int:
-        return len(self._entries)
+        return len(self.entries)
 
     def __iter__(self) -> Iterator[HistoryEntry]:
-        return iter(self._entries)
+        return iter(self.entries)
 
 
 OBSERVATION_LIMIT = 500

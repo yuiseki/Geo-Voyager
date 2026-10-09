@@ -106,3 +106,49 @@ def test_entries_for_the_same_intent_are_found_by_key():
     history.append(entry(2, intent=intent('別の件数')))
     history.append(entry(3, ok=False))
     assert [e.step for e in history.entries_for(intent())] == [1, 3]
+
+
+from geo_voyager.goal_history import FinalCriticFailure, PlannerFailure
+
+
+def test_failures_are_recorded_in_the_history_in_order_with_the_steps():
+    history = GoalHistory()
+    history.append(entry(1))
+    history.append(PlannerFailure('ValueError: more than one 対象 line', reply='調査項目: x\n対象: a\n対象: b', after_step=1))
+    history.append(entry(2))
+    history.append(FinalCriticFailure('件数が足りない', after_step=2))
+    kinds = [type(event).__name__ for event in history.events]
+    assert kinds == ['HistoryEntry', 'PlannerFailure', 'HistoryEntry', 'FinalCriticFailure']
+
+
+def test_failures_are_not_steps_and_do_not_change_the_step_numbering_or_observations():
+    history = GoalHistory()
+    history.append(PlannerFailure('bad plan', after_step=0))
+    assert len(history) == 0 and history.entries == () and history.observations() == ()
+    history.append(entry(1, obs='{"a": 1}'))              # the first step is still step 1
+    history.append(FinalCriticFailure('not yet', after_step=1))
+    assert len(history) == 1 and [o.text for o in history.observations()] == ['{"a": 1}']
+
+
+def test_the_two_kinds_of_failure_can_be_listed_separately():
+    history = GoalHistory()
+    first, second = PlannerFailure('one'), PlannerFailure('two')
+    critic = FinalCriticFailure('three')
+    for event in (first, entry(1), second, critic):
+        history.append(event)
+    assert history.planner_failures() == (first, second) and history.final_critic_failures() == (critic,)
+
+
+def test_events_are_immutable_and_the_view_does_not_change_later():
+    history = GoalHistory()
+    history.append(PlannerFailure('one'))
+    snapshot = history.events
+    history.append(FinalCriticFailure('two'))
+    assert len(snapshot) == 1 and len(history.events) == 2
+    with pytest.raises(Exception):
+        snapshot[0].reason = 'changed'
+
+
+def test_an_unknown_kind_of_event_is_refused():
+    with pytest.raises(TypeError):
+        GoalHistory().append('not an event')
