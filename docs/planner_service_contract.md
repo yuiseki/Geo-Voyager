@@ -1,0 +1,59 @@
+# Planner にサービスの説明を全文見せ、API の詳細を Intent に書かせない
+
+2026-10-09 に、保存済みの `tag_top3_cuisine` の trace 4 本（失敗 3 本と成功 1 本）を読み、そこで見つかった原因のうち 2 つを直した。追加の LLM 実行は、直したあとの確認 1 本だけ。
+
+## trace から分かったこと
+
+対象の 4 本は、[observation_driven_recovery.md](observation_driven_recovery.md) の自然な実行のうち、`tag_top3_cuisine` の 4 本である（evidence の `natural_1` と `natural_2`）。
+
+| 実行 | 停止 | step 数 | 各 step で得られたもの |
+|---|---|---|---|
+| F1 | repeated_intent | 5 | 空の配列が 2 回、HTTP 412（件数過多）、タグの名前や fixme の値の一覧が 2 回 |
+| F2 | repeated_intent | 5 | HTTP 412 が 2 回、空の配列が 2 回、`No cuisine values found` が 1 回 |
+| F3 | max_steps | 8 | 空の配列、HTTP 404 が 3 回、HTTP 412 が 2 回、別のキーの値の一覧が 2 回 |
+| S（成功） | done | 1 | `pizza`、`burger`、`coffee_shop`（正解） |
+
+- 失敗の 3 本では、`cuisine` の値の一覧が、1 度も得られていない。「済んでいる」ものは何もなく、Planner が足りない内容を取り違えたのではなく、取り方を知らなかった。
+- Planner が見るサービスの説明は、各サービスの最初の 2 文だけだった（全体で約 3,200 文字のうち約 400 文字）。Taginfo では `search/by_value` しか見えず、正しい `/api/4/key/values` は 7 文目にあり、Generator にしか見えなかった。
+- 1 回目の失敗の後、Planner は Intent の文面にエンドポイントを書き始め、実在しないパス（`/api/4/search/by_key`、`/api/4/keys/cuisine/values` など）を、F1 で 5 回中 4 回、F2 で 4 回中 4 回、F3 で 7 回中 7 回書いた。Generator はそれをそのままコードに書いた。成功の 1 本は、エンドポイントを書いていない。
+- 同じ Intent が続いたのは、プロンプトの差が失敗 1 件ぶんで、その内容も前と同じだったため（temperature 0）。「同じ Intent を繰り返さない」というルールは守られなかった。
+- step の Critic は原因ではない。この 4 本の 11 回の判定は、すべて正しかった（正解 3 値を含む出力を成功にしたのが 2 回、含まない出力を棄却したのが 9 回）。
+- 履歴の表現は副次的な問題。失敗の理由と Observation は読めるが、「何を呼んだか」は出ない。
+- 明示的な GoalProgress は、この記録からは必要と言えない。
+
+## 変更
+
+1. `Planner.next` が、サービスの説明を全文見せる。`Planner._resource_text` に `full` を足した。最初に全体を計画する経路（`plan_goal`）のプロンプトは、変更していない（保存したプロンプトとの一致を、テストが保つ）。プロンプトは、履歴が空のとき 5,913 文字で、約 2,900 文字増えた。
+2. Intent の調査項目に、API のパスやパラメータが書かれていたら、`Planner.next` が決定的に拒否する（`geo_voyager/intent_text.py` の `api_details_in`）。拒否は `PlannerFailure` として履歴に残り、理由に、書かれたパスやパラメータが入る。Planner は、それを見て「何を調べるか」だけに書き直せる。プロンプトにも、「Service の説明は何ができるかを知るためのもので、API のパスやパラメータは書かない。呼び方は実行側が決める。書くと拒否される」と足した。
+
+検出するのは、パス（`/api/4/key/values`、`/search`、URL）、実在するエンドポイントの末尾（`key/values`、`search/by_value`）、サービスが取るパラメータ（`limit`、`sort`、`order`、`sortname`、`sortorder`、`rp`、`page`、`query`、`q`、`format`、`data`、`offset`、`sort_count`）の `名前=値`、`params=`、`path=`、`call_service`。OSM のタグ指定（`amenity=cafe` や `cuisine=sushi`）は、データなので拒否しない。この検査は、`Planner.next` だけに適用する。
+
+### 保存済みの Intent での確認（LLM は使っていない）
+
+- Goal の文面（22 本）: 検出 0 件。
+- step-by-step 経路の、`tag_top3_cuisine` 以外の Intent 44 件: 誤検出 0 件。
+- 同じ経路の `tag_top3_cuisine` の Intent 24 件のうち、検出された 15 件は、すべてエンドポイントを書いたもの（実在しないパスが大半）。残りの 9 件には、エンドポイントの記述がない。
+- 全体を最初に計画する旧経路が書いた Intent 431 件のうち 11 件が検出された。すべて Taginfo か Nominatim のエンドポイントを書いたもの。
+
+## 確認の実行（`tag_top3_cuisine` を 1 本）
+
+結果は、`planner_failure` で停止し、DONE には到達しなかった（記録は `evidence/planner_service_contract/`）。この実行は、後述の検査の修正より前のコードで行った。
+
+- Planner の応答 1 回目: `調査項目:` が中国語の字（`调查项目:`）になり、形式の誤りで拒否された（回復の処理は働いた）。この応答には、サービスの説明を全文見たことで書けた、実在するエンドポイント `/api/4/key/values` と `sortname=count_all, rp=3` が入っていた。API の詳細を書く傾向は、説明を全文見せても残る。
+- 応答 2 回目以降: パスは書かなくなったが、タグのキーを指すつもりの `key="cuisine"` を書き、これを検査が「API のパラメータ」と判定して拒否した。誤検出である。同じ文面が続き、同じ理由の反復で止まった。
+- step 1（Goal を言い換えただけの Intent。パスも `対象:` もない）: 正しいエンドポイントが選ばれ、正しい上位 3 値が得られたが、件数が全部 `0` で、Critic が棄却した。
+
+### 検査の修正
+
+誤検出を受けて、`key` を API パラメータの一覧から外した。`key="cuisine"` は、Taginfo のパラメータ名でもあるが、OSM のタグのキーの書き方でもある。保存済みの 15 件は、すべて別のパスやパラメータで、引き続き検出される。この修正のあとの E2E は、実行していない。
+
+## 見つかった別の問題（今回は直していない）
+
+- 件数が `0` になった原因は、Generator が `key/values` の応答のフィールドを `count_all` と書いたこと（実際は `count`）。`KeyError` になり、runtime repair が `i.get("count_all", 0)` に直して、エラーを既定値 `0` で埋めた。Taginfo の説明には、`key/values` の応答のフィールドが書かれていない（`/api/4/key/values は key を受け取る。` だけ）。説明の不足と、repair が失敗を既定値で隠す問題の両方がある。
+- Generator の「安定キー `name`、`relation_id`、`count` を使う」という一般的な指示のせいで、出力のキーが意味と合わない（今回の出力は `{"name": "cuisine_values", "relation_id": "cuisine", ...}`）。このキー名が、`discover_targets` に「対象」と誤解される恐れがある。
+- `対象:` を、ID を持つ実体だけに限る処理は、まだ入れていない。今回の実行では、step 1 は対象なしで、再発は確かめられていない。
+
+## テスト
+
+- 単体テスト: 685 件が通る。
+- focused integration（`test_target_ref`、`test_critic_llm`、`test_service_primitive`、`test_execution_failure`、`test_fetch_gateway`、`test_service_learning`、`test_adaptive_goal`）: 16 件が通る。
