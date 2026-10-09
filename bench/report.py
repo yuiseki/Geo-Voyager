@@ -1,9 +1,11 @@
-"""Summarise a benchmark run: python -m bench.report <results.jsonl> [...]"""
+"""Summarise benchmark runs: python -m bench.report <results.jsonl> [...]"""
+from collections import Counter, defaultdict
 import json
 from pathlib import Path
 import sys
 
-from geo_voyager.repair_stats import summarize, summarize_goals
+from bench.taxonomy import classify, planner_variance
+from geo_voyager.repair_stats import summarize
 
 
 def load(paths: list[str]) -> list[dict]:
@@ -11,11 +13,56 @@ def load(paths: list[str]) -> list[dict]:
             for line in Path(path).expanduser().read_text().splitlines() if line.strip()]
 
 
-def main() -> None:
-    rows = load(sys.argv[1:])
+def family(row: dict) -> str:
+    required = row.get('required') or []
+    if not required:
+        return 'other'
+    if '/' in required[0]:
+        return 'dataset'
+    return {'yuisekin-geosparql': 'geosparql'}.get(required[0], required[0])
+
+
+def build_report(rows: list[dict]) -> dict:
+    classified = [(row, classify(row)) for row in rows]
+    failures = [(row, c) for row, c in classified if c and c['category'] != 'unmeasured']
+    by_family: dict[str, dict] = defaultdict(lambda: {'runs': 0, 'correct': 0, 'categories': Counter()})
+    for row, c in classified:
+        entry = by_family[family(row)]
+        entry['runs'] += 1
+        entry['correct'] += row.get('correct') is True
+        if c and c['category'] != 'unmeasured':
+            entry['categories'][c['category']] += 1
+    by_goal = defaultdict(list)
+    for row in rows:
+        by_goal[row['id']].append(row)
+    measured = [row for row in rows if row.get('correct') is not None]
     intents = [intent for row in rows for intent in row['intents']]
-    print(json.dumps({'goals': summarize_goals(rows), 'intents': summarize(intents)},
-                     ensure_ascii=False, indent=2))
+    return {
+        'runs': len(rows),
+        'measured': len(measured),
+        'correct': sum(1 for row in rows if row.get('correct') is True),
+        'unmeasured': len(rows) - len(measured),
+        'categories': dict(sorted(Counter(c['category'] for _, c in failures).items())),
+        'first_wrong_step': dict(sorted(Counter(c['first_wrong_step'] for _, c in failures
+                                                if c['first_wrong_step'] is not None).items())),
+        'by_family': {name: {**entry, 'categories': dict(sorted(entry['categories'].items()))}
+                      for name, entry in sorted(by_family.items())},
+        'by_goal': {goal: {'runs': len(items), 'correct': sum(1 for r in items if r.get('correct') is True)}
+                    for goal, items in sorted(by_goal.items())},
+        'planner': {goal: planner_variance(items) for goal, items in sorted(by_goal.items())},
+        'critic': {
+            'false_positive': sum(1 for r in rows if r.get('goal_critic_success') and r.get('correct') is False),
+            'false_negative': sum(1 for r in rows if r.get('goal_critic_success') is False and r.get('correct') is True),
+        },
+        'success_at': summarize(intents)['success_at'],
+        'failure_types': summarize(intents)['failure_types'],
+        'oscillations': summarize(intents)['oscillations'],
+        'mean_elapsed': (sum(row['elapsed'] for row in rows) / len(rows)) if rows else None,
+    }
+
+
+def main() -> None:
+    print(json.dumps(build_report(load(sys.argv[1:])), ensure_ascii=False, indent=2))
 
 
 if __name__ == '__main__':
