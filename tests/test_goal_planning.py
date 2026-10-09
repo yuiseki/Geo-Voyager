@@ -123,12 +123,6 @@ def test_an_empty_target_line_is_rejected():
         Planner(client).plan('渋谷区のカフェ数')
 
 
-def test_a_target_line_must_come_after_the_resource_lists():
-    client = Mock(); client.generate.return_value = PLAN.replace('利用データセット: []', '対象: 渋谷区\n利用データセット: []', 1)
-    with pytest.raises(ValueError):
-        Planner(client).plan('渋谷区のカフェ数')
-
-
 def test_planner_prompt_names_targets_by_identity_not_by_list_position():
     client = Mock(); client.generate.return_value = PLAN
     Planner(client).plan('複数の対象を測る')
@@ -138,3 +132,56 @@ def test_planner_prompt_names_targets_by_identity_not_by_list_position():
     assert 'list position' not in kwargs['system_prompt']
     for required in ['対象の名前で指定', '対象: 名前', 'name と安定ID', 'relation_id']:
         assert required in prompt
+
+
+def plan_of(*blocks):
+    return '\n---\n'.join(blocks)
+
+
+FIRST = '調査項目: 港区の ID を取得\n利用データセット: []\n利用サービス:\n  - yuisekin-geosparql'
+SECOND = '調査項目: 港区の件数を数える\n利用データセット: []\n利用サービス:\n  - overpass'
+
+
+def targets_of(reply):
+    client = Mock(); client.generate.return_value = reply
+    return [intent.target_name for intent in Planner(client).plan('港区の件数')]
+
+
+def test_the_target_line_may_come_first_in_a_block():
+    reply = plan_of('対象: 港区\n' + FIRST, '対象: 港区\n' + SECOND)
+    assert targets_of(reply) == ['港区', '港区']
+
+
+def test_the_target_line_may_sit_between_the_fields_or_at_the_end():
+    between = '調査項目: 港区の ID を取得\n対象: 港区\n利用データセット: []\n利用サービス:\n  - yuisekin-geosparql'
+    assert targets_of(plan_of(between, SECOND + '\n対象: 港区')) == ['港区', '港区']
+
+
+def test_each_target_line_belongs_to_the_block_it_is_in_not_to_a_neighbour():
+    reply = plan_of('対象: 港区\n' + FIRST, SECOND, '対象: 渋谷区\n' + SECOND)
+    assert targets_of(reply) == ['港区', None, '渋谷区']
+
+
+def test_a_full_width_colon_is_accepted_for_the_target_line():
+    assert targets_of(plan_of(FIRST + '\n対象：港区', SECOND)) == ['港区', None]
+
+
+def test_two_target_lines_in_one_intent_are_rejected_not_silently_resolved():
+    reply = plan_of(FIRST + '\n対象: 起点\n対象: 終点', SECOND)
+    client = Mock(); client.generate.return_value = reply
+    with pytest.raises(ValueError, match='more than one 対象'):
+        Planner(client).plan('港区の件数')
+
+
+def test_leading_and_trailing_separators_are_harmless():
+    assert targets_of('---\n' + plan_of(FIRST, SECOND) + '\n---') == [None, None]
+
+
+def test_blocks_without_separators_are_still_split_at_each_investigation_line():
+    assert targets_of(FIRST + '\n対象: 港区\n' + SECOND) == ['港区', None]
+
+
+def test_the_planner_prompt_says_a_target_line_is_one_per_intent():
+    client = Mock(); client.generate.return_value = PLAN
+    Planner(client).plan('複数の対象を測る')
+    assert '「対象:」は1つの Intent につき1行だけ' in client.generate.call_args.args[0]

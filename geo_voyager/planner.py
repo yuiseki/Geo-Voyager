@@ -1,5 +1,3 @@
-import re
-
 from .dataset_graph import DatasetGraph
 from .hypothesis import Hypothesis
 from .intent import Intent
@@ -9,6 +7,45 @@ from .question import Question
 from .verdict import Verdict
 from .services import load_service_graph
 from .datasets import load_dataset_graph
+
+
+TARGET_PREFIXES = ('対象:', '対象：')
+
+
+def _plan_blocks(text: str) -> list[list[str]]:
+    """The Intent blocks of a plan, as lists of non-blank lines.
+
+    Blocks are separated by lines that are only ---. A separator at either end is harmless.
+    When a separator was left out between two 調査項目 blocks, the block is still split before
+    the second 調査項目 line. A 対象 line before that line then stays with the block above it.
+    """
+    chunks, current = [], []
+    for line in (line for line in text.strip().splitlines() if line.strip()):
+        if line.strip() == '---':
+            if current:
+                chunks.append(current)
+            current = []
+        else:
+            current.append(line)
+    if current:
+        chunks.append(current)
+    blocks = []
+    for chunk in chunks:
+        start = 0
+        for index, line in enumerate(chunk):
+            if line.startswith('調査項目: ') and any(item.startswith('調査項目: ') for item in chunk[start:index]):
+                blocks.append(chunk[start:index])
+                start = index
+        blocks.append(chunk[start:])
+    return blocks
+
+
+def _extract_target(block: list[str]) -> tuple[list[str], str | None]:
+    """The block without its 対象 line, and the target name. The line may be anywhere in the block."""
+    names = [line[len(TARGET_PREFIXES[0]):].strip() for line in block if line.startswith(TARGET_PREFIXES)]
+    if len(names) > 1:
+        raise ValueError('An Intent has more than one 対象 line, but names one target')
+    return [line for line in block if not line.startswith(TARGET_PREFIXES)], (names[0] if names else None)
 
 
 class Planner:
@@ -97,6 +134,7 @@ class Planner:
             'まず1対象で方法を確立する。\n'
             '対象を測る Intent は、対象の名前で指定する。名前は Goal 文または前段の出力で与えられたものを使い、「対象: 名前」の行に書く。調査項目にも同じ名前を書く。\n'
             '対象の一覧や単一の対象を出力する Intent は、各対象を name と安定ID（relation_id など）を持つ JSON object で出力させる。後続の Intent はこの name と ID で対象を特定する。\n'
+            '「対象:」は1つの Intent につき1行だけ書く。対象が複数あるときは Intent を分ける。\n'
             '対象の名前が Goal にも前段にも無い全対象へ同じ測定をするときは、全対象を name と relation_id で識別して測定結果を一覧で返す1つの Intent にする。\n'
             '同じ分析操作で対象だけを変える Intent は、対象の名前以外の文を揃える。最初の測定で確立した Skill を後続で再利用する。\n'
             '各 Intent は登録済み Dataset 0〜1件または Service 1件以上を指定する。前段だけのローカル集計は両方 [] とする。\n'
@@ -114,10 +152,11 @@ class Planner:
             system_prompt='You are a sequential task planner. Follow the exact text format. Name the target of an Intent by its name on a 対象: line. Declare registered resources for external reads. Local aggregation of previous outputs needs no resource. Return only the three requested fields in each block, plus the optional 対象: line for an Intent about one target. Resource metadata is INPUT, never copy it into the output. Never return code.',
         )
         result = []
-        normalized = '\n'.join(line for line in text.strip().splitlines() if line.strip())
-        normalized = normalized.removeprefix('---\n')
-        for block in re.split(r'\n(?:---\n)?(?=調査項目: )', normalized):
-            lines = block.strip().splitlines()
+        blocks = _plan_blocks(text)
+        if not blocks:
+            raise ValueError('Plan must start with 調査項目:')
+        for block in blocks:
+            lines, target_name = _extract_target(block)
             if not lines or not lines[0].startswith('調査項目: '):
                 raise ValueError('Plan must start with 調査項目:')
             ids = {'利用データセット': [], '利用サービス': []}
@@ -131,10 +170,6 @@ class Planner:
                     while position < len(lines) and lines[position].startswith('  - '):
                         ids[label].append(lines[position][4:])
                         position += 1
-            target_name = None
-            if position < len(lines) and lines[position].startswith('対象:'):
-                target_name = lines[position][len('対象:'):].strip()
-                position += 1
             if position != len(lines):
                 raise ValueError('Unexpected plan fields')
             local = not ids['利用データセット'] and not ids['利用サービス']
