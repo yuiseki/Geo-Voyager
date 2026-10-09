@@ -97,7 +97,8 @@ def run_goal(goal, names, directory: Path, embedding: EmbeddingClient, *, critic
         return row
     row['elapsed'] = time.time() - started
     row['intents'] = [dict(intent_record(intent.text, execution), services=list(intent.service_ids),
-                           datasets=list(intent.dataset_ids), requires_context=intent.requires_context)
+                           datasets=list(intent.dataset_ids), requires_context=intent.requires_context,
+                           target_name=intent.target_name)
                       for intent, execution in zip(result.intents, result.executions)]
     row['planned_intents'] = len(result.intents)
     row['goal_critic_success'] = result.critique.success
