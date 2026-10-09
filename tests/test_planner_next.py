@@ -304,3 +304,30 @@ def test_a_refusal_lists_the_known_targets_so_the_planner_can_use_one():
 
 def test_an_intent_with_no_target_line_is_not_affected():
     assert planner(LOCAL)[0].next('g', history(LOOKED_UP)).target is None
+
+
+@pytest.mark.parametrize('name,goal', [
+    ('sushi', 'Taginfo で cuisine=ramen と cuisine=sushi の使用数をそれぞれ求め、どちらが多いかを示す。'),
+    ('cuisine=sushi', 'Taginfo で cuisine=ramen と cuisine=sushi の使用数をそれぞれ求め、どちらが多いかを示す。'),
+    ('cafe', '渋谷区で amenity=cafe と amenity=restaurant の OSM 地物数をそれぞれ求める。'),
+    ('東京23区', '東京23区の人口の合計を求める。'),
+    ('23区', '東京23区の人口の合計を求める。'),
+    ('全23区', '東京の全23区の人口の合計を求める。'),
+    ('cuisine', 'Taginfo で cuisine キーの値を使用数の多い順に並べ、上位3つの値を示す。'),
+    ('amenity', '渋谷区で amenity=cafe の OSM 地物数を求める。'),
+    ('渋谷区と新宿区', '渋谷区と新宿区の amenity=cafe の OSM 地物数をそれぞれ求め、どちらが多いかを示す。'),
+    ('渋谷区、新宿区', '渋谷区と新宿区の amenity=cafe の OSM 地物数をそれぞれ求め、どちらが多いかを示す。'),
+])
+def test_a_tag_value_or_a_set_named_in_the_goal_is_not_a_target(name, goal):
+    with pytest.raises(PlannerRejected) as raised:
+        planner(named(name))[0].next(goal, GoalHistory())
+    assert name in str(raised.value)
+
+
+@pytest.mark.parametrize('name,goal', [
+    ('渋谷区', '渋谷区で amenity=cafe と amenity=restaurant の OSM 地物数をそれぞれ求める。'),
+    ('東京タワー', '東京タワーの緯度と経度を求める。'),
+    ('世田谷区', '世田谷区の amenity=library（図書館）の OSM 地物数を求める。'),
+])
+def test_a_place_the_goal_names_is_still_a_target(name, goal):
+    assert planner(named(name))[0].next(goal, GoalHistory()).target.name == name

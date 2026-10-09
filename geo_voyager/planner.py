@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass
 
 from .dataset_graph import DatasetGraph
@@ -130,6 +131,22 @@ def _parse_intent(block: list[str], datasets, services, *, allow_local: bool, kn
     return intent
 
 
+# A set of targets, not one: '東京23区', '23区', '全23区', '各区'.
+_A_SET = re.compile(r'(?:^|[^0-9])[0-9０-９]+[区市町村]$|^[全各]')
+
+
+def _not_an_entity(name: str, goal: str) -> bool:
+    """A tag ('cuisine=sushi'), the key or value of a tag in the Goal, two targets in one name, or a set of places."""
+    if '=' in name or _A_SET.search(name):
+        return True
+    parts = [part.strip() for part in re.split(r'と|、|,|・', name) if part.strip()]
+    if len(parts) > 1 and all(part in goal for part in parts):
+        return True                                    # two targets in one line: '渋谷区と新宿区'
+    word = re.escape(name)
+    return bool(re.search(rf'[A-Za-z_:]+=\s*{word}(?![A-Za-z0-9_])', goal)          # the value of a tag
+                or re.search(rf'(?<![A-Za-z0-9_]){word}\s*(?:=|キー)', goal))      # the key of a tag
+
+
 def _require_an_entity(target: TargetRef | None, goal: str, known: tuple[TargetRef, ...]) -> None:
     """A 対象 line names an entity: one an earlier step identified by id, or one the Goal itself names.
 
@@ -137,7 +154,12 @@ def _require_an_entity(target: TargetRef | None, goal: str, known: tuple[TargetR
     """
     if target is None or target.resolved:
         return
-    if target.name in goal or target.name.split(',')[0].strip() in goal:
+    name = target.name.split(',')[0].strip()
+    if _not_an_entity(name, goal):
+        raise ValueError(f'「対象: {target.name}」は 1 つの実体ではない（タグ、タグのキーや値、複数の対象、対象の集合）。'
+                         '「対象:」は 1 つの場所や地物の名前だけに付ける。タグの使用数や集合全体の測定には「対象:」を付けない。'
+                         '対象が複数あるときは Intent を分ける。')
+    if target.name in goal or name in goal:
         return
     options = '; '.join(ref.display() for ref in known if ref.resolved) or 'なし'
     raise ValueError(f'「対象: {target.name}」は Goal にも履歴にもある対象の名前ではない。対象は、Goal が名指しした名前か、'
