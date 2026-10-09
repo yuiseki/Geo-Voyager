@@ -5,6 +5,7 @@ from .execution_failure import ExecutionFailure
 from .intent_execution import IntentExecution
 
 ERROR_LINE_LIMIT = 300
+OBSERVATION_HEAD_LIMIT = 500
 _EXCEPTION_LINE = re.compile(r'^[\w.]*(?:Error|Exception|Exit|Interrupt)\b')
 _HTTP_STATUS = re.compile(r'\bHTTP(?: Error)? (\d{3})\b')
 
@@ -55,6 +56,8 @@ def intent_record(intent_text: str, execution: IntentExecution) -> dict:
         'outcome_at': outcome_at,
         'failure_types': [classify_failure(attempt.failure) for attempt in candidates if attempt.failure],
         'oscillation': any(code in hashes[:i] for i, code in enumerate(hashes)),
+        'observation_head': (execution.observations[0].text[:OBSERVATION_HEAD_LIMIT]
+                             if execution.observations else ''),
         'critic_success': execution.critique.success,
         'critic_reason': execution.critique.reason,
         'attempts': [

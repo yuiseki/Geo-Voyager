@@ -175,3 +175,15 @@ def test_summarize_goals_reports_correctness_separately_from_critic():
     # Critic said success but the oracle disagreed.
     assert summary['critic_false_positive'] == 1
     assert summary['oracle_missing'] == 1
+
+
+def test_record_keeps_the_head_of_the_final_observation_for_later_analysis():
+    long_text = 'x' * 900
+    attempt = ExecutionAttempt('a', [Observation(long_text)], None)
+    record = intent_record('i', execution([attempt]))
+    assert record['observation_head'] == 'x' * 500
+
+
+def test_record_observation_head_is_empty_when_the_chain_failed():
+    record = intent_record('i', execution([failed('a', 'KeyError: 0')], success=False))
+    assert record['observation_head'] == ''
