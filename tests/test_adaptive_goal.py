@@ -7,7 +7,8 @@ from geo_voyager.goal_executor import GoalExecutor
 from geo_voyager.intent import Intent
 from geo_voyager.intent_execution import IntentExecution
 from geo_voyager.observation import Observation
-from geo_voyager.planner import DONE
+from geo_voyager.goal_history import FinalCriticFailure, PlannerFailure
+from geo_voyager.planner import DONE, PlannerRejected
 
 
 def intent(text, **kwargs):
@@ -140,20 +141,176 @@ def test_a_plan_the_planner_can_not_produce_ends_the_goal_with_the_reason():
     assert len(result.history) == 1
 
 
-def test_a_step_the_executor_refuses_ends_the_goal_as_a_plan_error():
-    executor = Mock(); executor.execute.side_effect = ValueError('At most one dataset_id')
-    result = GoalExecutor(Script(intent('a')), executor, Mock()).execute_adaptive('目標')
-    assert result.stop_reason == 'planner_error' and len(result.history) == 0
-
-
-def test_done_before_any_step_succeeded_fails_the_goal_through_the_critic():
-    critic = Mock(); critic.check.return_value = Critique(False, 'Observation がありません')
-    result, _, _ = run(Script(DONE), [], critic=critic)
-    assert result.stop_reason == 'done' and not result.critique.success
-    assert critic.check.call_args.args[1] == ()
-
-
 def test_the_executions_are_kept_for_provenance():
     executions = [ok('1'), crashed()]
     result, _, _ = run(Script(intent('a'), intent('b'), DONE), executions)
     assert result.executions == tuple(executions)
+
+
+def rejected(reason='ValueError: An Intent has more than one 対象 line', reply='調査項目: x\n対象: a\n対象: b'):
+    return PlannerRejected(reason, reply)
+
+
+def planner_failures(result):
+    return [event for event in result.events if isinstance(event, PlannerFailure)]
+
+
+def final_failures(result):
+    return [event for event in result.events if isinstance(event, FinalCriticFailure)]
+
+
+# ---- planner failures
+
+def test_an_unusable_plan_is_recorded_as_a_failure_and_the_goal_plans_again():
+    planner = Script(intent('a'), rejected(), intent('a1'), intent('a2'), DONE)
+    result, executor, _ = run(planner, [ok('1'), ok('2'), ok('3')])
+    [failure] = planner_failures(result)
+    assert failure.reason.startswith('ValueError: An Intent has more than one') and failure.reply == '調査項目: x\n対象: a\n対象: b'
+    assert failure.after_step == 1
+    assert result.stop_reason == 'done' and len(result.history) == 3 and executor.execute.call_count == 3
+
+
+def test_the_planner_sees_its_failure_when_it_plans_again():
+    planner = Script(rejected(), intent('a'), DONE)
+    run(planner, [ok('1')])
+    assert planner.seen[0][1] == () and planner.seen[1][1] == ()               # no steps were executed
+    # the Script records only steps, so check the failure through the history it was given
+    seen = Mock()
+    class Watch(Script):
+        def next(self, goal, history):
+            seen(history.events)
+            return super().next(goal, history)
+    run(Watch(rejected(), intent('a'), DONE), [ok('1')])
+    assert [type(e).__name__ for e in seen.call_args_list[1].args[0]] == ['PlannerFailure']
+
+
+def test_a_planner_failure_is_not_a_step_and_carries_nothing_forward():
+    planner = Script(intent('a'), rejected(), intent('b'), DONE)
+    result, executor, _ = run(planner, [ok('1'), ok('2')])
+    assert [e.step for e in result.history] == [1, 2]
+    received = [[o.text for o in c.args[0].previous_observations] for c in executor.execute.call_args_list]
+    assert received == [[], ['1']]
+
+
+def test_the_same_planner_failure_twice_stops_the_goal():
+    planner = Script(rejected(), rejected(), intent('a'), DONE)
+    result, executor, _ = run(planner, [ok('1')])
+    assert result.stop_reason == 'planner_failure' and len(planner_failures(result)) == 2
+    assert executor.execute.call_count == 0 and not result.critique.success
+    assert 'planner_failure' in result.critique.reason and 'more than one' in result.critique.reason
+
+
+def test_different_planner_failures_are_bounded_too():
+    planner = Script(rejected('one'), rejected('two'), rejected('three'), intent('a'), DONE)
+    result, executor, _ = run(planner, [ok('1')], max_planner_failures=3)
+    assert result.stop_reason == 'planner_failure' and len(planner_failures(result)) == 3
+    assert len(planner.decisions) == 2                                              # it did not keep asking
+
+
+def test_a_planner_that_never_produces_a_usable_plan_stops_after_a_bounded_number_of_calls():
+    class Garbage:
+        calls = 0
+        def next(self, goal, history):
+            Garbage.calls += 1
+            raise PlannerRejected(f'ValueError: bad {Garbage.calls}', 'x')
+    executor = Mock()
+    result = GoalExecutor(Garbage(), executor, Mock()).execute_adaptive('目標', max_planner_failures=3)
+    assert result.stop_reason == 'planner_failure' and Garbage.calls == 3
+
+
+def test_an_error_that_is_not_a_rejected_reply_still_ends_the_goal_at_once():
+    planner = Script(ValueError('Goal must not be empty'), intent('a'), DONE)
+    result, executor, _ = run(planner, [ok('1')])
+    assert result.stop_reason == 'planner_error' and planner_failures(result) == [] and executor.execute.call_count == 0
+
+
+def test_an_intent_the_executor_refuses_is_a_planner_failure_to_recover_from():
+    executor = Mock(); executor.execute.side_effect = [ValueError('At most one dataset_id'), ok('1')]
+    critic = Mock(); critic.check.return_value = Critique(True, 'answered')
+    result = GoalExecutor(Script(intent('too many'), intent('one dataset'), DONE), executor, critic).execute_adaptive('目標')
+    [failure] = planner_failures(result)
+    assert 'At most one dataset_id' in failure.reason and failure.reply == 'too many'
+    assert result.stop_reason == 'done' and len(result.history) == 1
+
+
+# ---- final critic failures
+
+def critic_that_says(*verdicts):
+    critic = Mock(); critic.check.side_effect = list(verdicts)
+    return critic
+
+
+def test_done_followed_by_a_critic_failure_goes_back_to_the_planner_with_the_reason():
+    seen = []
+    class Watch(Script):
+        def next(self, goal, history):
+            seen.append(history.events)
+            return super().next(goal, history)
+    planner = Watch(intent('a'), DONE, intent('b'), DONE)
+    result, executor, critic = run(planner, [ok('1'), ok('2')],
+                                   critic=critic_that_says(Critique(False, '上位3つが足りない'), Critique(True, 'answered')))
+    [failure] = final_failures(result)
+    assert failure.reason == '上位3つが足りない' and failure.after_step == 1
+    assert [type(e).__name__ for e in seen[2]] == ['HistoryEntry', 'FinalCriticFailure']      # the Planner saw it
+    assert result.stop_reason == 'done' and result.critique.success and critic.check.call_count == 2
+    assert [o.text for o in critic.check.call_args.args[1]] == ['1', '2']                      # the new step counts
+
+
+def test_an_early_done_with_nothing_done_yet_is_recovered_from():
+    result, executor, critic = run(Script(DONE, intent('a'), DONE), [ok('1')],
+                                   critic=critic_that_says(Critique(False, 'Observation がありません'), Critique(True, 'ok')))
+    assert result.stop_reason == 'done' and len(result.history) == 1 and final_failures(result)[0].after_step == 0
+
+
+def test_the_same_final_critic_reason_twice_stops_the_goal():
+    planner = Script(intent('a'), DONE, DONE, intent('b'))
+    result, executor, critic = run(planner, [ok('1')], critic=critic_that_says(Critique(False, '不足'), Critique(False, '不足')))
+    assert result.stop_reason == 'final_critic_failed' and len(final_failures(result)) == 2
+    assert not result.critique.success and '不足' in result.critique.reason and executor.execute.call_count == 1
+
+
+def test_final_critic_failures_are_bounded():
+    planner = Script(intent('a'), DONE, intent('b'), DONE, intent('c'), DONE, intent('d'))
+    result, executor, critic = run(planner, [ok('1'), ok('2'), ok('3')], max_final_critic_failures=3,
+                                   critic=critic_that_says(Critique(False, 'r1'), Critique(False, 'r2'), Critique(False, 'r3')))
+    assert result.stop_reason == 'final_critic_failed' and len(final_failures(result)) == 3 and len(planner.decisions) == 1
+
+
+def test_a_planner_that_says_done_forever_is_stopped():
+    class AlwaysDone:
+        calls = 0
+        def next(self, goal, history):
+            AlwaysDone.calls += 1
+            return DONE
+    critic = Mock(); critic.check.return_value = Critique(False, 'まだ')
+    result = GoalExecutor(AlwaysDone(), Mock(), critic).execute_adaptive('目標', max_final_critic_failures=3)
+    assert result.stop_reason == 'final_critic_failed' and AlwaysDone.calls <= 2        # the repeated reason stops it first
+
+
+def test_the_loop_is_bounded_whatever_the_mix_of_failures():
+    class Mixed:
+        calls = 0
+        def next(self, goal, history):
+            Mixed.calls += 1
+            if Mixed.calls % 2:
+                raise PlannerRejected(f'ValueError: bad {Mixed.calls}', '')
+            return DONE
+    critic = Mock(); critic.check.side_effect = [Critique(False, f'r{n}') for n in range(50)]
+    result = GoalExecutor(Mixed(), Mock(), critic).execute_adaptive('目標')
+    assert result.stop_reason in ('planner_failure', 'final_critic_failed') and Mixed.calls <= 8
+
+
+# ---- provenance
+
+def test_every_event_is_kept_in_order_in_the_result():
+    planner = Script(intent('a'), rejected(), intent('b'), DONE, intent('c'), DONE)
+    result, _, _ = run(planner, [ok('1'), ok('2'), ok('3')],
+                       critic=critic_that_says(Critique(False, 'もう少し'), Critique(True, 'ok')))
+    assert [type(e).__name__ for e in result.events] == [
+        'HistoryEntry', 'PlannerFailure', 'HistoryEntry', 'FinalCriticFailure', 'HistoryEntry']
+    assert [e.step for e in result.history] == [1, 2, 3]                    # history keeps only the steps
+
+
+def test_a_goal_that_ended_on_a_failure_still_lists_it():
+    result, _, _ = run(Script(rejected(), rejected()), [])
+    assert [type(e).__name__ for e in result.events] == ['PlannerFailure', 'PlannerFailure']
