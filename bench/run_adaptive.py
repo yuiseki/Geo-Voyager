@@ -3,7 +3,8 @@
     .venv/bin/python -m bench.run_adaptive --out DIR hospital_minato hospital_minato:inject cafe_shibuya_vs_shinjuku:max=2
 
 Each argument is a Goal id, optionally followed by :inject (the first step is made to fail, to see the
-Planner plan again), :earlydone (the Planner is made to say DONE after the first count, too early) and/or :max=N. Each run starts from an empty Skill Library that
+Planner plan again), :earlydone (the Planner is made to say DONE after the first count, too early), :twotargets=N (the Nth Planner call gets a
+reply with two 対象 lines) and/or :max=N. Each run starts from an empty Skill Library that
 the steps of that run fill, so a Skill learned in one step can be reused in a later one.
 """
 import argparse
@@ -73,14 +74,45 @@ class EarlyDone:
         return self.planner.next(goal, history)
 
 
+TWO_TARGET_REPLY = '''調査項目: 渋谷区と新宿区の amenity=cafe の地物数
+利用データセット: []
+利用サービス:
+  - overpass
+対象: 渋谷区
+対象: 新宿区'''
+PLANNER_PROMPT_START = 'Goal を達成するために、次に実行する Intent'
+
+
+class BadPlannerReply:
+    """Wraps the model client. The chosen Planner call gets a fixed, unusable reply instead of the model's.
+
+    The reply is the one a model wrote in an earlier run: one Intent with two 対象 lines. It goes through the real
+    parser, so the rejection, the history entry and the replanning are all real. Recorded as an injection.
+    """
+
+    def __init__(self, llm, call_number: int, reply: str = TWO_TARGET_REPLY) -> None:
+        self.llm, self.call_number, self.reply, self.calls, self.injected = llm, call_number, reply, 0, False
+
+    def generate(self, prompt, **kwargs):
+        if prompt.startswith(PLANNER_PROMPT_START):
+            self.calls += 1
+            if self.calls == self.call_number:
+                self.injected = True
+                return self.reply
+        return self.llm.generate(prompt, **kwargs)
+
+
 def parse_spec(spec: str) -> dict:
     goal_id, *options = spec.split(':')
-    parsed = {'goal_id': goal_id, 'inject': False, 'max_steps': DEFAULT_MAX_STEPS, 'earlydone': False}
+    parsed = {'goal_id': goal_id, 'inject': False, 'max_steps': DEFAULT_MAX_STEPS, 'earlydone': False,
+              'twotargets': None}
     for option in options:
         if option == 'inject':
             parsed['inject'] = True
         elif option == 'earlydone':
             parsed['earlydone'] = True
+        elif option.startswith('twotargets='):
+            parsed['twotargets'] = int(option[len('twotargets='):])
         elif option.startswith('max='):
             parsed['max_steps'] = int(option[4:])
         else:
@@ -101,12 +133,14 @@ def run_one(spec: str, names, directory: Path, embedding: EmbeddingClient) -> di
     if options['inject']:
         executor = FirstStepFails(executor)
     started = time.time()
-    planner = EarlyDone(Planner(llm)) if options['earlydone'] else Planner(llm)
+    planner_llm = BadPlannerReply(llm, options['twotargets']) if options['twotargets'] else llm
+    planner = EarlyDone(Planner(planner_llm)) if options['earlydone'] else Planner(planner_llm)
     result = GoalExecutor(planner, executor, critic).execute_adaptive(goal.text, max_steps=options['max_steps'])
     row = {'spec': spec, 'id': goal.id, 'goal': goal.text, 'stop_reason': result.stop_reason, 'error': result.error,
            'critique': {'success': result.critique.success, 'reason': result.critique.reason},
            'max_steps': options['max_steps'], 'injected_first_failure': options['inject'],
            'injected_early_done': options['earlydone'] and planner.injected,
+           'injected_two_targets': bool(options['twotargets']) and planner_llm.injected,
            'steps': trace_steps(result, injected={1} if options['inject'] else set()),
            'events': trace_events(result, injected={1} if options['inject'] else set()),
            'planner_calls': sum(1 for name in os.listdir(directory)
