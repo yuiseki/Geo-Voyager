@@ -42,6 +42,12 @@ def pending_runs(goal_ids: list[str], repeat: int, rows: list[dict]) -> list[tup
             if (goal_id, number) not in done]
 
 
+def set_aside(directory: Path) -> None:
+    """Keep, but move out of the way, the directory of a run that was interrupted before it was recorded."""
+    if directory.exists():
+        directory.rename(directory.with_name(f'{directory.name}.interrupted{int(time.time())}'))
+
+
 def run_oracle(code: str, network: str) -> dict:
     """Services fail transiently; an oracle that never answers makes the Goal unmeasurable."""
     for attempt in range(ORACLE_ATTEMPTS):
@@ -135,6 +141,7 @@ def main() -> None:
         for goal_id, round_number in todo:
             goal = by_id[goal_id]
             run_id = f'{goal.id}.r{round_number}'
+            set_aside(out / run_id)
             row = run_goal(goal, names, out / run_id, embedding, critic_thinking=args.critic_thinking)
             row['id'], row['round'] = goal.id, round_number
             with results.open('a') as file:
