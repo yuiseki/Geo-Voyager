@@ -1,0 +1,2 @@
+tag_top3_cuisine | stop done | steps 1 | goal critic True | matches oracle True | 18.3 s
+cafe_shibuya_vs_shinjuku | stop max_steps | steps 8 | goal critic False | matches oracle False | 128.5 s

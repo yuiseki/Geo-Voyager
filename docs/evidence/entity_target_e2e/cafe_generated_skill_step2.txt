@@ -1,0 +1,36 @@
+説明:
+実行時に指定された対象について、amenity=cafe に一致する OSM 地物の件数を取得し、対象名と件数を出力する。
+---
+コード:
+```python
+from geo_voyager.control_primitives import call_service
+import json
+
+def get_area_id(target):
+    tid = target.get("id_type")
+    tid_val = target.get("id_value")
+    if tid == "relation":
+        return int(tid_val) + 3600000000
+    return tid_val
+
+def verify_area(area_id):
+    ql = f"[out:json];area({area_id});out ids;"
+    res = call_service("overpass", path="/api/interpreter", body=ql, content_type="text/plain")
+    data = json.loads(res)
+    if not data.get("elements"):
+        raise ValueError(f"Area {area_id} not found")
+
+def count_amenity(area_id):
+    ql = f"[out:json][timeout:12];nwr[\"amenity\"=\"cafe\"](area:{area_id});out count;"
+    res = call_service("overpass", path="/api/interpreter", body=ql, content_type="text/plain")
+    data = json.loads(res)
+    if not data.get("elements"):
+        raise ValueError("No elements found")
+    return int(data["elements"][0]["tags"]["total"])
+
+target = intent_target
+area_id = get_area_id(target)
+verify_area(area_id)
+count = count_amenity(area_id)
+print(json.dumps({"name": target["name"], "relation_id": target["id_value"], "count": count}))
+```
