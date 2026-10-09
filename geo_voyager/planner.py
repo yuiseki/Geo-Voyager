@@ -94,22 +94,24 @@ class Planner:
             '単一の広域の地名検索結果を区域一覧の代わりにしない。対象集合の取得と地物検索を区別する。\n'
             '指定件数の対象一覧は一意な外部ID、件数、名称の言語を調査項目に明記する。多言語名称で対象を重複させない。\n'
             '有限個の対象を比較するとき、対象一覧の取得、任意対象1件の測定、全対象の測定、最大選択を分ける。\n'
-            'まず1対象で方法を確立する。全対象を扱う巨大ループの Intent は作らない。\n'
-            '対象件数が Goal で明示されている場合、対象1件ずつの Intent を一覧の番号1から件数まで並べる。本文は必ず「一覧のN番目」の形で対象番号を指定する。\n'
-            '各測定 Intent は同じ分析操作で、対象は前段一覧の番号のみ変える。最初の測定で確立した Skill を後続で再利用する。\n'
+            'まず1対象で方法を確立する。\n'
+            '対象を測る Intent は、一覧の番号や位置でなく、対象の名前で指定する。名前は Goal 文または前段の出力で与えられたものを使い、「対象: 名前」の行に書く。調査項目にも同じ名前を書く。\n'
+            '対象の一覧や単一の対象を出力する Intent は、各対象を name と安定ID（relation_id など）を持つ JSON object で出力させる。後続の Intent はこの name と ID で対象を特定する。\n'
+            '対象の名前が Goal にも前段にも無い全対象へ同じ測定をするときは、全対象を name と relation_id で識別して測定結果を一覧で返す1つの Intent にする。\n'
+            '同じ分析操作で対象だけを変える Intent は、対象の名前以外の文を揃える。最初の測定で確立した Skill を後続で再利用する。\n'
             '各 Intent は登録済み Dataset 0〜1件または Service 1件以上を指定する。前段だけのローカル集計は両方 [] とする。\n'
             '答えを推測しない。サービス固有の実行コードを書かない。前段結果に依存する入力を調査項目に明記。\n'
             '外部アクセスの Intent では両方を [] にしない。前段データだけのローカル集計は両方 [] にしてよい。\n'
-            '出力は以下の3項目のみ。各 Intent を独立行 --- で区切る。前置き、番号、コードフェンス禁止。\n'
-            '調査項目: 調査内容\n利用データセット: []\n利用サービス:\n  - 登録済みid\n'
+            '出力は以下の3項目と、対象を測る Intent だけが付ける「対象:」の行。各 Intent を独立行 --- で区切る。前置き、番号、コードフェンス禁止。\n'
+            '調査項目: 調査内容\n利用データセット: []\n利用サービス:\n  - 登録済みid\n対象: 名前\n'
             '利用データセットと利用サービスは空なら []、非空なら半角2空白の - id の行を続ける。\n'
             f'INPUT: 利用可能リソース:\n{resources}\nGoal:\n{goal}\n'
-            'OUTPUT: 調査項目、利用データセット、利用サービスの3項目だけ。INPUT のメタデータを繰り返さない。'
+            'OUTPUT: 調査項目、利用データセット、利用サービス、必要なら対象の行だけ。INPUT のメタデータを繰り返さない。'
         )
         text = self.llm_client.generate(
             prompt, temperature=0.0, max_tokens=4096, enable_thinking=True,
             reasoning_budget_tokens=768,
-            system_prompt='You are a sequential task planner. Follow the exact text format. Decompose collection measurements into one target per Intent, by runtime list position. Declare registered resources for external reads. Local aggregation of previous outputs needs no resource. Return only the three requested fields in each block. Resource metadata is INPUT, never copy it into the output. Never return code.',
+            system_prompt='You are a sequential task planner. Follow the exact text format. Name the target of an Intent by its name on a 対象: line. Declare registered resources for external reads. Local aggregation of previous outputs needs no resource. Return only the three requested fields in each block, plus the optional 対象: line for an Intent about one target. Resource metadata is INPUT, never copy it into the output. Never return code.',
         )
         result = []
         normalized = '\n'.join(line for line in text.strip().splitlines() if line.strip())
@@ -129,12 +131,17 @@ class Planner:
                     while position < len(lines) and lines[position].startswith('  - '):
                         ids[label].append(lines[position][4:])
                         position += 1
+            target_name = None
+            if position < len(lines) and lines[position].startswith('対象:'):
+                target_name = lines[position][len('対象:'):].strip()
+                position += 1
             if position != len(lines):
                 raise ValueError('Unexpected plan fields')
             local = not ids['利用データセット'] and not ids['利用サービス']
             if local and not result:
                 raise ValueError('First step requires an external resource')
-            intent = Intent(lines[0][len('調査項目: '):], tuple(ids['利用データセット']), tuple(ids['利用サービス']), requires_context=local)
+            intent = Intent(lines[0][len('調査項目: '):], tuple(ids['利用データセット']), tuple(ids['利用サービス']),
+                            requires_context=local, target_name=target_name)
             if len(intent.dataset_ids) > 1:
                 raise ValueError('Only one dataset per execution is supported')
             for id in intent.dataset_ids:

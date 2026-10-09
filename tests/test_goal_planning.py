@@ -72,7 +72,7 @@ def test_goal_prompt_requires_probe_and_small_repeatable_measurements():
     prompt = client.generate.call_args.args[0]
     assert '1対象で方法を確立' in prompt
     assert '両方を [] にしない' in prompt
-    assert '対象1件ずつの Intent' in prompt
+    assert '対象の名前で指定' in prompt
 
 
 def test_planner_prefers_registered_graph_for_known_target_collections():
@@ -106,3 +106,35 @@ def test_final_critic_receives_all_successful_step_observations():
     critic.check.return_value = Critique(True, 'complete')
     GoalExecutor(planner, executor, critic).execute('goal')
     assert critic.check.call_args.args[1] == observations
+
+
+TARGET_PLAN = PLAN.replace('  - overpass', '  - overpass\n対象: 渋谷区')
+
+
+def test_a_target_line_names_the_target_of_the_intent():
+    client = Mock(); client.generate.return_value = TARGET_PLAN
+    intents = Planner(client).plan('渋谷区のカフェ数')
+    assert [intent.target_name for intent in intents] == [None, '渋谷区']
+
+
+def test_an_empty_target_line_is_rejected():
+    client = Mock(); client.generate.return_value = PLAN + '\n対象:'
+    with pytest.raises(ValueError):
+        Planner(client).plan('渋谷区のカフェ数')
+
+
+def test_a_target_line_must_come_after_the_resource_lists():
+    client = Mock(); client.generate.return_value = PLAN.replace('利用データセット: []', '対象: 渋谷区\n利用データセット: []', 1)
+    with pytest.raises(ValueError):
+        Planner(client).plan('渋谷区のカフェ数')
+
+
+def test_planner_prompt_names_targets_by_identity_not_by_list_position():
+    client = Mock(); client.generate.return_value = PLAN
+    Planner(client).plan('複数の対象を測る')
+    prompt, kwargs = client.generate.call_args.args[0], client.generate.call_args.kwargs
+    for removed in ['一覧のN番目', '一覧の番号1から', '番号1から件数まで']:
+        assert removed not in prompt
+    assert 'list position' not in kwargs['system_prompt']
+    for required in ['対象の名前で指定', '対象: 名前', 'name と安定ID', 'relation_id']:
+        assert required in prompt
