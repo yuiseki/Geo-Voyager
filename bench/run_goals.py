@@ -4,7 +4,7 @@
 
 Every Goal starts from an empty Skill Library so each Intent goes through the Generator and
 Repairer. One JSON row per Goal is appended to results.jsonl; LLM prompts and responses are
-kept under <out>/<goal id>/ for later failure analysis.
+kept under <out>/<goal id>.r<round>/ for later failure analysis.
 """
 import argparse
 from dataclasses import asdict
@@ -51,9 +51,9 @@ def logged_llm(directory: Path) -> Mock:
     return llm
 
 
-def run_goal(goal, names, out: Path, embedding: EmbeddingClient) -> dict:
-    directory = out / goal.id
-    directory.mkdir(parents=True, exist_ok=True)
+def run_goal(goal, names, directory: Path, embedding: EmbeddingClient) -> dict:
+    # One directory per run: a shared Skill Library would let later rounds reuse earlier skills.
+    directory.mkdir(parents=True, exist_ok=False)
     library_path = directory / 'skill_library'
     library_path.mkdir(exist_ok=True)
     library = SkillLibrary(library_path)
@@ -111,7 +111,7 @@ def main() -> None:
             for round_number in range(1, args.repeat + 1):
                 for goal in goals:
                     run_id = f'{goal.id}.r{round_number}'
-                    row = run_goal(goal, names, out, embedding)
+                    row = run_goal(goal, names, out / run_id, embedding)
                     row['id'], row['round'] = goal.id, round_number
                     with (out / 'results.jsonl').open('a') as file:
                         file.write(json.dumps(row, ensure_ascii=False, default=str) + '\n')
