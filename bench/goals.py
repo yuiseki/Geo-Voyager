@@ -7,6 +7,7 @@ the oracle output.
 from dataclasses import dataclass
 import json
 import re
+from functools import partial
 from typing import Callable
 
 
@@ -22,21 +23,34 @@ class BenchGoal:
     target_relation: int | None = None
 
 
+def normalize_text(text: str) -> str:
+    """json.dumps escapes non-ASCII as \\uXXXX; a judge has to see the characters."""
+    return re.sub(r'\\u([0-9a-fA-F]{4})', lambda match: chr(int(match.group(1), 16)), text)
+
+
 def numbers_in(text: str) -> set[str]:
     return set(re.findall(r'\d+(?:\.\d+)?', text.replace(',', '')))
 
 
 def judge_count(final_text: str, oracle: dict) -> bool:
-    return str(oracle['count']) in numbers_in(final_text)
+    return str(oracle['count']) in numbers_in(normalize_text(final_text))
 
 
 def judge_max(final_text: str, oracle: dict) -> bool:
-    return oracle['name'] in final_text and str(oracle['count']) in numbers_in(final_text)
+    text = normalize_text(final_text)
+    return oracle['name'] in text and str(oracle['count']) in numbers_in(text)
+
+
+def judge_winner(final_text: str, oracle: dict, labels: tuple[str, str]) -> bool:
+    """A comparison is answered when the larger side is named together with its count."""
+    text = normalize_text(final_text)
+    winner = max(range(2), key=lambda index: oracle['counts'][index])
+    return labels[winner].lower() in text.lower() and str(oracle['counts'][winner]) in numbers_in(text)
 
 
 def judge_close(final_text: str, oracle: dict, tolerance: float = 0.02) -> bool:
     return any(abs(float(n) - oracle['value']) <= tolerance * abs(oracle['value'])
-               for n in numbers_in(final_text))
+               for n in numbers_in(normalize_text(final_text)))
 
 
 def judge_abs(final_text: str, oracle: dict, tolerance: float = 0.0005) -> bool:
@@ -50,7 +64,8 @@ def judge_latlon(final_text: str, oracle: dict, tolerance: float = 0.002) -> boo
 
 
 def judge_strings(final_text: str, oracle: dict) -> bool:
-    return all(value in final_text for value in oracle['values'])
+    text = normalize_text(final_text)
+    return all(value in text for value in oracle['values'])
 
 
 def overpass_count(key: str, value: str, relation: int) -> str:
@@ -151,7 +166,8 @@ GOALS = [
     BenchGoal('cafe_vs_restaurant_shibuya',
               '渋谷区で amenity=cafe と amenity=restaurant の OSM 地物数をそれぞれ求め、どちらが多いかを示す。',
               overpass_counts([('amenity', 'cafe', WARDS['渋谷区']), ('amenity', 'restaurant', WARDS['渋谷区'])]),
-              judge_all_counts, required=('overpass',), target_relation=WARDS['渋谷区']),
+              partial(judge_winner, labels=('cafe', 'restaurant')), required=('overpass',),
+              target_relation=WARDS['渋谷区']),
     # Taginfo
     BenchGoal('tag_sushi_count', 'Taginfo で cuisine=sushi のタグの使用数（OSM 全体の件数）を求める。',
               taginfo_value('sushi'), judge_count, required=('taginfo',)),
@@ -167,7 +183,7 @@ GOALS = [
                       'params={"key": "cuisine", "page": "1", "rp": "200", "sortname": "count", "sortorder": "desc"}))',
                       'by = {x["value"]: x["count"] for x in r["data"]}',
                       'print(json.dumps({"counts": [by["ramen"], by["sushi"]]}))'),
-              judge_all_counts, required=('taginfo',)),
+              partial(judge_winner, labels=('ramen', 'sushi')), required=('taginfo',)),
     # Nominatim
     BenchGoal('nom_shibuya_relation', 'Nominatim で「渋谷区」（東京都）の OSM relation ID を求める。',
               nominatim_search('渋谷区 東京都', 'print(json.dumps({"count": top["osm_id"]}))'),

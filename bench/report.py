@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import sys
 
+from bench.goals import GOALS
 from bench.taxonomy import classify, planner_variance
 from geo_voyager.repair_stats import summarize
 
@@ -11,6 +12,23 @@ from geo_voyager.repair_stats import summarize
 def load(paths: list[str]) -> list[dict]:
     return [json.loads(line) for path in paths
             for line in Path(path).expanduser().read_text().splitlines() if line.strip()]
+
+
+def rejudge(rows: list[dict]) -> list[dict]:
+    """Recompute correctness from the recorded final Observation with the current judges.
+
+    A judge can be wrong. The recorded answer and the oracle output are enough to judge again,
+    so a fixed judge does not need a new run. The recorded verdict is kept as correct_recorded.
+    """
+    judges = {goal.id: goal.judge for goal in GOALS}
+    result = []
+    for row in rows:
+        if row.get('oracle') is not None and row['id'] in judges:
+            final = row.get('final_observation', '')
+            row = dict(row, correct=bool(final) and judges[row['id']](final, row['oracle']),
+                       correct_recorded=row.get('correct'))
+        result.append(row)
+    return result
 
 
 def family(row: dict) -> str:
@@ -62,7 +80,7 @@ def build_report(rows: list[dict]) -> dict:
 
 
 def main() -> None:
-    print(json.dumps(build_report(load(sys.argv[1:])), ensure_ascii=False, indent=2))
+    print(json.dumps(build_report(rejudge(load(sys.argv[1:]))), ensure_ascii=False, indent=2))
 
 
 if __name__ == '__main__':
