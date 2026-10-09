@@ -19,6 +19,11 @@ from geo_voyager.intent_text import api_details_in
     ('/search?q=渋谷区&format=jsonv2 を呼ぶ', ['/search', 'q=渋谷区', 'format=jsonv2']),
     ('call_service で呼び出して取得する', ['call_service']),
     ('params={"key": "cuisine"} を渡す', ['params=']),
+    # a query in the service's own language: the Generator writes it, the Planner does not
+    ('クエリは [out:json][timeout:12];nwr["amenity"="cafe"](area:3601759477);out count; とする', ['[out:json]', 'nwr[', '(area:3601759477)', 'out count']),
+    ('渋谷区 (relation_id=1759477) 内の amenity=cafe を nwr["amenity"="cafe"](area:3601759477) で数える', ['nwr[']),
+    ('way["highway"="primary"] を取得する', ['way[']),
+    ('SELECT ?ward WHERE { ?ward a gs:Ward } で区を取得する', ['SELECT ?', 'WHERE {']),
 ])
 def test_api_paths_and_parameters_in_an_intent_are_found(text, expected):
     found = api_details_in(text)
@@ -40,6 +45,9 @@ def test_api_paths_and_parameters_in_an_intent_are_found(text, expected):
     '港区, 東京都, 日本 の relation_id を取得する',
     'Taginfo で key="cuisine" の値を使用数の多い順に並べ、上位3つの値を取得する。',      # a tag key, written the way a key is
     'タグの key=cuisine に付く値を調べる',
+    '渋谷区の area_id を relation_id から求めて amenity=cafe の件数を数える',       # the word area, not the clause
+    '地区 (area) ごとに out of range の値を除いて集計する',
+    'gs:Ward 型の区の一覧（名称と外部ID）を取得し、件数を数える',
     '',
 ])
 def test_what_to_find_is_not_an_api_detail(text):

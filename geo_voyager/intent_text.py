@@ -18,6 +18,9 @@ PATH = re.compile(r'(?<![A-Za-z0-9_])/[A-Za-z0-9_][A-Za-z0-9_.\-]*(?:/[A-Za-z0-9
 API_PARAMETER_NAMES = ('limit', 'offset', 'sort', 'order', 'sort_count', 'sortname', 'sortorder', 'rp', 'page',
                        'query', 'q', 'format', 'data')
 PARAMETER = re.compile(r'(?<![A-Za-z0-9_])(?:' + '|'.join(API_PARAMETER_NAMES) + r')\s*=\s*[^\s,、。)）」&]+')
+# A query in a service's own language (Overpass QL, SPARQL). The Generator writes it; an Intent says what to find.
+QUERY_LANGUAGE = re.compile(r'\[out:[a-z]+\]|(?<![A-Za-z0-9_])(?:nwr|node|way|rel)\[|\(area:\d+\)|(?<![A-Za-z0-9_])out\s+(?:count|body|ids|center|geom|tags)\b'
+                            r'|\bSELECT\s+\?|\bWHERE\s*\{')
 CALL_DETAIL = re.compile(r'(?<![A-Za-z0-9_])(?:params|path)\s*=|\bcall_service\b')
 
 
@@ -36,7 +39,7 @@ def _known_endpoint_forms() -> tuple[str, ...]:
 def api_details_in(text: str) -> list[str]:
     """The endpoint paths and request parameters named in the text, once each, in the order they appear."""
     found: list[tuple[int, int, str]] = []
-    for pattern in (PATH, PARAMETER, CALL_DETAIL):
+    for pattern in (PATH, PARAMETER, CALL_DETAIL, QUERY_LANGUAGE):
         found += [(match.start(), match.end(), match.group(0)) for match in pattern.finditer(text)]
     for form in _known_endpoint_forms():
         found += [(match.start(), match.end(), form) for match in

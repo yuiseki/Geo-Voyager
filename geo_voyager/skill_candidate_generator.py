@@ -1,4 +1,5 @@
 
+from .id_type_literals import id_type_comparisons
 from .intent import Intent
 from .llama_client import LlamaClient
 from .skill_candidate import SkillCandidate
@@ -23,6 +24,15 @@ def _parse_candidate(text: str) -> SkillCandidate:
     if not description or not code or any(line.startswith('```') for line in code_lines):
         raise ValueError('Candidate description and code must be non-empty and correctly fenced')
     return SkillCandidate(code=code, description=description)
+
+
+MAX_ID_TYPE_RETRIES = 2
+
+
+def _id_type_note(found: list[str]) -> str:
+    return ('\n\n前回の応答は拒否された。コードが id_type を固定の文字列と比べている: ' + '; '.join(found)
+            + '。id_type の綴りを推測した分岐は、外れると何も起きずに誤った値（0 件など）になる。'
+              'id_type と比べず、intent_target["id_value"] をそのまま使う（Overpass の area は int(intent_target["id_value"]) + 3600000000）。')
 
 
 class SkillCandidateGenerator:
@@ -184,7 +194,13 @@ class SkillCandidateGenerator:
             if 'overpass' in intent.service_ids:
                 prompt += ('\n件数測定の場合の抽象構文（メタ変数を実行時値へ置換）: '
                            '[out:json][timeout:12];nwr["<key>"="<value>"](area:<area_id>);out count;'
-                           'キー比較は角括弧、地理区域指定はその後の丸括弧。上の構文の順序を保つ。')
+                           'キー比較は角括弧、地理区域指定はその後の丸括弧。上の構文の順序を保つ。'
+                           )
+                if intent.target is not None and intent.target.resolved:
+                    prompt += ('<area_id> は、対象の OSM relation の ID（intent_target["id_value"]）を整数にして 3600000000 を足した値。'
+                               'id_type を固定の文字列と比べない。id_type の綴りを推測した分岐は、外れると area が誤ったまま 0 件になる。')
+                else:
+                    prompt += '<area_id> は、対象の OSM relation の ID を整数にして 3600000000 を足した値。'
             if 'yuisekin-geosparql' in intent.service_ids:
                 prompt += ('\n外部RelationIDが必要な場合の取得は ?ward gs:osmRelation ?relation 。'
                            'SELECT ?label ?relation の ?relation から正の数値IDを取る。'
@@ -196,8 +212,9 @@ class SkillCandidateGenerator:
                            '最初の一覧だけを測定結果全体とみなさない。形から必要な測定レコードを選び、全対象の測定が揃うことを assert する。'
                            '必須測定値は添字でアクセスし、欠落時は例外にする。get のデフォルト値や 0 で代用しない。'
                            'その実測値を用いて Intent の集計・選択を実行する。')
-            return _parse_candidate(self.llm_client.generate(
-                service_contract + prompt, temperature=0.2, enable_thinking=True,
+            def generate_once(extra: str = '') -> SkillCandidate:
+                return _parse_candidate(self.llm_client.generate(
+                service_contract + prompt + extra, temperature=0.2, enable_thinking=True,
                 max_tokens=3072, reasoning_budget_tokens=1024, assistant_prefix="説明:\n",
                 system_prompt=(
                     'You are a precise Python programmer. Return exactly one description and executable script '
@@ -213,4 +230,14 @@ class SkillCandidateGenerator:
                     'Exact layout, with every label on a separate line:\n説明:\n<description>\n---\nコード:\n```python\n<executable code>\n```'
                 ),
             ))
+            candidate = generate_once()
+            if intent.target is None or not intent.target.resolved:
+                return candidate
+            for retry in range(MAX_ID_TYPE_RETRIES + 1):
+                found = id_type_comparisons(candidate.code)
+                if not found:
+                    return candidate
+                if retry == MAX_ID_TYPE_RETRIES:
+                    raise ValueError('Candidate compares id_type with a fixed string: ' + '; '.join(found))
+                candidate = generate_once(_id_type_note(found))
         return _parse_candidate(self.llm_client.generate(service_contract + prompt))

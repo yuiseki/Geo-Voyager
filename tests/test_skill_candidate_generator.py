@@ -352,3 +352,39 @@ def test_service_metadata_exposes_actual_json_response_envelopes():
     assert 'payload["data"]' in prompt
     assert 'payload["results"]["bindings"]' in prompt
     assert 'row["<variable>"]["value"]' in prompt
+
+
+def _reply(code):
+    return f'説明:\n実行時に指定された対象の件数を取得する\n---\nコード:\n```python\n{code}\n```'
+
+
+GUESSED = 'from geo_voyager.control_primitives import call_service\nif intent_target["id_type"] == "relation":\n    area = int(intent_target["id_value"]) + 3600000000\nprint(area)'
+PLAIN = 'from geo_voyager.control_primitives import call_service\narea = int(intent_target["id_value"]) + 3600000000\nprint(area)'
+RESOLVED = Intent('渋谷区の amenity=cafe の地物数を求める', service_ids=('overpass',), target=TargetRef('渋谷区', 'relation_id', '1759477'))
+
+
+def test_the_overpass_prompt_says_how_the_area_id_is_made_from_the_target_id():
+    client = Mock(); client.generate.return_value = _reply(PLAIN)
+    SkillCandidateGenerator(client).generate(RESOLVED)
+    prompt = client.generate.call_args.args[0]
+    assert '3600000000' in prompt and 'intent_target["id_value"]' in prompt and 'id_type を固定の文字列と比べない' in prompt
+
+
+def test_code_that_compares_the_id_type_with_a_fixed_string_is_generated_again():
+    client = Mock(); client.generate.side_effect = [_reply(GUESSED), _reply(PLAIN)]
+    candidate = SkillCandidateGenerator(client).generate(RESOLVED)
+    assert candidate.code == PLAIN and client.generate.call_count == 2
+    assert "id_type == 'relation'" in client.generate.call_args_list[1].args[0] or 'id_type' in client.generate.call_args_list[1].args[0]
+
+
+def test_code_that_keeps_comparing_the_id_type_is_refused_not_passed_on():
+    client = Mock(); client.generate.return_value = _reply(GUESSED)
+    with pytest.raises(ValueError, match='Candidate.*id_type'):
+        SkillCandidateGenerator(client).generate(RESOLVED)
+    assert client.generate.call_count == 3          # the first reply and two more
+
+
+def test_an_intent_without_a_resolved_target_is_not_checked():
+    client = Mock(); client.generate.return_value = _reply(GUESSED)
+    SkillCandidateGenerator(client).generate(Intent('渋谷区の件数を求める', service_ids=('overpass',), target=TargetRef('渋谷区')))
+    assert client.generate.call_count == 1
