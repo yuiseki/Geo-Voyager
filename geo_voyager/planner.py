@@ -130,6 +130,20 @@ def _parse_intent(block: list[str], datasets, services, *, allow_local: bool, kn
     return intent
 
 
+def _require_an_entity(target: TargetRef | None, goal: str, known: tuple[TargetRef, ...]) -> None:
+    """A 対象 line names an entity: one an earlier step identified by id, or one the Goal itself names.
+
+    A name that is neither ('ID 最小の区', '各 23 区', '地点 A') is a description of a target, not a target.
+    """
+    if target is None or target.resolved:
+        return
+    if target.name in goal or target.name.split(',')[0].strip() in goal:
+        return
+    options = '; '.join(ref.display() for ref in known if ref.resolved) or 'なし'
+    raise ValueError(f'「対象: {target.name}」は Goal にも履歴にもある対象の名前ではない。対象は、Goal が名指しした名前か、'
+                     f'履歴で判明した対象（名前または ID）だけを書く。対象を決める調べ物には「対象:」を付けない。判明した対象: {options}')
+
+
 class Planner:
     def __init__(self, llm_client: LlamaClient | None = None) -> None:
         self.llm_client = llm_client if llm_client is not None else LlamaClient()
@@ -253,6 +267,7 @@ class Planner:
             if not blocks:
                 raise ValueError('Plan must start with 調査項目:')
             intent = _parse_intent(blocks[0], datasets, services, allow_local=bool(history.observations()), known=history.targets())
+            _require_an_entity(intent.target, goal, history.targets())
             details = api_details_in(intent.text)
             if details:
                 raise ValueError(f'Intent の調査項目に API の詳細が書かれている: {", ".join(details)}。'

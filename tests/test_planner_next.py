@@ -9,7 +9,7 @@ from geo_voyager.execution_failure import ExecutionFailure
 from geo_voyager.goal_history import GoalHistory, HistoryEntry
 from geo_voyager.intent import Intent
 from geo_voyager.observation import Observation
-from geo_voyager.planner import DONE, Done, Planner
+from geo_voyager.planner import DONE, Done, Planner, PlannerRejected
 
 STEP = '調査項目: 港区の relation_id を取得する\n利用データセット: []\n利用サービス:\n  - yuisekin-geosparql\n対象: 港区'
 NEXT = '調査項目: 港区内の amenity=hospital の地物数を取得する\n利用データセット: []\n利用サービス:\n  - overpass\n対象: 港区'
@@ -121,7 +121,7 @@ def test_an_empty_goal_is_rejected_before_asking_the_model():
 
 def test_a_long_observation_is_bounded_in_the_prompt():
     plan, client = planner(NEXT)
-    plan.next('g', history(entry(1, FIRST, '{"rows": [' + ', '.join(['1'] * 5000) + ']}')))
+    plan.next('港区の病院数', history(entry(1, FIRST, '{"rows": [' + ', '.join(['1'] * 5000) + ']}')))
     assert len(client.generate.call_args.args[0]) < 12000
 
 
@@ -195,7 +195,7 @@ def test_a_history_of_failures_only_still_says_nothing_was_executed():
     h = GoalHistory()
     h.append(PlannerFailure('bad plan', after_step=0))
     plan, client = planner(STEP)
-    plan.next('g', h)
+    plan.next('港区の病院数', h)
     prompt = client.generate.call_args.args[0]
     assert 'まだ何も実行していない' in prompt and 'bad plan' in prompt
 
@@ -268,3 +268,39 @@ def test_the_prompt_tells_the_planner_to_say_what_to_find_and_not_how_to_call():
     prompt = client.generate.call_args.args[0]
     for rule in ['API のパス', 'パラメータ', '書かない', '呼び方は実行側が決める']:
         assert rule in prompt, rule
+
+
+def named(name):
+    return f'調査項目: {name}の件数を取得する\n利用データセット: []\n利用サービス:\n  - overpass\n対象: {name}'
+
+
+@pytest.mark.parametrize('name', ['ID 最小の区', '各 23 区', '起点座標の地名', '地点 A'])
+def test_a_target_that_is_not_an_entity_is_refused(name):
+    plan, _ = planner(named(name))
+    with pytest.raises(PlannerRejected) as raised:
+        plan.next('東京都の23区の病院数を比べる', GoalHistory())
+    assert '対象' in str(raised.value) and name in str(raised.value)
+
+
+def test_a_name_the_goal_gives_may_be_looked_up_first():
+    result = planner(named('港区'))[0].next('港区の病院数を求める', GoalHistory())
+    assert result.target.name == '港区' and not result.target.resolved
+
+
+def test_a_goal_name_matches_by_the_part_before_the_comma():
+    assert planner(named('港区, 東京都, 日本'))[0].next('港区の病院数を求める', GoalHistory()).target.name == '港区, 東京都, 日本'
+
+
+def test_a_known_target_may_be_named_even_when_the_goal_does_not_say_it():
+    result = planner(named('港区'))[0].next('最も病院が多い区を求める', history(LOOKED_UP))
+    assert result.target.resolved and result.target.id_value == '1761717'
+
+
+def test_a_refusal_lists_the_known_targets_so_the_planner_can_use_one():
+    with pytest.raises(PlannerRejected) as raised:
+        planner(named('ID 最小の区'))[0].next('最も病院が多い区を求める', history(LOOKED_UP))
+    assert 'relation_id=1761717' in str(raised.value)
+
+
+def test_an_intent_with_no_target_line_is_not_affected():
+    assert planner(LOCAL)[0].next('g', history(LOOKED_UP)).target is None
