@@ -181,3 +181,20 @@ def test_the_final_check_wants_the_answer_itself_in_an_observation():
 
 def test_a_step_check_does_not_carry_the_final_instruction():
     assert '最終判定' not in _prompt(False)
+
+
+def _step_prompt(text):
+    from geo_voyager.critic import Critic
+    from geo_voyager.intent import Intent
+    from geo_voyager.observation import Observation
+    from unittest.mock import Mock
+    client = Mock(); client.generate.return_value = '判定: 失敗\n理由: x'
+    Critic(client).check(Intent(text, service_ids=('overpass',), requires_context=True),
+                         [Observation('{"cafe_count": 459, "restaurant_count": 1004}')])
+    return client.generate.call_args.args[0]
+
+
+def test_a_step_that_asks_for_a_comparison_wants_the_answer_itself():
+    prompt = _step_prompt('cafe と restaurant の件数を比較し、どちらが多いかを示す')
+    assert '比較の勝者' in prompt and '自分で比較・計算して答えを導かない' in prompt
+    assert '最終判定' not in prompt
