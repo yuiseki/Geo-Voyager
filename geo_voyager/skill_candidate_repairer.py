@@ -1,6 +1,10 @@
+from typing import Sequence
+
+from .execution_attempt import ExecutionAttempt
 from .execution_failure import ExecutionFailure, bounded_output
 from .intent import Intent
 from .observation_context import describe_observations
+from .repair_context import attempt_history_text, failing_line_excerpt
 from .llama_client import LlamaClient
 from .services import load_service_graph
 from .skill_candidate import SkillCandidate
@@ -12,7 +16,8 @@ class SkillCandidateRepairer:
         self.llm_client = llm_client if llm_client is not None else LlamaClient()
 
     def repair(self, intent: Intent, candidate: SkillCandidate,
-               failure: ExecutionFailure) -> SkillCandidate:
+               failure: ExecutionFailure,
+               history: Sequence[ExecutionAttempt] = ()) -> SkillCandidate:
         graph = load_service_graph()
         services = '\n'.join(f'{service.id}: {service.protocol}: {service.description}'
                              for service in [graph.get(id) for id in intent.service_ids])
@@ -37,6 +42,7 @@ class SkillCandidateRepairer:
             f'元 description:\n{candidate.description}\n元 code:\n{candidate.code}\n'
             f'stdout:\n{bounded_output(failure.stdout)}\nstderr:\n{bounded_output(failure.stderr)}\n'
             f'exit code: {failure.exit_code}\n'
+            f'{_history_section(candidate, failure, history)}'
             '最後の制約: 説明本文は元 description と同じ分析操作・対象範囲・出力を保つ。'
             '説明に SyntaxError やバグ修正の説明を書かない。元の分析を行う完全なコードを返す。空の結果を自分で raise した場合は直前の JSON の取り出し方を API contract と照合する。失敗の根本原因の行を実際に変更し、壊れた元コードをそのまま返さない。'
         )
@@ -54,3 +60,14 @@ class SkillCandidateRepairer:
                 'Exact format:\n説明:\n<one sentence>\n---\nコード:\n```python\n<complete code>\n```'
             ),
         ))
+
+
+def _history_section(candidate: SkillCandidate, failure: ExecutionFailure,
+                     history: Sequence[ExecutionAttempt]) -> str:
+    if not history:
+        return ''
+    excerpt = failing_line_excerpt(candidate.code, failure)
+    section = f'失敗した行（>> が実際に失敗した行）:\n{excerpt}\n' if excerpt else ''
+    return (section + f'試行履歴:\n{attempt_history_text(history)}\n'
+            '同じエラーが続くときは前回と同じ修正を繰り返さない。エラーが指す行の前提'
+            '（前段 Observation の型、サービス応答の形式、クエリの header）を疑う。\n')

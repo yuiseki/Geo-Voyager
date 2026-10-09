@@ -47,9 +47,11 @@ class IntentExecutor:
                     attempts=tuple(attempts),
                 )
         candidate = self.generator.generate(intent)
+        candidate_attempts = []
         for repair_count in range(3):
             observations = self.worker.execute_candidate(intent, candidate)
             attempts.append(self._attempt(candidate.code, observations))
+            candidate_attempts.append(attempts[-1])
             if not isinstance(observations, ExecutionFailure):
                 break
             if repair_count == 2:
@@ -58,7 +60,8 @@ class IntentExecutor:
                     Critique(False, observations.message), selected_skill_critique,
                     failure=observations, attempts=tuple(attempts),
                 )
-            candidate = self.repairer.repair(intent, candidate, observations)
+            candidate = self.repairer.repair(intent, candidate, observations,
+                                             history=tuple(candidate_attempts))
         critique = self.critic.check(intent, observations)
         learned = None
         if critique.success:
