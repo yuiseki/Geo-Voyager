@@ -47,3 +47,16 @@ def test_the_by_value_contract_is_unchanged():
     from geo_voyager.services import load_service_graph
     text = load_service_graph().get('taginfo').description
     assert '/api/4/search/by_value は query で値を部分一致検索し、JSON data 配列の key/value/count_all を返す' in text
+
+
+def test_the_taginfo_contract_says_how_to_count_one_tag_exactly():
+    """Checked against the self-hosted Taginfo: /api/4/tag/stats returns the count of type 'all'. search/by_value matches parts."""
+    text = load_service_graph().get('taginfo').description
+    assert '/api/4/tag/stats' in text and 'type が "all"' in text and '部分一致' in text
+
+
+def test_the_valhalla_contract_says_how_to_ask_and_where_the_answer_is():
+    """Checked against the self-hosted Valhalla. See integration/test_valhalla_contract.py."""
+    text = load_service_graph().get('valhalla').description
+    for part in ('POST', 'application/json', 'costing', 'pedestrian', 'trip', 'summary', 'length', 'time', '秒', 'routes'):
+        assert part in text, part

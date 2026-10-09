@@ -15,7 +15,7 @@ def call_service(service_id: str, *, path: str = '', params: dict[str, str] | No
         raise ValueError('Only a service-relative path is accepted')
     url = 'http://gateway:8000/services/' + quote(service_id, safe='') + '/' + path.lstrip('/')
     if params:
-        url += '?' + urlencode(params)
+        url += '?' + urlencode(params, quote_via=quote)  # a space as %20: '+' is not read back as a space by every service
     headers = {'User-Agent': HTTP_USER_AGENT}
     if content_type:
         headers['Content-Type'] = content_type

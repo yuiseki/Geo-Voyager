@@ -43,3 +43,15 @@ def test_key_values_needs_both_page_and_rp():
 def test_search_by_value_still_returns_count_all():
     status, body = call('/api/4/search/by_value', query='pizza', page=1, rp=2, sortname='count_all', sortorder='desc')
     assert status == 200 and all('count_all' in item for item in body['data'])
+
+
+def test_tag_stats_gives_the_count_of_one_tag_as_the_count_of_type_all():
+    status, body = call('/api/4/tag/stats', key='cuisine', value='ramen')
+    assert status == 200
+    everything = [item for item in body['data'] if item['type'] == 'all']
+    assert len(everything) == 1 and everything[0]['count'] > 1000
+
+
+def test_search_by_value_matches_a_part_of_the_value():
+    status, body = call('/api/4/search/by_value', query='ramen', page=1, rp=10, sortname='count_all', sortorder='desc')
+    assert status == 200 and any(item['value'] != 'ramen' and 'ramen' in item['value'] for item in body['data'])

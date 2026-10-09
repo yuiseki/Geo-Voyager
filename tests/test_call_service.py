@@ -45,3 +45,12 @@ def test_primitive_returns_bounded_http_error_details_to_execution_failure():
         opened.side_effect = HTTPError('http://gateway', 400, 'bad query', {}, BytesIO(b'Unknown output format count'))
         with pytest.raises(RuntimeError, match='Unknown output format count'):
             call_service('overpass', path='/api/interpreter')
+
+
+def test_a_space_in_a_parameter_is_sent_as_percent_20_not_plus():
+    # Valhalla reads its json parameter without turning '+' back into a space, and json.dumps writes ', ' and ': '.
+    with patch('geo_voyager.control_primitives.call_service.urlopen') as opened:
+        opened.return_value.__enter__.return_value.read.return_value = b'{}'
+        call_service('valhalla', path='/route', params={'json': '{"costing": "auto"}'})
+        url = opened.call_args.args[0].full_url
+    assert '+' not in url and '%20' in url
