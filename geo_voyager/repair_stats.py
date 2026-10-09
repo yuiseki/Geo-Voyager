@@ -84,3 +84,14 @@ def summarize(records: list[dict]) -> dict:
         'failure_types': dict(sorted(types.items())),
         'oscillations': sum(1 for record in records if record['oscillation']),
     }
+
+
+def summarize_goals(rows: list[dict]) -> dict:
+    return {
+        'goals': len(rows),
+        'correct': sum(1 for row in rows if row.get('correct') is True),
+        'critic_success': sum(1 for row in rows if row.get('goal_critic_success')),
+        'critic_false_positive': sum(1 for row in rows
+                                     if row.get('goal_critic_success') and row.get('correct') is False),
+        'oracle_missing': sum(1 for row in rows if row.get('correct') is None),
+    }

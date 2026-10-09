@@ -158,3 +158,20 @@ def test_summarize_counts_failure_types_and_oscillation():
     assert summary['success_at'] == {'0': 0.0, '1': 0.5, '2': 0.5}
     assert summary['failure_types'] == {'assertion': 2, 'data_shape': 1, 'syntax': 1}
     assert summary['oscillations'] == 1
+
+
+def test_summarize_goals_reports_correctness_separately_from_critic():
+    from geo_voyager.repair_stats import summarize_goals
+    rows = [
+        {'correct': True, 'goal_critic_success': True},
+        {'correct': False, 'goal_critic_success': True},
+        {'correct': False, 'goal_critic_success': False},
+        {'correct': None, 'goal_critic_success': True},
+    ]
+    summary = summarize_goals(rows)
+    assert summary['goals'] == 4
+    assert summary['correct'] == 1
+    assert summary['critic_success'] == 3
+    # Critic said success but the oracle disagreed.
+    assert summary['critic_false_positive'] == 1
+    assert summary['oracle_missing'] == 1
