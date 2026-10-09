@@ -150,3 +150,14 @@ def test_thinking_critic_enables_thinking_with_room_for_the_verdict():
     assert kwargs['enable_thinking'] is True
     assert kwargs['max_tokens'] >= 2048 and kwargs['reasoning_budget_tokens'] > 0
     assert kwargs['temperature'] == 0.0
+
+
+def test_the_prompt_does_not_accept_a_bare_zero_or_a_contradicting_value():
+    from geo_voyager.critic import Critic
+    from geo_voyager.intent import Intent
+    from geo_voyager.observation import Observation
+    from unittest.mock import Mock
+    client = Mock(); client.generate.return_value = '判定: 失敗\n理由: 根拠がない'
+    Critic(client).check(Intent('cuisine=sushi の使用数を取得する', service_ids=('taginfo',)), [Observation('{"count": 0}')])
+    prompt = client.generate.call_args.args[0]
+    assert '0' in prompt and '空' in prompt and '矛盾' in prompt and '根拠が Observation に' in prompt

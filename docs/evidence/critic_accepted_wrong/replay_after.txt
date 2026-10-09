@@ -1,0 +1,35 @@
+targets mix_a/tag_sushi_count.r2 accepted | 要求された count_all の値（0）が Observation に含まれているため。
+targets mix_a/sparql_ward_count.r3 accepted | 指定されたgs:Ward型の外部IDと名称のリストが取得され、件数（23件）が明示されているため。
+targets mix_a/route_walk_minutes.r5 rejected | 距離8.15mに対して所要時間99分という矛盾があり、その値が正しいと分かる根拠がObservationにないため。
+targets mix_a/stations_count.r5 accepted | 駅データセットのレコード総数が0であると報告されているため、要求された調査結果が得られたと判断できる。
+targets identity_a/sparql_four_char_wards.r1 accepted | 前段のデータから名称が4文字の区（世田谷区、中野区、台東区、杉並区、板橋区、江東区、目黒区、練馬区、足立区）を数えると7つとなるが、Observationはcount: 1と報告している。しかし、このObservatio
+targets identity_a/nom_setagaya_south.r2 accepted | 対象「世田谷区」のbboxのminlat（緯度の最小値）として「35.6468133」がObservationに明記されており、要求された調査結果が回答されているため。
+targets identity_a/route_auto_km.r3 rejected | 距離が0.0kmという値のみが報告されており、その値が正しいことを示す根拠（例：起点と終点が同一である旨の説明や、実際の測距結果など）がObservationに含まれていないため、取得方法の誤りやデータ欠落の可能性があり
+targets identity_a/sparql_ward_count.r3 accepted | 東京23区の数を求める要求に対し、23件の区名とIDが列挙されており、具体的な回答が得られているため。
+targets identity_a/tag_sushi_count.r4 accepted | Taginfo service で cuisine=sushi のタグの使用数（count_all）を取得するよう要求されており、Observation に count: 0 という具体的な値が報告されているため。
+controls mix_a/cafe_shibuya.r1 rejected | 前段Observationのrelation_id（1759477）と本Observationのrelation_id（3601759477）が不一致であり、対象の渋谷区が正しく照合されていないため。
+controls mix_a/hospital_minato.r1 rejected | Intentはamenity=hospitalの地物一覧の取得を要求しているが、Observationは港区のrelation_idと地物件数（22件）のみを示しており、具体的な地物リスト（一覧）が含まれていないため、要
+controls mix_a/tag_ramen_vs_sushi.r1 rejected | Observationのcountはcuisine=ramenの件数であり、Intentで要求されたcuisine=sushiのcount_all（24089）ではない。
+controls mix_a/nom_shibuya_relation.r1 accepted | Intentで要求された「渋谷区」のOSM relation IDがObservationで提供されているため。
+controls mix_a/nom_setagaya_south.r1 accepted | Observation に minlat の値 35.589977 が明示的に出力されており、Intent の要求である境界ボックスの最南端の緯度（minlat）の抽出が完了しているため。
+controls mix_a/nom_tokyo_tower.r1 accepted | 東京タワーの緯度と経度が取得できている
+controls mix_a/sparql_ward_count.r1 accepted | gs:Wardの全件数として23件という具体的な回答値がObservationに含まれているため。
+controls mix_a/sparql_min_relation_ward.r1 accepted | 全23区のOSM relation IDを比較した結果、最小値（1543055）を持つ区が「杉並区」であることが、Observationのデータおよび前段の参照データから明確に特定されており、要求された日本語名とIDが回
+controls mix_a/sparql_four_char_wards.r1 accepted | 日本語名が4文字で「区」を含む区（世田谷区、千代田区、江戸川区）を抽出し、その数（3）を算出して回答している。
+controls mix_a/ramen_shinjuku.r2 accepted | 新宿区のOSM外部ID（relation_id: 1758858）を指定し、cuisine=ramen の地物数（count: 88）を取得した結果が提示されており、前段の参照データと一致しているため。
+controls mix_a/hospital_minato.r2 accepted | Observationは、港区（relation_id: 1761717）を指定してamenity=hospitalを検索した結果として、地物数（count）が22であることを示しており、Intentの要求を満たしている
+controls mix_a/library_setagaya.r2 accepted | 世田谷区のOSM Relation ID 1759474内のamenity=library地物数が26件として報告されており、Intentの要求を満たしている。
+controls mix_a/tag_top3_cuisine.r2 accepted | 使用数順にソートされた上位3件のcuisineの値（pizza, burger, coffee_shop）が抽出されている
+controls mix_a/tag_ramen_vs_sushi.r2 accepted | 前段の結果（ramen: 8213, sushi: 24089）に基づき、countが大きいsushiを特定し、Observationでその値（24089）を示しているため、要求された調査結果が答えている。
+controls mix_a/nom_shibuya_relation.r2 rejected | OSM relation URIが取得できていないため、要求された出力が得られていない。
+controls mix_a/nom_setagaya_south.r2 accepted | 世田谷区の境界ボックスの最南端の緯度（minlat）が35.589977として取得されているため。
+controls mix_a/nom_tokyo_tower.r2 accepted | 東京タワーの緯度と経度がObservationで提供されているため、Intentの要求を満たしている。
+controls mix_a/route_auto_km.r2 accepted | 要求された自動車経路距離（km）の値がObservationに含まれているため。
+controls mix_a/sparql_ward_count.r2 accepted | 件数（23件）と各対象の日本語名（世田谷区など23区）が明記されているため。
+controls mix_a/sparql_min_relation_ward.r2 accepted | 23件のOSM relation IDの中から最小値（1543055）を持つ区が「杉並区」であり、Observationは「杉並区」とそのID「1543055」を回答として提示しているため、Intentの要求を満たしてい
+controls mix_a/cafe_shibuya.r3 accepted | 渋谷区（relation_id: 1759477）の境界内にあるamenity=cafeの地物数が459件として取得されており、Intentの要求を満たしている。
+controls mix_a/hotel_taito.r3 accepted | Observationは台東区（relation_id: 1758888）におけるtourism=hotelの地物数（count: 183）を明確に示しており、Intentの要求を満たしている。
+controls mix_a/tag_sushi_count.r3 rejected | 要求されたcount_allの値ではなく、relation_idやcountが報告されており、指定された調査結果が得られていないため
+controls mix_a/nom_setagaya_south.r3 accepted | 要求された「境界ボックスの最南端の緯度」が Observation の south_latitude として取得されているため。
+controls mix_a/nom_tokyo_tower.r3 accepted | 東京タワーの緯度と経度が数値として取得されている
+targets rejected: 2 / 9 | controls rejected: 5 / 25

@@ -1,0 +1,35 @@
+targets mix_a/tag_sushi_count.r2 accepted | ObservationのJSONデータにcount_all値が含まれており、Intentで要求された調査結果が取得されているため。
+targets mix_a/sparql_ward_count.r3 accepted | gs:Ward 型の名称と外部IDの一覧が取得されており、件数（23件）も明示されているため。
+targets mix_a/route_walk_minutes.r5 accepted | 指定された座標間の徒歩所要時間（99分）がObservationに含まれているため、Intentの要求を満たしている。
+targets mix_a/stations_count.r5 accepted | 駅データセットのレコード総数として具体的な数値（0）が取得されているため
+targets identity_a/sparql_four_char_wards.r1 accepted | 名称が4文字の区（世田谷区、中野区、台東区、杉並区、板橋区、江東区、葛飾区、足立区）の数は8つであるが、Observationはcount: 1と報告しており、実際の数と一致しないため失敗。
+targets identity_a/nom_setagaya_south.r2 accepted | Observationは世田谷区（relation_id: 1759474）のbboxデータを含んでおり、そのbbox配列の最初の要素（minlat）は"35.6468133"であるため、要求された値が提供されている。
+targets identity_a/route_auto_km.r3 accepted | Observation に経路距離の値 (distance_km: 0.0) が含まれており、Intent の要求を満たしている。
+targets identity_a/sparql_ward_count.r3 accepted | 東京23区の数を求めるという要求に対し、23件の区名リストが提供されており、数を算出するための具体的な回答が得られているため。
+targets identity_a/tag_sushi_count.r4 accepted | 指定されたタグ cuisine=sushi の使用数（count）が0として取得されているため、要求された調査結果が回答されている。
+controls mix_a/cafe_shibuya.r1 rejected | 前段のObservationで指定されたrelation_id（1759477）と、今回のObservationで返されたrelation_id（3601759477）が不一致であるため、渋谷区の地物数として正しく回答さ
+controls mix_a/hospital_minato.r1 rejected | 要求された「amenity=hospitalの地物一覧」が取得されていないため。
+controls mix_a/tag_ramen_vs_sushi.r1 rejected | Observationはcuisine=sushiのcount_allではなく、cuisine=sushiのrelation_idとcountのみを提供しており、count_allという具体的な値が欠けているため、要求さ
+controls mix_a/nom_shibuya_relation.r1 accepted | Intentで要求された「渋谷区」のOSM relation IDがObservationに含まれているため。
+controls mix_a/nom_setagaya_south.r1 accepted | Observation に minlat の値 35.589977 が抽出されており、Intent の要求を満たしている。
+controls mix_a/nom_tokyo_tower.r1 accepted | 東京タワーの緯度と経度がObservationで提供されたため、Intentの要求を満たしている。
+controls mix_a/sparql_ward_count.r1 accepted | gs:Wardの全件数として23件という具体的な回答が提供されているため
+controls mix_a/sparql_min_relation_ward.r1 accepted | 全23区のrelation_idを比較した結果、最小値1543055を持つ杉並区を特定し、日本語名とIDを回答として提示しているため。
+controls mix_a/sparql_four_char_wards.r1 accepted | 日本語名が4文字で「区」を含む区（世田谷区、千代田区、江戸川区）を抽出し、その数（3）を算出して回答しているため。
+controls mix_a/ramen_shinjuku.r2 accepted | 新宿区（relation_id: 1758858）の境界内でcuisine=ramenの地物数が88件として取得されており、Intentの要求を満たしている。
+controls mix_a/hospital_minato.r2 accepted | Observationは、港区（relation_id: 1761717）を境界としてamenity=hospitalを検索した結果として、地物数22件を返しており、Intentの要求を満たしている。
+controls mix_a/library_setagaya.r2 accepted | 世田谷区のamenity=library地物数26件を計測した結果を提示しており、Intentの要求を満たしている。
+controls mix_a/tag_top3_cuisine.r2 accepted | 指定された上位3件のcuisine値(pizza, burger, coffee_shop)が抽出されているため
+controls mix_a/tag_ramen_vs_sushi.r2 accepted | 前段のデータ（ramen: 8213, sushi: 24089）と現在のObservation（sushi: 24089）を比較すると、sushiの使用数（24089）がramen（8213）より多いため、Intent
+controls mix_a/nom_shibuya_relation.r2 rejected | OSM relation URIが取得できていないため、要求された出力が得られていない
+controls mix_a/nom_setagaya_south.r2 accepted | 世田谷区の境界ボックスの最南端の緯度（minlat）が35.589977として取得されているため。
+controls mix_a/nom_tokyo_tower.r2 accepted | 東京タワーの緯度と経度がObservationに含まれているため
+controls mix_a/route_auto_km.r2 accepted | 要求された自動車経路距離（km）の具体的な数値が提供されているため。
+controls mix_a/sparql_ward_count.r2 accepted | 件数（23件）と各対象の日本語名（世田谷区など23区）が明記されているため。
+controls mix_a/sparql_min_relation_ward.r2 accepted | 23件のrelation_id（1543055, 1543056, 1758858, 1758878, 1758888, 1758891, 1758897, 1758936, 1758947, 1759474, 1759
+controls mix_a/cafe_shibuya.r3 accepted | 渋谷区（relation_id: 1759477）内のamenity=cafe地物数が459件として取得されており、Intentの要求を満たしている。
+controls mix_a/hotel_taito.r3 accepted | Observationは台東区（relation_id: 1758888）におけるtourism=hotelの地物数（count: 183）を具体的な数値として報告しており、Intentの要求を満たしている。
+controls mix_a/tag_sushi_count.r3 rejected | 要求された count_all が取得できていない
+controls mix_a/nom_setagaya_south.r3 accepted | 世田谷区の境界ボックスの最南端の緯度（south_latitude）が取得されているため
+controls mix_a/nom_tokyo_tower.r3 accepted | 東京タワーの緯度と経度が取得されたため、Intentの要求を満たしている。
+targets rejected: 0 / 9 | controls rejected: 5 / 25
