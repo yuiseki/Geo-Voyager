@@ -42,3 +42,31 @@ def test_missing_target_or_unparseable_observations_resolve_to_none():
 
 def test_names_are_matched_exactly_not_by_substring():
     assert resolve_target('区', (obs([{'name': '港区', 'relation_id': '2'}]),)) is None
+
+
+def test_targets_are_discovered_in_an_object_a_list_and_a_list_under_a_key():
+    from geo_voyager.target_identity import discover_targets
+    found = discover_targets((
+        obs({'name': '渋谷区', 'relation_id': '1'}),
+        obs([{'name': '港区', 'relation_id': '2'}, {'name': '新宿区', 'id': 3}]),
+        obs({'results': [{'name': '台東区', 'relation_id': '4'}]}),
+    ))
+    assert found == [{'name': '渋谷区', 'relation_id': '1'}, {'name': '港区', 'relation_id': '2'},
+                     {'name': '新宿区', 'id': 3}, {'name': '台東区', 'relation_id': '4'}]
+
+
+def test_an_object_without_a_name_or_a_stable_id_is_not_a_target():
+    from geo_voyager.target_identity import discover_targets
+    assert discover_targets((obs({'name': '渋谷区'}), obs({'relation_id': '1'}), obs({'count': 3}),
+                             obs({'name': 'cuisine', 'relation_id': None}))) == []
+
+
+def test_a_target_seen_again_with_more_fields_is_one_target_and_only_name_and_id_are_kept():
+    from geo_voyager.target_identity import discover_targets
+    found = discover_targets((obs({'name': '渋谷区', 'relation_id': '1'}), obs({'name': '渋谷区', 'relation_id': '1', 'count': 459})))
+    assert found == [{'name': '渋谷区', 'relation_id': '1'}]
+
+
+def test_discovery_ignores_text_and_malformed_json():
+    from geo_voyager.target_identity import discover_targets
+    assert discover_targets((Observation('not json'), Observation('[1, 2]'), Observation('"x"'))) == []
