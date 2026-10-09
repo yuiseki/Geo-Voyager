@@ -272,3 +272,39 @@ def test_the_system_prompt_forbids_defaults_too():
     SkillCandidateRepairer(llm).repair(Intent('値', service_ids=('taginfo',)), SkillCandidate(ORIGINAL_CODE, 'd'), KEY_ERROR_FAILURE)
     system = llm.generate.call_args.kwargs['system_prompt']
     assert 'default' in system and 'missing' in system
+
+
+# ---- the id_type of a resolved target is not compared with a fixed string, in a repair either
+
+GUESS = 'import json\nif intent_target["id_type"] == "relation":\n    area = int(intent_target["id_value"]) + 3600000000\nprint(json.dumps({"area": area}))'
+PLAIN_AREA = 'import json\narea = int(intent_target["id_value"]) + 3600000000\nprint(json.dumps({"area": area}))'
+UNSUPPORTED = ExecutionFailure('failed', '', 'Traceback (most recent call last):\n  File "<candidate>", line 4, in <module>\nNameError: name \'area\' is not defined', 73)
+
+
+def repair_area(replies, target):
+    from geo_voyager.target_ref import TargetRef
+    llm = Mock(); llm.generate.side_effect = replies
+    repairer = SkillCandidateRepairer(llm)
+    intent = Intent('地物数を求める', service_ids=('overpass',), target=target)
+    return repairer.repair(intent, SkillCandidate(GUESS, '件数を取得する'), UNSUPPORTED), repairer, llm
+
+
+def test_a_repair_that_keeps_the_id_type_guess_is_asked_again_and_the_plain_id_is_taken():
+    from geo_voyager.target_ref import TargetRef
+    result, repairer, llm = repair_area([code_reply(GUESS), code_reply(PLAIN_AREA)], TargetRef('渋谷区', 'relation_id', '1759477'))
+    assert result.code == PLAIN_AREA and llm.generate.call_count == 2
+    note = llm.generate.call_args_list[1].args[0]
+    assert "id_type" in note and 'id_value' in note
+    assert repairer.rejected_fallbacks == [["intent_target['id_type'] == 'relation'"]]
+
+
+def test_a_repair_that_keeps_the_guess_gets_the_original_back_so_the_failure_stays():
+    from geo_voyager.target_ref import TargetRef
+    result, _, llm = repair_area([code_reply(GUESS)] * 3, TargetRef('渋谷区', 'relation_id', '1759477'))
+    assert result.code == GUESS and llm.generate.call_count == 3
+
+
+def test_a_target_without_an_id_is_not_checked_for_the_id_type():
+    from geo_voyager.target_ref import TargetRef
+    result, _, llm = repair_area([code_reply(GUESS)], TargetRef('渋谷区'))
+    assert llm.generate.call_count == 1

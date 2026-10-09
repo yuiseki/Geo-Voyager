@@ -1,6 +1,7 @@
 from typing import Sequence
 
 from .default_fallback import introduced_fallbacks
+from .id_type_literals import id_type_comparisons
 from .execution_attempt import ExecutionAttempt
 from .execution_failure import ExecutionFailure, bounded_output
 from .intent import Intent
@@ -20,6 +21,12 @@ UNCHANGED_NOTE = ('\n前回の出力は元のコードと同一だった。同�
 def _default_note(hidden: list[str]) -> str:
     return ('\n直前の出力は、必須の値が無いことを既定値や except で隠す書き方を新しく入れた: ' + ', '.join(hidden) + '。'
             'これは認めない。Services の説明と Observation の schema にある正しいキーに直す。直せないなら例外のままにする。\n')
+
+
+def _id_type_note(guesses: list[str]) -> str:
+    return ('\n直前の出力は、id_type を固定の文字列と比べている: ' + ', '.join(guesses) + '。id_type の綴りを推測した分岐は、'
+            '外れると何も起きずに誤った値になる。id_type と比べず、intent_target["id_value"] をそのまま使う'
+            '（Overpass の area は int(intent_target["id_value"]) + 3600000000）。\n')
 
 
 def _normalized(code: str) -> str:
@@ -79,15 +86,17 @@ class SkillCandidateRepairer:
                 repaired = self._generate(prompt + UNCHANGED_NOTE, RESAMPLE_BASE_TEMPERATURE + 0.2 * resamples)
                 continue
             hidden = introduced_fallbacks(candidate.code, repaired.code, failure.stderr)
-            if not hidden:
+            guesses = id_type_comparisons(repaired.code) if intent.target is not None and intent.target.resolved else []
+            if not hidden and not guesses:
                 return repaired
-            self.rejected_fallbacks.append(hidden)
+            self.rejected_fallbacks.append(hidden + guesses)
             if retries >= self.max_default_retries:
                 # Keep the original code: the run fails the same way and the failure stays visible, which is
                 # better than a run that succeeds with a value the API never gave.
                 return candidate
             retries += 1
-            repaired = self._generate(prompt + _default_note(hidden), RESAMPLE_BASE_TEMPERATURE + 0.2 * retries)
+            repaired = self._generate(prompt + (_default_note(hidden) if hidden else '') + (_id_type_note(guesses) if guesses else ''),
+                                      RESAMPLE_BASE_TEMPERATURE + 0.2 * retries)
 
     def _generate(self, prompt: str, temperature: float) -> SkillCandidate:
         return _parse_candidate(self.llm_client.generate(
