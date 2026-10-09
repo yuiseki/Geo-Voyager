@@ -73,6 +73,7 @@ def _render_failure(event: dict) -> list[str]:
 
 def render_trace(row: dict) -> str:
     lines = [f"### {row['id']}" + (' (1 回目の失敗を注入)' if row.get('injected_first_failure') else '')
+             + (' (最初の件数の後に DONE を注入)' if row.get('injected_early_done') else '')
              + (f" (最大 {row['max_steps']} step)" if row.get('max_steps') is not None else ''),
              f"Goal: {row['goal']}", '',
              f"stop: {row['stop_reason']} / Goal の Critic: {'成功' if row['critique']['success'] else '失敗'}"

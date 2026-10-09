@@ -3,7 +3,7 @@
     .venv/bin/python -m bench.run_adaptive --out DIR hospital_minato hospital_minato:inject cafe_shibuya_vs_shinjuku:max=2
 
 Each argument is a Goal id, optionally followed by :inject (the first step is made to fail, to see the
-Planner plan again) and/or :max=N (a step limit). Each run starts from an empty Skill Library that
+Planner plan again), :earlydone (the Planner is made to say DONE after the first count, too early) and/or :max=N. Each run starts from an empty Skill Library that
 the steps of that run fill, so a Skill learned in one step can be reused in a later one.
 """
 import argparse
@@ -25,7 +25,7 @@ from geo_voyager.goal_executor import DEFAULT_MAX_STEPS, GoalExecutor
 from geo_voyager.goal_history import FinalCriticFailure, PlannerFailure
 from geo_voyager.intent_execution import IntentExecution
 from geo_voyager.intent_executor import IntentExecutor
-from geo_voyager.planner import Planner
+from geo_voyager.planner import DONE, Planner
 from geo_voyager.skill import SkillLibrary
 from geo_voyager.skill_candidate_generator import SkillCandidateGenerator
 from geo_voyager.skill_candidate_repairer import SkillCandidateRepairer
@@ -55,12 +55,32 @@ class FirstStepFails:
         return IntentExecution([], (), None, None, Critique(False, failure.message), None, failure=failure, attempts=attempts)
 
 
+class EarlyDone:
+    """Wraps a Planner. After the first step that produced a count it answers DONE, without asking the model.
+
+    This is a deliberate injection, recorded as such in the trace. It stands in for a Planner that stops too early,
+    which can not be waited for, so the return to the Planner after a final Critic failure can be seen. For a Goal
+    that needs two counts it makes the DONE premature.
+    """
+
+    def __init__(self, planner: Planner) -> None:
+        self.planner, self.injected = planner, False
+
+    def next(self, goal, history):
+        if not self.injected and any('"count"' in observation.text for observation in history.observations()):
+            self.injected = True
+            return DONE
+        return self.planner.next(goal, history)
+
+
 def parse_spec(spec: str) -> dict:
     goal_id, *options = spec.split(':')
-    parsed = {'goal_id': goal_id, 'inject': False, 'max_steps': DEFAULT_MAX_STEPS}
+    parsed = {'goal_id': goal_id, 'inject': False, 'max_steps': DEFAULT_MAX_STEPS, 'earlydone': False}
     for option in options:
         if option == 'inject':
             parsed['inject'] = True
+        elif option == 'earlydone':
+            parsed['earlydone'] = True
         elif option.startswith('max='):
             parsed['max_steps'] = int(option[4:])
         else:
@@ -81,10 +101,12 @@ def run_one(spec: str, names, directory: Path, embedding: EmbeddingClient) -> di
     if options['inject']:
         executor = FirstStepFails(executor)
     started = time.time()
-    result = GoalExecutor(Planner(llm), executor, critic).execute_adaptive(goal.text, max_steps=options['max_steps'])
+    planner = EarlyDone(Planner(llm)) if options['earlydone'] else Planner(llm)
+    result = GoalExecutor(planner, executor, critic).execute_adaptive(goal.text, max_steps=options['max_steps'])
     row = {'spec': spec, 'id': goal.id, 'goal': goal.text, 'stop_reason': result.stop_reason, 'error': result.error,
            'critique': {'success': result.critique.success, 'reason': result.critique.reason},
            'max_steps': options['max_steps'], 'injected_first_failure': options['inject'],
+           'injected_early_done': options['earlydone'] and planner.injected,
            'steps': trace_steps(result, injected={1} if options['inject'] else set()),
            'events': trace_events(result, injected={1} if options['inject'] else set()),
            'planner_calls': sum(1 for name in os.listdir(directory)
