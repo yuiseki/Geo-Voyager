@@ -3,7 +3,8 @@
     .venv/bin/python -m bench.adaptive_summary RESULTS.jsonl
 
 The outcome of a run is one of:
-  correct              the Goal judge accepted the last Observation
+  correct              the run ended with DONE and the Goal judge accepted the last Observation
+  stopped:<reason>+    the loop ended without DONE, yet the judge accepts the last Observation (an answer the loop did not confirm)
   wrong_accepted       the run ended with DONE and the final Critic passed it, but the Goal judge did not
   stopped:<reason>     the loop ended without DONE (max_steps, repeated_intent, planner_failure, final_critic_failed, ...)
   unmeasured           no oracle answer
@@ -19,11 +20,9 @@ from pathlib import Path
 def outcome(row: dict) -> str:
     if row.get('correct') is None:
         return 'unmeasured'
-    if row['correct']:
-        return 'correct'
     if row['stop_reason'] == 'done':
-        return 'wrong_accepted'
-    return f"stopped:{row['stop_reason']}"
+        return 'correct' if row['correct'] else 'wrong_accepted'
+    return f"stopped:{row['stop_reason']}" + ('+' if row['correct'] else '')
 
 
 def planner_refusal_kind(reason: str) -> str:
