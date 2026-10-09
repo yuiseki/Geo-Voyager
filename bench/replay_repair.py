@@ -14,7 +14,8 @@ import os
 from pathlib import Path
 
 from bench.goals import GOALS
-from bench.run_goals import WORKER_IMAGE, logged_llm
+from bench.infra import benchmark_environment
+from bench.run_goals import logged_llm
 from geo_voyager.execution_attempt import ExecutionAttempt
 from geo_voyager.execution_failure import ExecutionFailure
 from geo_voyager.intent import Intent
@@ -23,9 +24,6 @@ from geo_voyager.repair_stats import classify_failure
 from geo_voyager.skill_candidate import SkillCandidate
 from geo_voyager.skill_candidate_repairer import SkillCandidateRepairer
 from geo_voyager.worker import Worker
-from integration.network_topology import network_topology
-from integration.service_gateway_setup import gateway_code, wait_for_gateway
-from integration.test_service_learning import pinned_geosparql
 
 
 def exhausted_chains(run_dir: Path) -> list[dict]:
@@ -99,21 +97,18 @@ def main() -> None:
     repairers = {'v0': SkillCandidateRepairer(llm), 'v1': SkillCandidateRepairer(llm),
                  'v2': SkillCandidateRepairer(llm, max_resamples=2)}
     print(f'{len(chains)} exhausted chains', flush=True)
-    with network_topology(isolated=True, gateway_code=gateway_code(), worker_image=WORKER_IMAGE,
-                          include_origin=False) as names:
-        wait_for_gateway(names['gateway'])
-        with pinned_geosparql(names):
-            worker = Worker(names['internal'])
-            for round_number in range(args.repeat):
-                for chain in chains:
-                    for variant in args.variants.split(','):
-                        goal = goals[chain['goal_id']]
-                        row = replay(chain, variant, repairers[variant], worker, oracles.get(goal.id), goal.judge)
-                        row['round'] = round_number
-                        with (out / 'replay.jsonl').open('a') as file:
-                            file.write(json.dumps(row, ensure_ascii=False) + '\n')
-                        print(row['run'], row['variant'], 'outcome', row['outcome_at'], 'correct', row['correct'],
-                              row['errors'], flush=True)
+    with benchmark_environment() as names:
+        worker = Worker(names['internal'])
+        for round_number in range(args.repeat):
+            for chain in chains:
+                for variant in args.variants.split(','):
+                    goal = goals[chain['goal_id']]
+                    row = replay(chain, variant, repairers[variant], worker, oracles.get(goal.id), goal.judge)
+                    row['round'] = round_number
+                    with (out / 'replay.jsonl').open('a') as file:
+                        file.write(json.dumps(row, ensure_ascii=False) + '\n')
+                    print(row['run'], row['variant'], 'outcome', row['outcome_at'], 'correct', row['correct'],
+                          row['errors'], flush=True)
 
 
 if __name__ == '__main__':

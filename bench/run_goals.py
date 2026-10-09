@@ -29,11 +29,20 @@ from geo_voyager.skill_candidate_repairer import SkillCandidateRepairer
 from geo_voyager.skill_retriever import SkillRetriever
 from geo_voyager.skill_selector import SkillSelector
 from geo_voyager.worker import Worker
-from integration.network_topology import network_topology
-from integration.service_gateway_setup import gateway_code, wait_for_gateway
-from integration.test_service_learning import pinned_geosparql
+from bench.infra import WORKER_IMAGE, benchmark_environment
 
-WORKER_IMAGE = 'geo-voyager-worker:duckdb-1.5.6'
+ORACLE_ATTEMPTS = 3
+
+
+def run_oracle(code: str, network: str) -> dict:
+    """Services fail transiently; an oracle that never answers makes the Goal unmeasurable."""
+    for attempt in range(ORACLE_ATTEMPTS):
+        try:
+            return json.loads(DockerSandbox(image=WORKER_IMAGE, network=network).run(code))
+        except Exception:
+            if attempt == ORACLE_ATTEMPTS - 1:
+                raise
+            time.sleep(2)
 
 
 def logged_llm(directory: Path) -> Mock:
@@ -81,7 +90,7 @@ def run_goal(goal, names, directory: Path, embedding: EmbeddingClient) -> dict:
     (directory / 'goal_report.json').write_text(
         json.dumps(asdict(result), ensure_ascii=False, default=str, indent=2))
     try:
-        oracle = json.loads(DockerSandbox(image=WORKER_IMAGE, network=names['internal']).run(goal.oracle_code))
+        oracle = run_oracle(goal.oracle_code, names['internal'])
         row['oracle'] = oracle
         row['correct'] = bool(final) and goal.judge(final, oracle)
     except Exception as error:
@@ -104,20 +113,17 @@ def main() -> None:
         raise SystemExit(f'unknown goal ids: {sorted(unknown)}')
     embedding = EmbeddingClient(os.environ['GEO_VOYAGER_EMBEDDING_BASE_URL'],
                                 os.environ['GEO_VOYAGER_EMBEDDING_MODEL'])
-    with network_topology(isolated=True, gateway_code=gateway_code(), worker_image=WORKER_IMAGE,
-                          include_origin=False) as names:
-        wait_for_gateway(names['gateway'])
-        with pinned_geosparql(names):
-            for round_number in range(1, args.repeat + 1):
-                for goal in goals:
-                    run_id = f'{goal.id}.r{round_number}'
-                    row = run_goal(goal, names, out / run_id, embedding)
-                    row['id'], row['round'] = goal.id, round_number
-                    with (out / 'results.jsonl').open('a') as file:
-                        file.write(json.dumps(row, ensure_ascii=False, default=str) + '\n')
-                    print(run_id, 'correct=', row.get('correct'), 'critic=', row.get('goal_critic_success'),
-                          'intents=', [(r['outcome_at'], r['failure_types']) for r in row['intents']],
-                          'error=', row.get('error'), flush=True)
+    with benchmark_environment() as names:
+        for round_number in range(1, args.repeat + 1):
+            for goal in goals:
+                run_id = f'{goal.id}.r{round_number}'
+                row = run_goal(goal, names, out / run_id, embedding)
+                row['id'], row['round'] = goal.id, round_number
+                with (out / 'results.jsonl').open('a') as file:
+                    file.write(json.dumps(row, ensure_ascii=False, default=str) + '\n')
+                print(run_id, 'correct=', row.get('correct'), 'critic=', row.get('goal_critic_success'),
+                      'intents=', [(r['outcome_at'], r['failure_types']) for r in row['intents']],
+                      'error=', row.get('error'), flush=True)
 
 
 if __name__ == '__main__':
