@@ -5,6 +5,8 @@
 
 先行の測定は [failure_categories.md](failure_categories.md) にある。そこで「一覧の N 番目」を含む計画は、含まない計画より正解率が大きく低かったため、この変更を行った。
 
+> 追記: 対象の識別は、その後 stable ID を主キーにする形に変わった（[target_ref.md](target_ref.md)）。以下の契約のうち、`Intent.target_name`、`intent_target = {"name": ...}`、名前の一致での解決は、ID がまだ分かっていない対象（ID を調べる step）にだけ当てはまる。ID が分かった対象は、ID で識別し、名前は表示に使う。
+
 ## 契約
 
 3 つの部品が、同じ契約で対象を参照する。

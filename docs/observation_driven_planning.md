@@ -28,6 +28,8 @@ Planner のプロンプトには、全 step の要約（結果、失敗の最終
 
 ### 前段で初めて分かった名前と ID を使う
 
+> 追記: 判明した対象は、その後 `TargetRef`（名前と ID の種類と値）で持つようになり、対象は ID で識別する（[target_ref.md](target_ref.md)）。以下は、名前を主キーにしていた時点の説明である。
+
 Planner は、履歴の「判明した対象」にある名前を `対象: 名前` で指定して、次の Intent を作る。実行時には、これまでの成功した step の Observation が `previous_observations` として渡るので、生成コードは名前の一致で対象の ID を解決する（前の変更で入れた identity ベースの参照）。Planner は、Intent の文にも ID を書ける（記録では `港区 (relation_id: 1761717)` と書いた）。
 
 ### 停止条件
