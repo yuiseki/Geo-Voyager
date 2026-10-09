@@ -29,3 +29,13 @@ def test_successful_code_without_output_returns_no_observations():
     with patch('geo_voyager.worker.DockerSandbox') as sandbox:
         sandbox.return_value.run.return_value = ''
         assert Worker('internal').execute_candidate(Intent('調査', ('admin',)), SkillCandidate('pass', '説明')) == []
+
+
+def test_a_candidate_that_runs_too_long_is_a_failure_of_that_candidate_not_of_the_run():
+    import subprocess
+    from geo_voyager.execution_failure import ExecutionFailure
+    with patch('geo_voyager.worker.DockerSandbox') as sandbox:
+        sandbox.return_value.run.side_effect = subprocess.TimeoutExpired(['docker', 'run'], 30)
+        result = Worker('internal').execute_candidate(Intent('調査', ('admin',)), SkillCandidate('while True: pass', '説明'))
+    assert isinstance(result, ExecutionFailure) and result.exit_code is None
+    assert 'TimeoutError' in result.stderr and '30' in result.stderr

@@ -37,6 +37,11 @@ class Worker:
             stdout = DockerSandbox(
                 image="geo-voyager-worker:duckdb-1.5.6", network=self.network,
             ).run(sandbox_program(code))
+        except subprocess.TimeoutExpired as error:
+            # Code that does too much (a request per item, a query over too wide an area) is a failure of that
+            # code: the repair and the Planner can read it and change the approach. It does not end the Goal.
+            return ExecutionFailure('Generated Python execution timed out', '',
+                                    f'TimeoutError: the sandbox stopped the code after {error.timeout:g} s', None)
         except subprocess.CalledProcessError as error:
             if error.returncode != GENERATED_ERROR_EXIT:
                 raise
