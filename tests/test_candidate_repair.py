@@ -308,3 +308,35 @@ def test_a_target_without_an_id_is_not_checked_for_the_id_type():
     from geo_voyager.target_ref import TargetRef
     result, _, llm = repair_area([code_reply(GUESS)], TargetRef('渋谷区'))
     assert llm.generate.call_count == 1
+
+
+# ---- a repair of a local aggregation keeps the contract too
+
+POSITIONAL_CODE = 'import json\nd = [json.loads(t) for t in previous_observations]\nprint(json.dumps({"count": d[2]["count_all"]}))'
+BY_NAME_CODE = ('import json\nd = [json.loads(t) for t in previous_observations]\nm = [o for o in d if o["name"] == "渋谷区"]\n'
+                'assert m\nprint(json.dumps({"count": m[0]["count"]}))')
+COUNT_ALL = ExecutionFailure('failed', '', 'Traceback (most recent call last):\n  File "<candidate>", line 3, in <module>\nKeyError: \'count_all\'', 73)
+
+
+def repair_local(replies, requires_context=True):
+    llm = Mock(); llm.generate.side_effect = replies
+    repairer = SkillCandidateRepairer(llm)
+    intent = Intent('件数を比べる', service_ids=('overpass',), requires_context=requires_context)
+    return repairer.repair(intent, SkillCandidate(POSITIONAL_CODE, '件数を比べる'), COUNT_ALL), repairer, llm
+
+
+def test_a_repair_of_a_local_aggregation_that_still_picks_by_position_is_asked_again():
+    positional_fixed = POSITIONAL_CODE.replace('count_all', 'count')
+    result, repairer, llm = repair_local([code_reply(positional_fixed), code_reply(BY_NAME_CODE)])
+    assert result.code == BY_NAME_CODE and llm.generate.call_count == 2
+    assert 'd[2]' in llm.generate.call_args_list[1].args[0] and repairer.rejected_fallbacks == [['d[2]']]
+
+
+def test_a_repair_that_keeps_the_position_gets_the_original_back():
+    result, _, llm = repair_local([code_reply(POSITIONAL_CODE.replace('count_all', 'count'))] * 3)
+    assert result.code == POSITIONAL_CODE and llm.generate.call_count == 3
+
+
+def test_a_step_that_is_not_a_local_aggregation_is_not_checked_for_position():
+    _, _, llm = repair_local([code_reply(POSITIONAL_CODE.replace('count_all', 'count'))], requires_context=False)
+    assert llm.generate.call_count == 1

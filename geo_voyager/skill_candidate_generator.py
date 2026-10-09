@@ -1,6 +1,7 @@
 
 from .id_type_literals import id_type_comparisons
 from .intent import Intent
+from .local_aggregation_contract import local_aggregation_violations
 from .llama_client import LlamaClient
 from .skill_candidate import SkillCandidate
 from .services import load_service_graph
@@ -33,6 +34,26 @@ def _id_type_note(found: list[str]) -> str:
     return ('\n\n前回の応答は拒否された。コードが id_type を固定の文字列と比べている: ' + '; '.join(found)
             + '。id_type の綴りを推測した分岐は、外れると何も起きずに誤った値（0 件など）になる。'
               'id_type と比べず、intent_target["id_value"] をそのまま使う（Overpass の area は int(intent_target["id_value"]) + 3600000000）。')
+
+
+def _local_note(found: list[str]) -> str:
+    return ('\n\n前回の応答は拒否された。ローカル集計のコードが契約を破っている: ' + '; '.join(found)
+            + '。測定値の欠落を get の既定値（0 など）で代用しない。Observation を番号や位置で選ばない。'
+              '前段の object は name と ID で選び（条件で絞った一覧の先頭は可）、必須のキーは [] で取り、無ければ例外にする。')
+
+
+def contract_problems(intent: Intent, code: str) -> list[tuple[str, str]]:
+    """What the code breaks, as (the code found, the note for the model), for the kinds of Intent that have a contract."""
+    problems = []
+    if intent.target is not None and intent.target.resolved:
+        found = id_type_comparisons(code)
+        if found:
+            problems.append(('id_type: ' + '; '.join(found), _id_type_note(found)))
+    if intent.requires_context:
+        found = local_aggregation_violations(code, len(intent.previous_observations))
+        if found:
+            problems.append(('local aggregation: ' + '; '.join(found), _local_note(found)))
+    return problems
 
 
 class SkillCandidateGenerator:
@@ -211,6 +232,8 @@ class SkillCandidateGenerator:
                            '最初の対象一覧は対象メタデータであり、後続の各 JSON object が個別測定を持つ。'
                            '最初の一覧だけを測定結果全体とみなさない。形から必要な測定レコードを選び、全対象の測定が揃うことを assert する。'
                            '必須測定値は添字でアクセスし、欠落時は例外にする。get のデフォルト値や 0 で代用しない。'
+                           'previous_observations や、それを解析した list の要素を、番号や位置で選ばない（previous_observations[2] や decoded[3] は禁止）。'
+                           '対象の object は名前と ID で選ぶ。前段の番号は説明の表示であり、コードで番号によって選ばない。'
                            'その実測値を用いて Intent の集計・選択を実行する。')
             def generate_once(extra: str = '') -> SkillCandidate:
                 return _parse_candidate(self.llm_client.generate(
@@ -231,13 +254,11 @@ class SkillCandidateGenerator:
                 ),
             ))
             candidate = generate_once()
-            if intent.target is None or not intent.target.resolved:
-                return candidate
             for retry in range(MAX_ID_TYPE_RETRIES + 1):
-                found = id_type_comparisons(candidate.code)
-                if not found:
+                problems = contract_problems(intent, candidate.code)
+                if not problems:
                     return candidate
                 if retry == MAX_ID_TYPE_RETRIES:
-                    raise ValueError('Candidate compares id_type with a fixed string: ' + '; '.join(found))
-                candidate = generate_once(_id_type_note(found))
+                    raise ValueError('Candidate breaks the code contract: ' + ' | '.join(found for found, _ in problems))
+                candidate = generate_once(''.join(note for _, note in problems))
         return _parse_candidate(self.llm_client.generate(service_contract + prompt))

@@ -4,6 +4,7 @@ import pytest
 
 from geo_voyager.target_ref import TargetRef
 from geo_voyager.intent import Intent
+from geo_voyager.observation import Observation
 from geo_voyager.skill_candidate import SkillCandidate
 from geo_voyager.skill_candidate_generator import SkillCandidateGenerator
 
@@ -387,4 +388,47 @@ def test_code_that_keeps_comparing_the_id_type_is_refused_not_passed_on():
 def test_an_intent_without_a_resolved_target_is_not_checked():
     client = Mock(); client.generate.return_value = _reply(GUESSED)
     SkillCandidateGenerator(client).generate(Intent('渋谷区の件数を求める', service_ids=('overpass',), target=TargetRef('渋谷区')))
+    assert client.generate.call_count == 1
+
+
+LOCAL = Intent('渋谷区と新宿区の件数を比べ、どちらが多いかを示す', service_ids=('overpass',), requires_context=True,
+               previous_observations=(Observation('{"name": "渋谷区", "count": 459}'), Observation('{"name": "新宿区", "count": 343}')))
+DEFAULTED = 'import json\nd = [json.loads(t) for t in previous_observations]\nn = d[0].get("count", 0)\nprint(json.dumps({"count": n}))'
+BY_NAME = ('import json\nd = [json.loads(t) for t in previous_observations]\nm = [o for o in d if o["name"] == "渋谷区"]\n'
+           'assert m\nprint(json.dumps({"count": m[0]["count"]}))')
+
+
+def test_the_local_aggregation_prompt_forbids_picking_by_position_and_defaulting():
+    client = Mock(); client.generate.return_value = _reply(BY_NAME)
+    SkillCandidateGenerator(client).generate(LOCAL)
+    prompt = client.generate.call_args.args[0]
+    assert '番号や位置で選ばない' in prompt and '名前と ID で選ぶ' in prompt
+
+
+def test_local_aggregation_code_with_a_defaulted_measurement_or_a_position_is_generated_again():
+    client = Mock(); client.generate.side_effect = [_reply(DEFAULTED), _reply(BY_NAME)]
+    candidate = SkillCandidateGenerator(client).generate(LOCAL)
+    assert candidate.code == BY_NAME and client.generate.call_count == 2
+    note = client.generate.call_args_list[1].args[0]
+    assert "d[0]" in note and "get('count', 0)" in note
+
+
+def test_local_aggregation_code_that_keeps_breaking_the_contract_is_refused():
+    client = Mock(); client.generate.return_value = _reply(DEFAULTED)
+    with pytest.raises(ValueError, match='Candidate.*local aggregation'):
+        SkillCandidateGenerator(client).generate(LOCAL)
+    assert client.generate.call_count == 3
+
+
+def test_a_step_that_is_not_a_local_aggregation_is_not_checked_for_it():
+    client = Mock(); client.generate.return_value = _reply(DEFAULTED)
+    SkillCandidateGenerator(client).generate(Intent('件数を求める', service_ids=('overpass',)))
+    assert client.generate.call_count == 1
+
+
+def test_one_earlier_observation_may_be_read_as_previous_observations_0():
+    one = Intent('前段の件数を整形する', service_ids=('overpass',), requires_context=True,
+                 previous_observations=(Observation('{"name": "渋谷区", "count": 459}'),))
+    client = Mock(); client.generate.return_value = _reply('import json\nd = json.loads(previous_observations[0])\nprint(json.dumps({"count": d["count"]}))')
+    SkillCandidateGenerator(client).generate(one)
     assert client.generate.call_count == 1

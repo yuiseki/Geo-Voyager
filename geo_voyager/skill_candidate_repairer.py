@@ -2,6 +2,7 @@ from typing import Sequence
 
 from .default_fallback import introduced_fallbacks
 from .id_type_literals import id_type_comparisons
+from .local_aggregation_contract import local_aggregation_violations
 from .execution_attempt import ExecutionAttempt
 from .execution_failure import ExecutionFailure, bounded_output
 from .intent import Intent
@@ -24,9 +25,10 @@ def _default_note(hidden: list[str]) -> str:
 
 
 def _id_type_note(guesses: list[str]) -> str:
-    return ('\n直前の出力は、id_type を固定の文字列と比べている: ' + ', '.join(guesses) + '。id_type の綴りを推測した分岐は、'
-            '外れると何も起きずに誤った値になる。id_type と比べず、intent_target["id_value"] をそのまま使う'
-            '（Overpass の area は int(intent_target["id_value"]) + 3600000000）。\n')
+    return ('\n直前の出力は、契約を破っている書き方を残した: ' + ', '.join(guesses) + '。'
+            'id_type を固定の文字列と比べない（外れると何も起きずに誤った値になる。intent_target["id_value"] をそのまま使う。'
+            'Overpass の area は int(intent_target["id_value"]) + 3600000000）。'
+            '測定値の欠落を get の既定値で代用しない。Observation を番号や位置で選ばず、name と ID で選ぶ。\n')
 
 
 def _normalized(code: str) -> str:
@@ -87,6 +89,7 @@ class SkillCandidateRepairer:
                 continue
             hidden = introduced_fallbacks(candidate.code, repaired.code, failure.stderr)
             guesses = id_type_comparisons(repaired.code) if intent.target is not None and intent.target.resolved else []
+            guesses += local_aggregation_violations(repaired.code, len(intent.previous_observations)) if intent.requires_context else []
             if not hidden and not guesses:
                 return repaired
             self.rejected_fallbacks.append(hidden + guesses)
