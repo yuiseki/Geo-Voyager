@@ -30,3 +30,20 @@ def test_service_graph_registers_and_gets():
 def test_invalid_service_is_rejected(id, url, protocol):
     with pytest.raises(ValueError):
         Service(id, 'description', url, protocol)
+
+
+def test_the_taginfo_contract_says_how_to_list_the_values_of_a_key():
+    """The fields and the paging below were checked against the self-hosted Taginfo. See integration/test_taginfo_contract.py."""
+    from geo_voyager.services import load_service_graph
+    text = load_service_graph().get('taginfo').description
+    key_values = text[text.index('/api/4/key/values'):]
+    for fact in ['key を受け取り', 'page', 'rp', '両方が必須', 'HTTP 412', 'sortname=count', 'sortorder=desc',
+                 'value', 'count', 'fraction']:
+        assert fact in key_values, fact
+    assert 'count_all ではない' in key_values        # the field of search/by_value is not the field of key/values
+
+
+def test_the_by_value_contract_is_unchanged():
+    from geo_voyager.services import load_service_graph
+    text = load_service_graph().get('taginfo').description
+    assert '/api/4/search/by_value は query で値を部分一致検索し、JSON data 配列の key/value/count_all を返す' in text

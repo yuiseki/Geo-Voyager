@@ -224,7 +224,7 @@ def test_the_prompt_shows_every_service_description_in_full():
         for sentence in service.description.split('。'):
             if sentence.strip():
                 assert sentence in prompt, (service.id, sentence)
-    assert '/api/4/key/values は key を受け取る' in prompt          # the endpoint the first-plan prompt cut off
+    assert '/api/4/key/values は key を受け取り' in prompt and 'count_all ではない' in prompt      # what the first-plan prompt cuts off
 
 
 def test_the_first_plan_prompt_is_still_the_short_one():
