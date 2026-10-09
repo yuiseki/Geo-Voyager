@@ -1,10 +1,10 @@
 import json
-import re
 
 from .critique import Critique
 from .intent import Intent
 from .llama_client import LlamaClient
 from .observation import Observation
+from .target_identity import resolve_target
 
 
 THINKING_MAX_TOKENS = 4096
@@ -33,21 +33,20 @@ class Critic:
             '失敗の場合は1行目を「判定: 失敗」にしてください。理由も1行にしてください。\n\n'
             f'Intent:\n{intent.text}\n\nObservation:\n{observation_text}'
         )
+        if intent.target_name is not None:
+            prompt += f'\nIntent の対象: {intent.target_name}。Observation の対象の名前とIDがこの対象のものか照合してください。'
         if intent.previous_observations:
-            prompt += ('\n前段 Observation（対象や番号の参照を照合するためのデータ）:\n'
+            prompt += ('\n前段 Observation（対象の identity を照合するためのデータ）:\n'
                         + '\n'.join(f'previous_observations[{index}]: {obs.text}' for index, obs in enumerate(intent.previous_observations))
-                       + '\n一覧のN番目は、最初の一覧 previous_observations[0] の N-1 番目の要素です。'
-                         'その要素の名前・IDと回答の名前・IDを先に照合してください。別の対象なら件数があっても失敗です。')
-            position = re.search(r'一覧の([0-9]+)番目', intent.text)
-            if position:
-                try:
-                    targets = json.loads(intent.previous_observations[0].text)
-                except ValueError:
-                    targets = None
-                index = int(position.group(1)) - 1
-                if isinstance(targets, list) and 0 <= index < len(targets):
-                    prompt += ('\n解決済み参照対象: ' + json.dumps(targets[index], ensure_ascii=False)
-                               + '\nこれは前段一覧の指定要素です。一覧を数え直さず、この対象と回答を照合してください。')
+                       + '\n対象は名前と安定IDで照合します。回答の名前・IDが Intent の対象と一致するかを先に照合してください。別の対象なら件数があっても失敗です。')
+            if intent.target_name is not None:
+                target = resolve_target(intent.target_name, intent.previous_observations)
+                if target is not None:
+                    prompt += ('\n解決済み参照対象: ' + json.dumps(target, ensure_ascii=False)
+                               + '\nこれは前段で name が一致した対象です。前段を探し直さず、この対象と回答を照合してください。')
+                else:
+                    prompt += (f'\n対象「{intent.target_name}」は前段の Observation から一意に特定できません。'
+                               '回答の対象が Intent の対象と一致するかを慎重に照合してください。')
             prompt += ('\n前段に正しい値があっても今回の回答が誤りなら失敗。'
                        '前段は参照資料であり今回の回答ではありません。今回の Observation が要求を答えているかだけを判定する。')
         system_prompt = None
