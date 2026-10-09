@@ -35,6 +35,13 @@ from bench.infra import WORKER_IMAGE, benchmark_environment
 ORACLE_ATTEMPTS = 3
 
 
+def pending_runs(goal_ids: list[str], repeat: int, rows: list[dict]) -> list[tuple[str, int]]:
+    """(goal id, round) pairs without a recorded row, round-major like a fresh run."""
+    done = {(row['id'], row['round']) for row in rows}
+    return [(goal_id, number) for number in range(1, repeat + 1) for goal_id in goal_ids
+            if (goal_id, number) not in done]
+
+
 def run_oracle(code: str, network: str) -> dict:
     """Services fail transiently; an oracle that never answers makes the Goal unmeasurable."""
     for attempt in range(ORACLE_ATTEMPTS):
@@ -108,6 +115,7 @@ def main() -> None:
     parser.add_argument('--ids', default='')
     parser.add_argument('--repeat', type=int, default=1)
     parser.add_argument('--critic-thinking', action='store_true')
+    parser.add_argument('--resume', action='store_true', help='run only the (goal, round) pairs missing from results.jsonl')
     args = parser.parse_args()
     out = Path(args.out).expanduser()
     out.mkdir(parents=True, exist_ok=True)
@@ -118,17 +126,22 @@ def main() -> None:
         raise SystemExit(f'unknown goal ids: {sorted(unknown)}')
     embedding = EmbeddingClient(os.environ['GEO_VOYAGER_EMBEDDING_BASE_URL'],
                                 os.environ['GEO_VOYAGER_EMBEDDING_MODEL'])
+    results = out / 'results.jsonl'
+    recorded = [json.loads(line) for line in results.read_text().splitlines()] if args.resume and results.exists() else []
+    by_id = {goal.id: goal for goal in goals}
+    todo = pending_runs([goal.id for goal in goals], args.repeat, recorded)
+    print(f'{len(todo)} runs to do', flush=True)
     with benchmark_environment() as names:
-        for round_number in range(1, args.repeat + 1):
-            for goal in goals:
-                run_id = f'{goal.id}.r{round_number}'
-                row = run_goal(goal, names, out / run_id, embedding, critic_thinking=args.critic_thinking)
-                row['id'], row['round'] = goal.id, round_number
-                with (out / 'results.jsonl').open('a') as file:
-                    file.write(json.dumps(row, ensure_ascii=False, default=str) + '\n')
-                print(run_id, 'correct=', row.get('correct'), 'critic=', row.get('goal_critic_success'),
-                      'intents=', [(r['outcome_at'], r['failure_types']) for r in row['intents']],
-                      'error=', row.get('error'), flush=True)
+        for goal_id, round_number in todo:
+            goal = by_id[goal_id]
+            run_id = f'{goal.id}.r{round_number}'
+            row = run_goal(goal, names, out / run_id, embedding, critic_thinking=args.critic_thinking)
+            row['id'], row['round'] = goal.id, round_number
+            with results.open('a') as file:
+                file.write(json.dumps(row, ensure_ascii=False, default=str) + '\n')
+            print(run_id, 'correct=', row.get('correct'), 'critic=', row.get('goal_critic_success'),
+                  'intents=', [(r['outcome_at'], r['failure_types']) for r in row['intents']],
+                  'error=', row.get('error'), flush=True)
 
 
 if __name__ == '__main__':

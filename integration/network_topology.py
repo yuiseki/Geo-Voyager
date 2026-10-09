@@ -6,7 +6,8 @@ from uuid import uuid4
 
 
 @contextmanager
-def network_topology(isolated=False, gateway_code=None, origin_code=None, worker_image="python:3.12-slim", include_origin=True):
+def network_topology(isolated=False, gateway_code=None, origin_code=None, worker_image="python:3.12-slim", include_origin=True,
+                     gateway_memory="128m"):
     prefix = f"geo-voyager-nettest-{uuid4().hex}"
     names = {role: f"{prefix}-{role}" for role in ("internal", "external", "worker", "gateway", "origin")}
     try:
@@ -26,7 +27,7 @@ def network_topology(isolated=False, gateway_code=None, origin_code=None, worker
                 "docker", "run", "--detach", "--name", names[role], "--pull", "never",
                 "--network", names[network], "--network-alias", role, "--user", "65534:65534", "--read-only",
                 "--tmpfs", "/tmp:rw,noexec,nosuid,size=16m", "--cap-drop", "ALL",
-                "--security-opt", "no-new-privileges", "--memory", "128m",
+                "--security-opt", "no-new-privileges", "--memory", gateway_memory if role == "gateway" else "128m",
                 "--cpus", "1", "--pids-limit", "128" if role == "worker" else "32", worker_image if role == "worker" else "python:3.12-slim", "python",
             ]
             custom_code = gateway_code if role == "gateway" else origin_code if role == "origin" else None
