@@ -49,3 +49,16 @@ def test_the_geosparql_id_check_is_still_there_for_that_service():
 def test_a_dataset_intent_has_no_fixed_schema_either():
     prompt = prompt_for(Intent('東京23区の人口の合計を求める', dataset_ids=('yuiseki/jp-admin-2026-09',)))
     assert 'stable keys such as name, relation_id' not in prompt
+
+
+def test_a_measurement_of_a_target_says_what_was_measured():
+    prompt = prompt_for(Intent('渋谷区内の amenity=cafe の件数', service_ids=('overpass',), target=TargetRef('渋谷区', 'relation_id', '1759477')))
+    assert '何を測ったか' in prompt and '"tag": "amenity=cafe"' in prompt
+
+
+def test_a_local_aggregation_picks_an_earlier_object_by_what_it_measured():
+    from geo_voyager.observation import Observation
+    prompt = prompt_for(Intent('cafe と restaurant の件数を比べる', service_ids=('overpass',), requires_context=True,
+                               previous_observations=(Observation('{"name": "渋谷区", "tag": "amenity=cafe", "count": 459}'),
+                                                      Observation('{"name": "渋谷区", "tag": "amenity=restaurant", "count": 1004}'))))
+    assert '何を測ったかのキー' in prompt and '測定値のキーを持つ object' in prompt

@@ -176,7 +176,10 @@ class SkillCandidateGenerator:
                          '最終結果は意味の分かるキーを持つ JSON を print する。')
         if not intent.dataset_ids:
             if intent.target is not None:
-                prompt += ('\nこの Intent は対象についての Intent なので、出力に対象の name と ID を含める。')
+                prompt += ('\nこの Intent は対象についての Intent なので、出力に対象の name と ID を含める。'
+                           '測定（件数、合計など）なら、何を測ったか（条件）もキーで出力に含める。'
+                           '例: {"name": "渋谷区", "relation_id": "1759477", "tag": "amenity=cafe", "count": 459}。'
+                           '同じ対象を別の条件で測った出力を、後のローカル集計が区別できるようにするため。')
                 prompt += ('\n最後の重要な制約: 対象は実行時変数 intent_target であり、Skill の固定対象ではありません。'
                            '説明に対象の名前を書かず、「実行時に指定された対象」と書いてください。'
                            '説明の例: 実行時に指定された対象について、指定条件に一致する地物の件数を取得する。')
@@ -234,6 +237,8 @@ class SkillCandidateGenerator:
                            '必須測定値は添字でアクセスし、欠落時は例外にする。get のデフォルト値や 0 で代用しない。'
                            'previous_observations や、それを解析した list の要素を、番号や位置で選ばない（previous_observations[2] や decoded[3] は禁止）。'
                            '対象の object は名前と ID で選ぶ。前段の番号は説明の表示であり、コードで番号によって選ばない。'
+                           '同じ対象について複数の object があるときは、何を測ったかのキー（tag など）と、測定値のキーを持つ object を選ぶ'
+                           '（例: [o for o in decoded if o.get("tag") == "amenity=cafe" and "count" in o]）。測定値を持たない object（ID だけの出力）は使わない。'
                            'その実測値を用いて Intent の集計・選択を実行する。')
             def generate_once(extra: str = '') -> SkillCandidate:
                 return _parse_candidate(self.llm_client.generate(
