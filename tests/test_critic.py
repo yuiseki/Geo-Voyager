@@ -111,3 +111,20 @@ def test_critic_does_not_adopt_an_answer_present_only_in_prior_data():
     client = Mock(); client.generate.return_value = '判定: 失敗\n理由: 今回の回答が違う'
     Critic(client).check(Intent('前段から最大を求める', requires_context=True, previous_observations=(Observation('{"name":"乙","count":4}'),)), [Observation('{"name":"甲","count":0}')])
     assert '前段に正しい値があっても今回の回答が誤りなら失敗' in client.generate.call_args.args[0]
+
+
+def test_default_critic_does_not_request_thinking():
+    client = Mock(); client.generate.return_value = '判定: 成功\n理由: 回答がある'
+    Critic(client).check(intent(), [Observation('{"count": 3}')])
+    kwargs = client.generate.call_args.kwargs
+    assert 'enable_thinking' not in kwargs and 'max_tokens' not in kwargs
+
+
+def test_thinking_critic_enables_thinking_with_room_for_the_verdict():
+    client = Mock(); client.generate.return_value = '判定: 成功\n理由: 回答がある'
+    result = Critic(client, thinking=True).check(intent(), [Observation('{"count": 3}')])
+    kwargs = client.generate.call_args.kwargs
+    assert result.success
+    assert kwargs['enable_thinking'] is True
+    assert kwargs['max_tokens'] >= 2048 and kwargs['reasoning_budget_tokens'] > 0
+    assert kwargs['temperature'] == 0.0

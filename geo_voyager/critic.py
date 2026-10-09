@@ -7,9 +7,14 @@ from .llama_client import LlamaClient
 from .observation import Observation
 
 
+THINKING_MAX_TOKENS = 4096
+THINKING_BUDGET_TOKENS = 1024
+
+
 class Critic:
-    def __init__(self, llm_client: LlamaClient | None = None) -> None:
+    def __init__(self, llm_client: LlamaClient | None = None, *, thinking: bool = False) -> None:
         self.llm_client = llm_client if llm_client is not None else LlamaClient()
+        self.thinking = thinking
 
     def check(self, intent: Intent, observations: list[Observation]) -> Critique:
         if not observations:
@@ -51,4 +56,9 @@ class Critic:
                                        'not the current answer. A correct answer present only in reference data does not make '
                                        'the current execution successful. If the returned target/value is incorrect, return 失敗. '
                                        'Return exactly 判定: 成功 or 判定: 失敗, then 理由: on the second line.')
-        return Critique.from_text(self.llm_client.generate(prompt, temperature=0.0, system_prompt=system_prompt))
+        options = {}
+        if self.thinking:
+            options = dict(enable_thinking=True, max_tokens=THINKING_MAX_TOKENS,
+                           reasoning_budget_tokens=THINKING_BUDGET_TOKENS)
+        return Critique.from_text(self.llm_client.generate(
+            prompt, temperature=0.0, system_prompt=system_prompt, **options))
