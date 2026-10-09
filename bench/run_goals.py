@@ -11,6 +11,7 @@ from dataclasses import asdict
 import json
 import os
 from pathlib import Path
+import subprocess
 import time
 from unittest.mock import Mock
 
@@ -60,19 +61,21 @@ def logged_llm(directory: Path) -> Mock:
     return llm
 
 
-def run_goal(goal, names, directory: Path, embedding: EmbeddingClient) -> dict:
+def run_goal(goal, names, directory: Path, embedding: EmbeddingClient, *, critic_thinking: bool = False) -> dict:
     # One directory per run: a shared Skill Library would let later rounds reuse earlier skills.
     directory.mkdir(parents=True, exist_ok=False)
     library_path = directory / 'skill_library'
     library_path.mkdir(exist_ok=True)
     library = SkillLibrary(library_path)
     llm = logged_llm(directory)
-    critic = Critic(llm)
+    critic = Critic(llm, thinking=critic_thinking)
     executor = IntentExecutor(SkillRetriever(library, embedding), SkillSelector(llm),
                               Worker(names['internal']), SkillCandidateGenerator(llm),
                               critic, library, SkillCandidateRepairer(llm))
     started = time.time()
-    row = {'id': goal.id, 'goal': goal.text, 'started': started}
+    row = {'id': goal.id, 'goal': goal.text, 'started': started, 'critic_thinking': critic_thinking,
+           'commit': subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'], text=True).strip(),
+           'required': list(goal.required), 'target_relation': goal.target_relation}
     try:
         result = GoalExecutor(Planner(llm), executor, critic).execute(goal.text)
     except Exception as error:  # a planning or infrastructure error is data too
@@ -80,7 +83,8 @@ def run_goal(goal, names, directory: Path, embedding: EmbeddingClient) -> dict:
                    correct=False, elapsed=time.time() - started)
         return row
     row['elapsed'] = time.time() - started
-    row['intents'] = [intent_record(intent.text, execution)
+    row['intents'] = [dict(intent_record(intent.text, execution), services=list(intent.service_ids),
+                           datasets=list(intent.dataset_ids), requires_context=intent.requires_context)
                       for intent, execution in zip(result.intents, result.executions)]
     row['planned_intents'] = len(result.intents)
     row['goal_critic_success'] = result.critique.success
@@ -103,6 +107,7 @@ def main() -> None:
     parser.add_argument('--out', required=True)
     parser.add_argument('--ids', default='')
     parser.add_argument('--repeat', type=int, default=1)
+    parser.add_argument('--critic-thinking', action='store_true')
     args = parser.parse_args()
     out = Path(args.out).expanduser()
     out.mkdir(parents=True, exist_ok=True)
@@ -117,7 +122,7 @@ def main() -> None:
         for round_number in range(1, args.repeat + 1):
             for goal in goals:
                 run_id = f'{goal.id}.r{round_number}'
-                row = run_goal(goal, names, out / run_id, embedding)
+                row = run_goal(goal, names, out / run_id, embedding, critic_thinking=args.critic_thinking)
                 row['id'], row['round'] = goal.id, round_number
                 with (out / 'results.jsonl').open('a') as file:
                     file.write(json.dumps(row, ensure_ascii=False, default=str) + '\n')
