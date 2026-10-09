@@ -96,3 +96,5 @@ v1 の実行で正解にならなかった 15 件を見ると、repair が働く
 - 実行は成功したが Critic が失敗とした場合に、Critic の理由を repair に渡して修正を試みるか。
 - 同じ Goal でも計画が揺れる問題（Planner）をどう測るか。
 - 前段 Observation が dict 1 件のときに、list として添字を引かないよう、型の説明をどう強めるか。
+
+失敗の種類を、Goal を広げて測った続きは [failure_categories.md](failure_categories.md) にある。

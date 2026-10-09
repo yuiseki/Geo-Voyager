@@ -1,0 +1,396 @@
+{
+  "runs": 105,
+  "measured": 103,
+  "correct": 50,
+  "unmeasured": 2,
+  "categories": {
+    "aggregation": 4,
+    "codegen": 21,
+    "execution": 5,
+    "planning": 5,
+    "retrieval-selection": 3,
+    "semantic-completion": 15
+  },
+  "first_wrong_step": {
+    "1": 24,
+    "2": 18,
+    "3": 2,
+    "4": 2
+  },
+  "by_family": {
+    "dataset": {
+      "runs": 20,
+      "correct": 3,
+      "categories": {
+        "aggregation": 1,
+        "codegen": 5,
+        "execution": 5,
+        "planning": 2,
+        "semantic-completion": 2
+      }
+    },
+    "geosparql": {
+      "runs": 15,
+      "correct": 12,
+      "categories": {
+        "semantic-completion": 3
+      }
+    },
+    "nominatim": {
+      "runs": 15,
+      "correct": 13,
+      "categories": {
+        "aggregation": 1,
+        "codegen": 1
+      }
+    },
+    "overpass": {
+      "runs": 30,
+      "correct": 13,
+      "categories": {
+        "aggregation": 2,
+        "codegen": 9,
+        "planning": 3,
+        "retrieval-selection": 3
+      }
+    },
+    "taginfo": {
+      "runs": 15,
+      "correct": 8,
+      "categories": {
+        "semantic-completion": 7
+      }
+    },
+    "valhalla": {
+      "runs": 10,
+      "correct": 1,
+      "categories": {
+        "codegen": 6,
+        "semantic-completion": 3
+      }
+    }
+  },
+  "by_goal": {
+    "cafe_shibuya": {
+      "runs": 5,
+      "correct": 2
+    },
+    "cafe_vs_restaurant_shibuya": {
+      "runs": 5,
+      "correct": 0
+    },
+    "hospital_minato": {
+      "runs": 5,
+      "correct": 3
+    },
+    "hotel_taito": {
+      "runs": 5,
+      "correct": 3
+    },
+    "library_setagaya": {
+      "runs": 5,
+      "correct": 3
+    },
+    "nom_setagaya_south": {
+      "runs": 5,
+      "correct": 4
+    },
+    "nom_shibuya_relation": {
+      "runs": 5,
+      "correct": 4
+    },
+    "nom_tokyo_tower": {
+      "runs": 5,
+      "correct": 5
+    },
+    "ramen_shinjuku": {
+      "runs": 5,
+      "correct": 2
+    },
+    "route_auto_km": {
+      "runs": 5,
+      "correct": 1
+    },
+    "route_walk_minutes": {
+      "runs": 5,
+      "correct": 0
+    },
+    "sparql_four_char_wards": {
+      "runs": 5,
+      "correct": 3
+    },
+    "sparql_min_relation_ward": {
+      "runs": 5,
+      "correct": 5
+    },
+    "sparql_ward_count": {
+      "runs": 5,
+      "correct": 4
+    },
+    "stations_count": {
+      "runs": 5,
+      "correct": 3
+    },
+    "stations_northmost": {
+      "runs": 5,
+      "correct": 0
+    },
+    "tag_ramen_vs_sushi": {
+      "runs": 5,
+      "correct": 4
+    },
+    "tag_sushi_count": {
+      "runs": 5,
+      "correct": 3
+    },
+    "tag_top3_cuisine": {
+      "runs": 5,
+      "correct": 1
+    },
+    "ward_pop_max": {
+      "runs": 5,
+      "correct": 0
+    },
+    "ward_pop_total": {
+      "runs": 5,
+      "correct": 0
+    }
+  },
+  "planner": {
+    "cafe_shibuya": {
+      "runs": 5,
+      "plan_errors": 0,
+      "distinct_plans": 2,
+      "step_counts": {
+        "1": 1,
+        "2": 4
+      },
+      "modal_share": 0.8
+    },
+    "cafe_vs_restaurant_shibuya": {
+      "runs": 5,
+      "plan_errors": 0,
+      "distinct_plans": 3,
+      "step_counts": {
+        "2": 2,
+        "3": 1,
+        "4": 2
+      },
+      "modal_share": 0.4
+    },
+    "hospital_minato": {
+      "runs": 5,
+      "plan_errors": 0,
+      "distinct_plans": 3,
+      "step_counts": {
+        "1": 1,
+        "2": 3,
+        "3": 1
+      },
+      "modal_share": 0.6
+    },
+    "hotel_taito": {
+      "runs": 5,
+      "plan_errors": 0,
+      "distinct_plans": 2,
+      "step_counts": {
+        "1": 1,
+        "2": 4
+      },
+      "modal_share": 0.8
+    },
+    "library_setagaya": {
+      "runs": 5,
+      "plan_errors": 0,
+      "distinct_plans": 1,
+      "step_counts": {
+        "2": 5
+      },
+      "modal_share": 1.0
+    },
+    "nom_setagaya_south": {
+      "runs": 5,
+      "plan_errors": 0,
+      "distinct_plans": 2,
+      "step_counts": {
+        "1": 3,
+        "2": 2
+      },
+      "modal_share": 0.6
+    },
+    "nom_shibuya_relation": {
+      "runs": 5,
+      "plan_errors": 1,
+      "distinct_plans": 2,
+      "step_counts": {
+        "1": 4
+      },
+      "modal_share": 0.5
+    },
+    "nom_tokyo_tower": {
+      "runs": 5,
+      "plan_errors": 0,
+      "distinct_plans": 1,
+      "step_counts": {
+        "1": 5
+      },
+      "modal_share": 1.0
+    },
+    "ramen_shinjuku": {
+      "runs": 5,
+      "plan_errors": 0,
+      "distinct_plans": 1,
+      "step_counts": {
+        "2": 5
+      },
+      "modal_share": 1.0
+    },
+    "route_auto_km": {
+      "runs": 5,
+      "plan_errors": 0,
+      "distinct_plans": 1,
+      "step_counts": {
+        "1": 5
+      },
+      "modal_share": 1.0
+    },
+    "route_walk_minutes": {
+      "runs": 5,
+      "plan_errors": 0,
+      "distinct_plans": 1,
+      "step_counts": {
+        "1": 5
+      },
+      "modal_share": 1.0
+    },
+    "sparql_four_char_wards": {
+      "runs": 5,
+      "plan_errors": 0,
+      "distinct_plans": 2,
+      "step_counts": {
+        "1": 3,
+        "2": 2
+      },
+      "modal_share": 0.6
+    },
+    "sparql_min_relation_ward": {
+      "runs": 5,
+      "plan_errors": 0,
+      "distinct_plans": 3,
+      "step_counts": {
+        "2": 3,
+        "3": 1,
+        "4": 1
+      },
+      "modal_share": 0.6
+    },
+    "sparql_ward_count": {
+      "runs": 5,
+      "plan_errors": 0,
+      "distinct_plans": 2,
+      "step_counts": {
+        "1": 4,
+        "2": 1
+      },
+      "modal_share": 0.8
+    },
+    "stations_count": {
+      "runs": 5,
+      "plan_errors": 1,
+      "distinct_plans": 1,
+      "step_counts": {
+        "1": 4
+      },
+      "modal_share": 1.0
+    },
+    "stations_northmost": {
+      "runs": 5,
+      "plan_errors": 2,
+      "distinct_plans": 2,
+      "step_counts": {
+        "2": 2,
+        "3": 1
+      },
+      "modal_share": 0.6666666666666666
+    },
+    "tag_ramen_vs_sushi": {
+      "runs": 5,
+      "plan_errors": 0,
+      "distinct_plans": 3,
+      "step_counts": {
+        "1": 1,
+        "2": 1,
+        "3": 3
+      },
+      "modal_share": 0.6
+    },
+    "tag_sushi_count": {
+      "runs": 5,
+      "plan_errors": 0,
+      "distinct_plans": 1,
+      "step_counts": {
+        "1": 5
+      },
+      "modal_share": 1.0
+    },
+    "tag_top3_cuisine": {
+      "runs": 5,
+      "plan_errors": 0,
+      "distinct_plans": 1,
+      "step_counts": {
+        "1": 5
+      },
+      "modal_share": 1.0
+    },
+    "ward_pop_max": {
+      "runs": 5,
+      "plan_errors": 1,
+      "distinct_plans": 3,
+      "step_counts": {
+        "2": 3,
+        "3": 1
+      },
+      "modal_share": 0.5
+    },
+    "ward_pop_total": {
+      "runs": 5,
+      "plan_errors": 2,
+      "distinct_plans": 2,
+      "step_counts": {
+        "2": 2,
+        "3": 1
+      },
+      "modal_share": 0.6666666666666666
+    }
+  },
+  "nth_template": {
+    "with": {
+      "runs": 12,
+      "correct": 3
+    },
+    "without": {
+      "runs": 91,
+      "correct": 47
+    }
+  },
+  "critic": {
+    "false_positive": 4,
+    "false_negative": 7
+  },
+  "success_at": {
+    "0": 0.65625,
+    "1": 0.81875,
+    "2": 0.85
+  },
+  "failure_types": {
+    "api_syntax": 26,
+    "api_transient": 12,
+    "assertion": 11,
+    "data_shape": 33,
+    "empty_result": 2,
+    "other": 23,
+    "syntax": 1
+  },
+  "oscillations": 14,
+  "mean_elapsed": 29.653990059807185
+}
