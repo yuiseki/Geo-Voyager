@@ -16,7 +16,6 @@ from geo_voyager.intent_text import api_details_in
     ('sort=count と order=desc を指定して取得', ['sort=count', 'order=desc']),
     ('rp=3 と page=1 を付けて呼び出す', ['rp=3', 'page=1']),
     ('sortname=count_all, sortorder=desc で並べる', ['sortname=count_all', 'sortorder=desc']),
-    ('key=cuisine を指定して取得', ['key=cuisine']),
     ('/search?q=渋谷区&format=jsonv2 を呼ぶ', ['/search', 'q=渋谷区', 'format=jsonv2']),
     ('call_service で呼び出して取得する', ['call_service']),
     ('params={"key": "cuisine"} を渡す', ['params=']),
@@ -39,6 +38,8 @@ def test_api_paths_and_parameters_in_an_intent_are_found(text, expected):
     '前段の渋谷区 (relation_id: 1759477) の件数を取得する',
     'Taginfo で cuisine=sushi のタグの使用数を求める',
     '港区, 東京都, 日本 の relation_id を取得する',
+    'Taginfo で key="cuisine" の値を使用数の多い順に並べ、上位3つの値を取得する。',      # a tag key, written the way a key is
+    'タグの key=cuisine に付く値を調べる',
     '',
 ])
 def test_what_to_find_is_not_an_api_detail(text):

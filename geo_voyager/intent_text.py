@@ -12,9 +12,11 @@ from .services import load_service_graph
 # A path: a slash that does not follow a letter or digit, then segments. 'text/plain' and '2026/10/09' are not paths.
 PATH = re.compile(r'(?<![A-Za-z0-9_])/[A-Za-z0-9_][A-Za-z0-9_.\-]*(?:/[A-Za-z0-9_.\-]+)*')
 # Names the registered services take as request parameters (Taginfo, Nominatim, Overpass, Valhalla, GeoSPARQL).
-# OSM tags such as amenity=cafe are data, not parameters, and are not in this list.
+# OSM tags such as amenity=cafe are data, not parameters, and are not in this list. Neither is 'key': Taginfo takes
+# a key parameter, but key="cuisine" is also simply how an OSM tag key is written, and a model that says so is not
+# naming a parameter.
 API_PARAMETER_NAMES = ('limit', 'offset', 'sort', 'order', 'sort_count', 'sortname', 'sortorder', 'rp', 'page',
-                       'query', 'q', 'format', 'key', 'data')
+                       'query', 'q', 'format', 'data')
 PARAMETER = re.compile(r'(?<![A-Za-z0-9_])(?:' + '|'.join(API_PARAMETER_NAMES) + r')\s*=\s*[^\s,、。)）」&]+')
 CALL_DETAIL = re.compile(r'(?<![A-Za-z0-9_])(?:params|path)\s*=|\bcall_service\b')
 
