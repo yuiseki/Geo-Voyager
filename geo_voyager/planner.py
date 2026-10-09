@@ -1,4 +1,7 @@
+from dataclasses import dataclass
+
 from .dataset_graph import DatasetGraph
+from .goal_history import GoalHistory, render_history
 from .hypothesis import Hypothesis
 from .intent import Intent
 from .llama_client import LlamaClient
@@ -10,6 +13,17 @@ from .datasets import load_dataset_graph
 
 
 TARGET_PREFIXES = ('対象:', '対象：')
+
+
+@dataclass(frozen=True, repr=False)
+class Done:
+    """What Planner.next returns when the history already answers the Goal."""
+
+    def __repr__(self) -> str:
+        return 'DONE'
+
+
+DONE = Done()
 
 SHARED_RULES = (
             '後続では previous_observations（前段 stdout の文字列一覧）を参照できる。\n'
@@ -70,6 +84,38 @@ def _extract_target(block: list[str]) -> tuple[list[str], str | None]:
     if len(names) > 1:
         raise ValueError('An Intent has more than one 対象 line, but names one target')
     return [line for line in block if not line.startswith(TARGET_PREFIXES)], (names[0] if names else None)
+
+
+def _parse_intent(block: list[str], datasets, services, *, allow_local: bool) -> Intent:
+    """One Intent from its block of lines. A step that only works on earlier output needs allow_local."""
+    lines, target_name = _extract_target(block)
+    if not lines or not lines[0].startswith('調査項目: '):
+        raise ValueError('Plan must start with 調査項目:')
+    ids = {'利用データセット': [], '利用サービス': []}
+    position = 1
+    for label in ids:
+        if position >= len(lines) or lines[position] not in (label + ':', label + ': []'):
+            raise ValueError('Plan must contain dataset and service lists')
+        empty = lines[position].endswith(' []')
+        position += 1
+        if not empty:
+            while position < len(lines) and lines[position].startswith('  - '):
+                ids[label].append(lines[position][4:])
+                position += 1
+    if position != len(lines):
+        raise ValueError('Unexpected plan fields')
+    local = not ids['利用データセット'] and not ids['利用サービス']
+    if local and not allow_local:
+        raise ValueError('First step requires an external resource')
+    intent = Intent(lines[0][len('調査項目: '):], tuple(ids['利用データセット']), tuple(ids['利用サービス']),
+                    requires_context=local, target_name=target_name)
+    if len(intent.dataset_ids) > 1:
+        raise ValueError('Only one dataset per execution is supported')
+    for id in intent.dataset_ids:
+        datasets.get(id)
+    for id in intent.service_ids:
+        services.get(id)
+    return intent
 
 
 class Planner:
@@ -140,12 +186,53 @@ class Planner:
     ) -> Verdict:
         return Verdict("仮説はまだ十分に検証されていない")
 
+    @staticmethod
+    def _resource_text(datasets, services) -> str:
+        resources = '\n'.join(f'Dataset {item.id}: {item.description}' for item in datasets.all())
+        resources += '\n' + '\n'.join(f'Service {item.id}: {item.protocol}: ' + '。'.join(item.description.split('。')[:2]) for item in services.all())
+        return resources
+
+    def next(self, goal: str, history: GoalHistory) -> Intent | Done:
+        """Decide the next Intent from what has happened so far, or say the Goal is answered.
+
+        One model call, one Intent. The Planner sees the whole history, so a name and a stable id that an
+        earlier Observation made known can be used by the next Intent, and a failure can change the plan.
+        """
+        if not goal.strip():
+            raise ValueError('Goal must not be empty')
+        datasets, services = load_dataset_graph(), load_service_graph()
+        prompt = (
+            'Goal を達成するために、次に実行する Intent を1件だけ決めてください。1 Intent = 1 measurable output。\n'
+            '履歴は、これまでに実行した Intent と、その Observation、Critic の判定、失敗、判明した対象です。履歴を読んで次の1件を決める。\n'
+            'Goal の答えが履歴の成功した Observation で揃っているときは、Intent の代わりに DONE とだけ返す。まだ足りないときに DONE を返さない。\n'
+            '履歴で成功した Intent を繰り返さない。失敗した Intent は、同じ内容で繰り返さず、失敗の理由を読んで方法・対象・使うサービスを変える。\n'
+            '「判明した対象」は、前段の Observation で分かった名前と安定IDです。その対象を測る Intent は、名前を「対象: 名前」に書き、調査項目にも同じ名前を書く。IDをコードや調査項目に書き写さなくてよい。\n'
+            + SHARED_RULES
+            + 'DONE とだけ返すか、次の Intent を以下の形式で1件だけ返す。複数返さない。前置き、番号、コードフェンス禁止。\n'
+            + '調査項目: 調査内容\n利用データセット: []\n利用サービス:\n  - 登録済みid\n対象: 名前\n'
+            + '利用データセットと利用サービスは空なら []、非空なら半角2空白の - id の行を続ける。「対象:」は対象を測る Intent だけが付ける。\n'
+            + f'INPUT: 利用可能リソース:\n{self._resource_text(datasets, services)}\nGoal:\n{goal}\n履歴:\n{render_history(history)}\n'
+            + 'OUTPUT: DONE、または調査項目、利用データセット、利用サービス、必要なら対象の行だけ。INPUT のメタデータを繰り返さない。'
+        )
+        text = self.llm_client.generate(
+            prompt, temperature=0.0, max_tokens=4096, enable_thinking=True, reasoning_budget_tokens=768,
+            system_prompt='You are a sequential task planner that decides one step at a time. Reply with exactly DONE when the history answers the Goal, '
+                          'otherwise with one Intent in the exact text format. Name a target by its name on a 対象: line. '
+                          'Never repeat a step that succeeded, and change the approach after a failure. Never return code.',
+        )
+        lines = [line for line in text.strip().splitlines() if line.strip()]
+        if lines and lines[0].strip() == 'DONE':
+            return DONE
+        blocks = _plan_blocks(text)
+        if not blocks:
+            raise ValueError('Plan must start with 調査項目:')
+        return _parse_intent(blocks[0], datasets, services, allow_local=bool(history.observations()))
+
     def plan_goal(self, goal: str) -> list[Intent]:
         if not goal.strip():
             raise ValueError('Goal must not be empty')
         datasets, services = load_dataset_graph(), load_service_graph()
-        resources = '\n'.join(f'Dataset {item.id}: {item.description}' for item in datasets.all())
-        resources += '\n' + '\n'.join(f'Service {item.id}: {item.protocol}: ' + '。'.join(item.description.split('。')[:2]) for item in services.all())
+        resources = self._resource_text(datasets, services)
         prompt = (
             'Goal を小さい調査 Intent に分解してください。1 Intent = 1 measurable output。\n'
             '依存関係のある順に並べ、取得した情報を後続で使う。巨大なループコードを最初から作らない。\n'
@@ -164,32 +251,5 @@ class Planner:
         if not blocks:
             raise ValueError('Plan must start with 調査項目:')
         for block in blocks:
-            lines, target_name = _extract_target(block)
-            if not lines or not lines[0].startswith('調査項目: '):
-                raise ValueError('Plan must start with 調査項目:')
-            ids = {'利用データセット': [], '利用サービス': []}
-            position = 1
-            for label in ids:
-                if position >= len(lines) or lines[position] not in (label + ':', label + ': []'):
-                    raise ValueError('Plan must contain dataset and service lists')
-                empty = lines[position].endswith(' []')
-                position += 1
-                if not empty:
-                    while position < len(lines) and lines[position].startswith('  - '):
-                        ids[label].append(lines[position][4:])
-                        position += 1
-            if position != len(lines):
-                raise ValueError('Unexpected plan fields')
-            local = not ids['利用データセット'] and not ids['利用サービス']
-            if local and not result:
-                raise ValueError('First step requires an external resource')
-            intent = Intent(lines[0][len('調査項目: '):], tuple(ids['利用データセット']), tuple(ids['利用サービス']),
-                            requires_context=local, target_name=target_name)
-            if len(intent.dataset_ids) > 1:
-                raise ValueError('Only one dataset per execution is supported')
-            for id in intent.dataset_ids:
-                datasets.get(id)
-            for id in intent.service_ids:
-                services.get(id)
-            result.append(intent)
+            result.append(_parse_intent(block, datasets, services, allow_local=bool(result)))
         return result
