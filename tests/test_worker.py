@@ -74,3 +74,22 @@ def test_local_execution_requires_actual_prior_observations():
         intent.previous_observations = (Observation('1'),)
         sandbox.return_value.run.return_value = 'result'
         assert Worker('internal').execute_candidate(intent, SkillCandidate('print(1)', '集計')) == [Observation('result')]
+
+
+def test_worker_passes_the_target_identity_as_data_even_without_prior_observations():
+    intent = Intent('港区の件数', service_ids=('overpass',), target_name='港区')
+    skill = Skill(uuid4(), '測定', 'print(intent_target)')
+    with patch('geo_voyager.worker.DockerSandbox') as sandbox:
+        sandbox.return_value.run.return_value = 'answer'
+        Worker('internal').execute_skill(intent, skill)
+    code = sandbox.return_value.run.call_args.args[0]
+    assert "intent_target={'name': '港区'}" in code
+
+
+def test_worker_defines_no_target_when_the_intent_names_none():
+    intent = Intent('件数', service_ids=('overpass',))
+    skill = Skill(uuid4(), '測定', 'print(1)')
+    with patch('geo_voyager.worker.DockerSandbox') as sandbox:
+        sandbox.return_value.run.return_value = '1'
+        Worker('internal').execute_skill(intent, skill)
+    assert 'intent_target' not in sandbox.return_value.run.call_args.args[0]

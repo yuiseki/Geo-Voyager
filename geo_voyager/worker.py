@@ -20,6 +20,8 @@ class Worker:
             load_service_graph().get(service_id)
         if intent.previous_observations:
             code = f"previous_observations={[obs.text for obs in intent.previous_observations]!r}\nintent_text={intent.text!r}\n" + code
+        if intent.target_name is not None:
+            code = f"intent_target={{'name': {intent.target_name!r}}}\n" + code
         if intent.dataset_ids:
             code = f"dataset_id={intent.dataset_ids[0]!r}\n" + code
         try:

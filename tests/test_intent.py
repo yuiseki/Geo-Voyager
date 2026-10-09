@@ -52,3 +52,14 @@ def test_service_only_intent_needs_no_dummy_dataset():
 def test_intent_rejects_empty_service_ids():
     with pytest.raises(ValueError):
         Intent('調査', service_ids=('',))
+
+
+def test_intent_target_name_is_optional_and_defaults_to_none():
+    assert Intent("駅数を集計する", ("yuiseki/ekidata-jp",)).target_name is None
+    assert Intent("港区の件数", service_ids=("overpass",), target_name="港区").target_name == "港区"
+
+
+@pytest.mark.parametrize("name", ["", "  "])
+def test_intent_rejects_an_empty_target_name(name):
+    with pytest.raises(ValueError):
+        Intent("港区の件数", service_ids=("overpass",), target_name=name)
