@@ -128,8 +128,9 @@ def run_one(spec: str, names, directory: Path, embedding: EmbeddingClient) -> di
     library = SkillLibrary(directory / 'skill_library')
     llm = logged_llm(directory)
     critic = Critic(llm)
+    repairer = SkillCandidateRepairer(llm)
     executor = IntentExecutor(SkillRetriever(library, embedding), SkillSelector(llm), Worker(names['internal']),
-                              SkillCandidateGenerator(llm), critic, library, SkillCandidateRepairer(llm))
+                              SkillCandidateGenerator(llm), critic, library, repairer)
     if options['inject']:
         executor = FirstStepFails(executor)
     started = time.time()
@@ -145,6 +146,7 @@ def run_one(spec: str, names, directory: Path, embedding: EmbeddingClient) -> di
            'events': trace_events(result, injected={1} if options['inject'] else set()),
            'planner_calls': sum(1 for name in os.listdir(directory)
                                 if name.endswith('_prompt.txt') and (directory / name).read_text().startswith('Goal を達成するために、次に実行する Intent')),
+           'rejected_fallbacks': repairer.rejected_fallbacks,
            'planner_failures': sum(1 for event in result.events if isinstance(event, PlannerFailure)),
            'final_critic_failures': sum(1 for event in result.events if isinstance(event, FinalCriticFailure)),
            'elapsed': round(time.time() - started, 1)}
