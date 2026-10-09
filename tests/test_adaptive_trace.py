@@ -59,3 +59,46 @@ def test_the_rendered_trace_names_the_stop_reason_and_each_step():
     text = render_trace(row)
     for part in ['stop: done', 'step 1', 'step 2', 'step 3', '港区の ID', 'KeyError: 0', '注入', '再利用', '学習']:
         assert part in text, part
+
+
+from bench.adaptive_trace import trace_events
+from geo_voyager.goal_history import FinalCriticFailure, PlannerFailure
+
+
+def result_with_failures():
+    value, learned, reused = result()
+    entries = value.history
+    events = (entries[0], PlannerFailure('ValueError: An Intent has more than one 対象 line', '調査項目: x\n対象: a\n対象: b', 1),
+              entries[1], entries[2], FinalCriticFailure('上位3つが足りない', 3))
+    return AdaptiveGoalExecution(value.goal, entries, value.executions, 'done', value.critique, None, events)
+
+
+def test_events_are_listed_in_the_order_they_happened_with_the_two_kinds_of_failure():
+    events = trace_events(result_with_failures())
+    assert [e['kind'] for e in events] == ['step', 'planner_failure', 'step', 'step', 'final_critic_failure']
+    assert events[1]['reason'].startswith('ValueError: An Intent has more than one') and events[1]['after_step'] == 1
+    assert '対象: a' in events[1]['reply'] and events[4]['reason'] == '上位3つが足りない' and events[4]['after_step'] == 3
+
+
+def test_a_step_event_keeps_everything_the_step_summary_has():
+    value = result_with_failures()
+    events = trace_events(value, injected={2})
+    steps = trace_steps(value, injected={2})
+    assert [{k: v for k, v in e.items() if k != 'kind'} for e in events if e['kind'] == 'step'] == steps
+
+
+def test_the_rendered_trace_shows_both_failures_between_the_steps():
+    value = result_with_failures()
+    row = {'id': 'g', 'goal': '目標', 'stop_reason': 'done', 'critique': {'success': True, 'reason': 'answered'},
+           'steps': trace_steps(value), 'events': trace_events(value), 'max_steps': 8, 'injected_first_failure': False}
+    text = render_trace(row)
+    assert text.index('step 1') < text.index('計画の失敗') < text.index('step 2')
+    assert text.index('step 3') < text.index('最終判定が未達') and '上位3つが足りない' in text
+    assert 'more than one 対象 line' in text and '対象: b' in text
+
+
+def test_a_trace_without_events_still_renders_from_the_steps():
+    value, _, _ = result()
+    row = {'id': 'g', 'goal': '目標', 'stop_reason': 'done', 'critique': {'success': True, 'reason': 'answered'},
+           'steps': trace_steps(value), 'max_steps': 8, 'injected_first_failure': False}
+    assert 'step 1' in render_trace(row) and '計画の失敗' not in render_trace(row)

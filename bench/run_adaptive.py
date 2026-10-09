@@ -12,7 +12,7 @@ import os
 from pathlib import Path
 import time
 
-from bench.adaptive_trace import render_trace, trace_steps
+from bench.adaptive_trace import render_trace, trace_events, trace_steps
 from bench.goals import GOALS
 from bench.infra import WORKER_IMAGE, benchmark_environment
 from bench.run_goals import logged_llm, run_oracle
@@ -22,6 +22,7 @@ from geo_voyager.embedding_client import EmbeddingClient
 from geo_voyager.execution_attempt import ExecutionAttempt
 from geo_voyager.execution_failure import ExecutionFailure
 from geo_voyager.goal_executor import DEFAULT_MAX_STEPS, GoalExecutor
+from geo_voyager.goal_history import FinalCriticFailure, PlannerFailure
 from geo_voyager.intent_execution import IntentExecution
 from geo_voyager.intent_executor import IntentExecutor
 from geo_voyager.planner import Planner
@@ -85,7 +86,11 @@ def run_one(spec: str, names, directory: Path, embedding: EmbeddingClient) -> di
            'critique': {'success': result.critique.success, 'reason': result.critique.reason},
            'max_steps': options['max_steps'], 'injected_first_failure': options['inject'],
            'steps': trace_steps(result, injected={1} if options['inject'] else set()),
-           'planner_calls': len([name for name in os.listdir(directory) if name.endswith('_prompt.txt')]),
+           'events': trace_events(result, injected={1} if options['inject'] else set()),
+           'planner_calls': sum(1 for name in os.listdir(directory)
+                                if name.endswith('_prompt.txt') and (directory / name).read_text().startswith('Goal を達成するために、次に実行する Intent')),
+           'planner_failures': sum(1 for event in result.events if isinstance(event, PlannerFailure)),
+           'final_critic_failures': sum(1 for event in result.events if isinstance(event, FinalCriticFailure)),
            'elapsed': round(time.time() - started, 1)}
     answers = [entry.observations[0].text for entry in result.history if entry.succeeded and entry.observations]
     row['final_observation'] = answers[-1][:1500] if answers else ''
