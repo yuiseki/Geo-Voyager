@@ -146,3 +146,38 @@ def test_selected_skill_attempt_is_not_part_of_the_repair_history():
         IntentExecutor(retriever, selector, worker, generator, critic, library, repairer=repairer).execute(
             Intent('調査', service_ids=('overpass',)))
     assert [a.code for a in repairer.repair.call_args.kwargs['history']] == ['c0']
+
+
+def reply(code: str) -> str:
+    return f'説明:\n修正した調査\n---\nコード:\n```python\n{code}\n```'
+
+
+def test_unchanged_repair_is_resampled_with_a_note_and_a_higher_temperature():
+    llm = Mock(); llm.generate.side_effect = [reply('broken'), reply('broken'), reply('fixed')]
+    repaired = SkillCandidateRepairer(llm, max_resamples=2).repair(
+        Intent('対象を数える', service_ids=('overpass',)), SkillCandidate('broken', '元'), FAILURE)
+    assert repaired.code == 'fixed' and llm.generate.call_count == 3
+    first, second = llm.generate.call_args_list[0], llm.generate.call_args_list[1]
+    assert '元のコードと同一' not in first.args[0] and '元のコードと同一' in second.args[0]
+    assert second.kwargs['temperature'] > first.kwargs['temperature']
+
+
+def test_resampling_is_bounded_and_returns_the_last_candidate():
+    llm = Mock(); llm.generate.return_value = reply('broken')
+    repaired = SkillCandidateRepairer(llm, max_resamples=2).repair(
+        Intent('対象を数える', service_ids=('overpass',)), SkillCandidate('broken', '元'), FAILURE)
+    assert repaired.code == 'broken' and llm.generate.call_count == 3
+
+
+def test_blank_lines_and_comments_do_not_count_as_a_change():
+    llm = Mock(); llm.generate.side_effect = [reply('x = 1\n\n# note\ny = 2'), reply('z = 3')]
+    repaired = SkillCandidateRepairer(llm, max_resamples=1).repair(
+        Intent('対象を数える', service_ids=('overpass',)), SkillCandidate('x = 1\ny = 2', '元'), FAILURE)
+    assert repaired.code == 'z = 3'
+
+
+def test_default_repairer_does_not_resample():
+    llm = Mock(); llm.generate.return_value = reply('broken')
+    SkillCandidateRepairer(llm).repair(
+        Intent('対象を数える', service_ids=('overpass',)), SkillCandidate('broken', '元'), FAILURE)
+    assert llm.generate.call_count == 1
