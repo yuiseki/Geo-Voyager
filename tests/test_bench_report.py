@@ -51,3 +51,17 @@ def test_report_success_at_k_over_candidate_chains():
     rows = [row('a', True, [step(outcome_at=1, candidate_attempts=2, failure_types=['syntax'])])]
     report = build_report(rows)
     assert report['success_at'] == {'0': 0.0, '1': 1.0, '2': 1.0}
+
+
+def test_uses_nth_template_detects_the_nth_of_the_list_step():
+    from bench.report import uses_nth_template
+    assert uses_nth_template(row('a', False, [step(intent='一覧の1番目（渋谷区）の件数を取得')]))
+    assert uses_nth_template(row('a', False, [step(), step(intent='一覧の 12 番目の区の人口')]))
+    assert not uses_nth_template(row('a', False, [step(intent='渋谷区の件数を取得')]))
+
+
+def test_report_compares_correctness_with_and_without_the_nth_template():
+    rows = [row('a', False, [step(intent='一覧の1番目の値')]), row('b', True, [step(intent='値を取得')]),
+            row('c', True, [step(intent='値を取得')]), row('d', False, [step(intent='一覧の1番目の区')])]
+    template = build_report(rows)['nth_template']
+    assert template == {'with': {'runs': 2, 'correct': 0}, 'without': {'runs': 2, 'correct': 2}}

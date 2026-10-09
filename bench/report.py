@@ -2,6 +2,7 @@
 from collections import Counter, defaultdict
 import json
 from pathlib import Path
+import re
 import sys
 
 from bench.goals import GOALS
@@ -29,6 +30,14 @@ def rejudge(rows: list[dict]) -> list[dict]:
                        correct_recorded=row.get('correct'))
         result.append(row)
     return result
+
+
+NTH_TEMPLATE = re.compile(r'一覧の\s*[0-9０-９]+\s*番目')
+
+
+def uses_nth_template(row: dict) -> bool:
+    """The Planner prompt tells it to measure a listed target by its position, 一覧のN番目."""
+    return any(NTH_TEMPLATE.search(step['intent']) for step in row['intents'])
 
 
 def family(row: dict) -> str:
@@ -68,6 +77,10 @@ def build_report(rows: list[dict]) -> dict:
         'by_goal': {goal: {'runs': len(items), 'correct': sum(1 for r in items if r.get('correct') is True)}
                     for goal, items in sorted(by_goal.items())},
         'planner': {goal: planner_variance(items) for goal, items in sorted(by_goal.items())},
+        'nth_template': {
+            key: {'runs': len(group), 'correct': sum(1 for r in group if r.get('correct') is True)}
+            for key, group in (('with', [r for r in measured if uses_nth_template(r)]),
+                               ('without', [r for r in measured if not uses_nth_template(r)]))},
         'critic': {
             'false_positive': sum(1 for r in rows if r.get('goal_critic_success') and r.get('correct') is False),
             'false_negative': sum(1 for r in rows if r.get('goal_critic_success') is False and r.get('correct') is True),
