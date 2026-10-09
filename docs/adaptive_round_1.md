@@ -73,3 +73,18 @@
 
 - Valhalla の 2 本は、以前の 1 周で失敗した原因（`+` の問題と応答のキー）が消えて、1 step で正解した。1 回ずつなので、直ったとまでは言えない。
 - 新しく見えた問題は 2 つ。`対象:` にタグの値（`sushi`）や集合（`東京23区`）が書かれても、Goal の文に含まれれば検査を通ること。比較を求める step で勝者を出さない出力を、step の Critic が通すこと。
+
+## 追記: `対象:` の検査の強化と、step の Critic への答えの要求（各 1 回の E2E）
+
+直したもの（単体テスト 832 件）。
+
+- Planner: 未解決の `対象:` が、タグ（`cuisine=sushi`）、Goal の中のタグのキーや値（`cuisine`、`sushi`、`cafe`）、2 つの対象（`渋谷区と新宿区`）、対象の集合（`東京23区`、`23区`、`全23区`、`各区`）なら拒否する。保存済みの `adaptive_*` の `対象:` 128 件（15 種類）に当てると、`ramen`、`sushi`、`cuisine=sushi`、`東京23区` が拒否され、区の名前と `東京タワー` は通った（`cuisine` と `渋谷区と新宿区` は、この保存済みの走査の後で規則に足した）。
+- step の Critic: Intent が比較・選択・集計を求めるときは、答えそのもの（勝者、選ばれた対象、合計）が Observation に出力されていることを求め、数値から自分で比べないよう指示した（最終 Critic と同じ趣旨）。保存済みの step のうち、比較などを求めて実行に成功した 14 件を聞き直すと、変更前は 14 件とも通し、変更後は 2 件を落とした。落ちたのは、勝者の無い `cafe_vs_restaurant_shibuya` の比較と、`adaptive_e2e` の誤った `tag_top3_cuisine`（`name=Cuisine communautaire` などを返した step）で、どちらも誤りだった。正しい 12 件は通ったまま。再生では前段の Observation を渡していない（[evidence/step_critic_answer/](evidence/step_critic_answer/)）。
+
+| Goal | 結果 | 何が起きたか |
+|---|---|---|
+| `tag_ramen_vs_sushi` | DONE、正解 | Planner の `対象: ramen` を検査が拒否し、Planner は `対象:` なしで書き直した。ramen 8,213、sushi 24,089 を `tag/stats` で取り、比較の無い DONE を最終 Critic が拒否、比較の step が `"comparison": "sushi"` を出して DONE |
+| `cafe_vs_restaurant_shibuya` | 停止（repeated_intent）、最後の Observation は judge を満たす | 出力の契約は効いた（cafe と restaurant の件数に `"tag": "amenity=cafe"` などが付いた）。しかし比較の step が 3 回とも勝者を書かず（件数と差だけ）、step の Critic は 3 回とも通した。最終 Critic が 2 回拒否し、同じ比較の Intent の繰り返しで止まった |
+
+- 再生では効いた step の Critic の指示が、実行中には効かなかった。実行中の Critic には前段の Observation と対象の照合の指示も渡るので、プロンプトが再生と違う。違いのどれが効いているかは確かめていない。
+- 比較の step が勝者を出さないのは、Generator の出力の問題でもある。「どちらが多いかを示す」 Intent に、差だけを出すコードが 3 回続いた。

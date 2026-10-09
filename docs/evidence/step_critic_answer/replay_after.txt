@@ -1,0 +1,15 @@
+adaptive_all1/cafe_shibuya_vs_shinjuku 8 | recorded True | now True | 渋谷区(459件)と新宿区(343件)のamenity=cafeの地物数を比較し、どちらが多いか、そ | {"winner": "shibuya", "count_shibuya": 459, "count_shinjuku": 343, "di
+adaptive_all1/tag_top3_cuisine 1 | recorded True | now True | cuisine キーの値を使用数の多い順に並べ、上位3つの値を示す。 | [{"value": "pizza", "count": 132565}, {"value": "burger", "count": 110
+adaptive_all1/stations_northmost 1 | recorded True | now True | 駅データのうち最も北（緯度が最大）にある駅の名前を特定する | 最も北にある駅は '稚内' です。
+adaptive_contract2/tag_top3_cuisine 2 | recorded True | now True | cuisine キーの値を使用数の多い順に並べ、上位3つの値を示す。 | [{"value": "pizza", "count": 132565}, {"value": "burger", "count": 110
+adaptive_contracts3/cafe_vs_restaurant_shibuya 3 | recorded True | now False | 渋谷区(1759477)内のamenity=cafe(459件)とamenity=restauran | {"name": "\u6e0b\u8c37\u533a", "relation_id": "1759477", "cafe_count":
+adaptive_e2e/tag_top3_cuisine 5 | recorded True | now False | Taginfo API で cuisine キーの値を使用数順に上位3件取得 | [{"name": "name=Cuisine communautaire", "relation_id": "name=Cuisine c
+adaptive_entity/tag_top3_cuisine 1 | recorded True | now True | cuisine キーの値の一覧（使用数順、上位3件） | [{"value": "pizza", "count": 132565}, {"value": "burger", "count": 110
+adaptive_entity3/cafe_shibuya_vs_shinjuku 6 | recorded True | now True | 渋谷区(459)と新宿区(343)のamenity=cafe地物数を比較し、どちらが多いかを示す。 | {"winner": "\u6e0b\u8c37\u533a", "count": 459, "loser": "\u65b0\u5bbf\
+adaptive_injected/cafe_shibuya_vs_shinjuku 7 | recorded True | now True | 渋谷区(459件)と新宿区(343件)のamenity=cafe地物数を比較し、渋谷区が多いことを示 | {"shibuya_name": "\u6e0b\u8c37\u533a", "shibuya_count": 459, "shinjuku
+adaptive_nofallback/tag_top3_cuisine 1 | recorded True | now True | cuisine キーの値を使用数の多い順に並べ、上位3つの値を取得する。 | [{"value": "pizza", "count": 132565}, {"value": "burger", "count": 110
+adaptive_nofallback/tag_top3_cuisine 1 | recorded True | now True | cuisine キーの値を count_all で降順に並べた上位3件を取得する。 | [{"value": "pizza", "count": 132565}, {"value": "burger", "count": 110
+adaptive_nofallback/tag_top3_cuisine 1 | recorded True | now True | cuisine キーの値を使用数の多い順に並べ、上位3つの値を取得する | [{"value": "pizza", "count": 132565}, {"value": "burger", "count": 110
+adaptive_recovery2/cafe_shibuya_vs_shinjuku 7 | recorded True | now True | 渋谷区と新宿区のamenity=cafeの地物数を比較し、どちらが多いかを示す | {"winner": "\u6e0b\u8c37\u533a", "shibuya_count": 459, "shinjuku_count
+adaptive_recovery2/tag_top3_cuisine 1 | recorded True | now True | Taginfoサービスでcuisineキーの値を使用数の多い順に並べ、上位3つの値を取得 | [{"name": "pizza", "relation_id": 132565}, {"name": "burger", "relatio
+steps 14 | accepted now 12
