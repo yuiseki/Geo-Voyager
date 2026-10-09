@@ -1,9 +1,13 @@
 """Failure categories for benchmark rows, derived afterwards from the recorded signals.
 
 Rules, in order, for a Goal whose answer was wrong:
- 1. the plan was rejected (ValueError, KeyError), or no Intent declares a
-    resource the Goal needs                                                 -> planning
-    any other exception (sandbox timeout, Docker, network)                  -> execution
+ 1. an exception ended the run, by what raised it:
+      the Planner or IntentExecutor rejected the plan, or it names an
+      unregistered resource (ValueError, KeyError)                          -> planning
+      the Generator or Repairer broke its output format (ValueError)        -> codegen
+      the Critic broke its output format (ValueError)                       -> critic-format
+      sandbox timeout, Docker, network                                      -> execution
+    or no Intent declares a resource the Goal needs                         -> planning
  2. at the first bad step:
       all candidate attempts failed, only with transient service errors     -> execution
       all candidate attempts failed otherwise                               -> codegen
@@ -19,11 +23,24 @@ should be spot-checked against the prompts and responses kept in each run direct
 from collections import Counter
 import re
 
-CATEGORIES = ('planning', 'retrieval-selection', 'codegen', 'execution', 'semantic-completion', 'aggregation')
+CATEGORIES = ('planning', 'retrieval-selection', 'codegen', 'execution', 'semantic-completion', 'aggregation',
+              'critic-format')
 AREA_OFFSET = 3600000000
-# The Planner and IntentExecutor reject a malformed plan or an unregistered resource this way.
-PLANNING_EXCEPTIONS = ('ValueError', 'KeyError')
 _RELATION_ID = re.compile(r'relation_id"?\s*:\s*"?(\d+)')
+
+
+def _error_category(error: str) -> str:
+    """An exception that escaped the whole Goal run, by what raised it."""
+    kind, _, message = error.partition(': ')
+    if kind == 'KeyError':
+        return 'planning'  # the plan names a service or dataset that is not registered
+    if kind == 'ValueError':
+        if message.startswith('Candidate'):
+            return 'codegen'  # the Generator or Repairer did not follow its output format
+        if message.startswith('Critique'):
+            return 'critic-format'
+        return 'planning'  # the Planner or IntentExecutor rejected the plan
+    return 'execution'  # sandbox timeout, Docker, network
 
 
 def _resources(step: dict) -> set[str]:
@@ -49,8 +66,7 @@ def classify(row: dict) -> dict | None:
     if row.get('correct') is None:
         return {'category': 'unmeasured', 'first_wrong_step': None, 'evidence': 'no oracle answer'}
     if row.get('error'):
-        planning = row['error'].split(':', 1)[0] in PLANNING_EXCEPTIONS
-        return {'category': 'planning' if planning else 'execution', 'first_wrong_step': None,
+        return {'category': _error_category(row['error']), 'first_wrong_step': None,
                 'evidence': row['error'][:200]}
     steps = row['intents']
     used = set().union(*(_resources(step) for step in steps)) if steps else set()

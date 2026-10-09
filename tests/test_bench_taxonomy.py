@@ -33,6 +33,25 @@ def test_unregistered_resource_in_a_plan_is_planning():
     assert classify(row([], error="KeyError: 'no-such-service'"))['category'] == 'planning'
 
 
+def test_malformed_plan_text_is_planning():
+    for error in ('ValueError: Plan must contain dataset and service lists', 'ValueError: Unexpected plan fields',
+                  'ValueError: Plan must start with 調査項目:', 'ValueError: First step requires an external resource',
+                  'ValueError: Only one dataset per execution is supported'):
+        assert classify(row([], error=error))['category'] == 'planning', error
+
+
+def test_malformed_generated_code_is_codegen_not_planning():
+    for error in ('ValueError: Candidate code must use a Python code fence',
+                  'ValueError: Candidate must contain 説明: and a single --- separator'):
+        result = classify(row([], error=error))
+        assert result['category'] == 'codegen', error
+
+
+def test_malformed_critic_output_is_a_critic_failure():
+    result = classify(row([], error='ValueError: Critique must contain 判定: 成功/失敗 and 理由: on two lines'))
+    assert result['category'] == 'critic-format'
+
+
 def test_sandbox_or_infrastructure_exceptions_are_execution_not_planning():
     for error in ("TimeoutExpired: Command '['docker', 'run'] timed out after 120 seconds",
                   'CalledProcessError: Command returned non-zero exit status 125',
