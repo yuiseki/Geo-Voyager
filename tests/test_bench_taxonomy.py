@@ -29,6 +29,17 @@ def test_planning_exception_is_planning():
     assert result['category'] == 'planning' and result['first_wrong_step'] is None
 
 
+def test_unregistered_resource_in_a_plan_is_planning():
+    assert classify(row([], error="KeyError: 'no-such-service'"))['category'] == 'planning'
+
+
+def test_sandbox_or_infrastructure_exceptions_are_execution_not_planning():
+    for error in ("TimeoutExpired: Command '['docker', 'run'] timed out after 120 seconds",
+                  'CalledProcessError: Command returned non-zero exit status 125',
+                  'URLError: <urlopen error timed out>'):
+        assert classify(row([], error=error))['category'] == 'execution'
+
+
 def test_plan_that_never_declares_a_required_resource_is_planning():
     result = classify(row([step(services=['yuisekin-geosparql'])], required=['overpass']))
     assert result['category'] == 'planning' and result['first_wrong_step'] == 1
