@@ -253,3 +253,22 @@ llama.cpp のモデル（`gvt-llm`）が、Qwen3.6-35B-A3B（MoE、活性 3B）�
 - 9 周目に止まった `ward_pop_max` は 10 周目に 5 step で正解した。7〜10 周目は 4 周とも 21 / 22 で、外れる Goal は毎回違う。
 - 前の Goal で学習した Skill を呼んだ回数は 28 回で、9 周目（33 回）と同じ水準。7、8 周目（16、18 回）より多い。
 - 版が 2 になった名前が 1 つあった（学習した `get_target_ward_osm_relation_id`）。Seed の版は 1 のまま。
+
+## 最後の Critic に thinking を使うか（再判定、2026-10-11）
+
+10 周目の取りこぼしは、最後の Critic が文字数を数え違えたものだった。数え上げは考えてから答えたほうが合うかもしれない。そこで、6〜10 周目のログにある最後の Critic のプロンプト 121 個を、そのまま thinking なしとありで判定し直した（`bench/replay_final_prompts.py`、[evidence/final_critic_thinking/](evidence/final_critic_thinking/)）。最後の Observation が正しいかは、Goal の judge と oracle で決めた。
+
+| | 実行時の判定 | thinking なし | thinking あり |
+|---|---|---|---|
+| 正しい答えを受け入れた | 101 | 101 | 97 |
+| 正しい答えを却下した | 14 | 14 | 18 |
+| 誤った答えを受け入れた | 1 | 1 | 1 |
+| 誤った答えを却下した | 5 | 5 | 5 |
+| 1 回の時間（平均） | | 3.8 秒 | 17.2 秒 |
+
+- thinking なしの判定は、121 個すべてで実行時と同じだった。temperature 0 で同じプロンプトなら、最後の Critic は揺れない。
+- thinking ありで成功に変わったのは 2 個。10 周目の `sparql_four_char_wards` と `route_walk_minutes` で、どちらも正しい答えだった。
+- thinking ありで失敗に変わったのは 6 個で、どれも正しい答えだった。5 個は 6 周目の 1 件数の Goal で、「count が amenity=cafe の数だと明示されていない」と却下した。1 個は 10 周目の `stations_northmost` で、「緯度が最大だという根拠が無い」と却下した。thinking をすると、根拠を求める規則を厳しく当てる。
+- 正しい答えを却下した残りの 12 個は、どちらの方式でも却下だった。judge は数値が含まれていれば正しいとするが、Goal が求める比較や選択の答え（どちらが多いか、最小の ID の区）は出力されていない。これらは最後の判定の規則どおりの却下。
+- 8 周目の `ward_pop_total`（OSM の population タグの合計）は、どちらの方式でも受け入れた。
+- 差し引きで悪くなり、時間は 4.5 倍かかるので、最後の Critic の thinking は使わない。
