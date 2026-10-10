@@ -110,3 +110,21 @@ judge を直し（勝者の区名を日本語、区を除いた形、ローマ�
 - 正解の数は 4 周とも 16〜17 で変わらない。どれも 1 周ずつで、揺らぎは測っていない。
 
 次の候補: Intent の条件（タグの key と value など）が、関数の引数の既定値ではなく、関数の本体に文字列として書き込まれていたら、作り直させる決定的な検査。これで数える Skill がタグの引数を持てば、別のタグの Goal から呼べるようになる見込み（確かめていない）。
+
+## サービスの Seed Skill を与えた 5 周目（2026-10-10）
+
+それまでの Seed は Dataset（人口、駅）を読む 6 つだけで、サービスを使う操作（relation ID を調べる、区域の地物を数える、タグの使用数、経路）は、モデルが空から書いていた。Voyager は、人が書いた引数つきの基本操作（`mineBlock(bot, name, count)` など）を最初から与えている。それに倣い、サービスの基本操作を引数つきの Seed Skill として 4 つ書いた（`657b3e2`）: `get_relation_id(intent_target)`、`count_tag_in_area(intent_target, key, value)`、`tag_usage_count(key, value)`、`route_summary(origin_lat, origin_lon, destination_lat, destination_lon, costing="auto")`。実サービスで oracle と一致することを確かめた（港区 1761717、渋谷区の amenity=cafe 459、cuisine=ramen 8,213、自動車 4.547 km、徒歩約 48.4 分。`integration/test_skill_linking.py`）。記録は [evidence/adaptive_shared5/](evidence/adaptive_shared5/)。
+
+| | 4 周目 | 5 周目（サービスの Seed） |
+|---|---|---|
+| DONE で終わり、正解 | 17 / 22 | 16 / 22 |
+| 学習した Skill | 27 | 24 |
+| 保存済みの Skill を呼んだ回数 | 10 | 23 |
+| うち Seed | 2 | 12 |
+| うち、前の Goal で学習した Skill | 8 | 10 |
+
+- 呼び出しは 2 倍以上に増えた。`get_relation_id`、`tag_usage_count`、`route_summary` の Seed が、それぞれの Goal で呼ばれた。経路の 2 本は、`route_summary` を呼ぶ関数を書いた。
+- 新しく見えた問題: モデルが Seed と同じ名前の関数 `count_tag_in_area` を、別の中身で書き直した。保存は同じ名前の新しい版になり、Seed（版 1）の上に版 2（`key="amenity", value="cafe"` の既定値つき、`intent_target["id_value"]` が無いと動かない）と版 3（`key="cuisine", value="ramen"`）が積まれた。以後の Goal に見せられるのは版 3 になる。原因の見立て: 実行環境が呼ぶ関数は、実行時の値以外の引数に既定値が要る。Seed の `count_tag_in_area` は `key` と `value` に既定値が無いので、そのままでは呼ばれる関数になれない。モデルは、それを呼ぶ包みの関数を書く代わりに、同じ名前で既定値つきに書き直した。
+- 数える関数は、`count_cafe_in_area(intent_target, key="amenity", value="cafe")` のように、条件を既定値つきの引数で受ける形になった。ただし中で Seed を呼ばず、自前で Overpass に問い合わせるものもある。
+- `count_libraries_in_setaagaya` は、区名の綴りの誤りで場所の名前の検査をすり抜けた。
+- 正解は 16 / 22 で、4 周目と同じ範囲。止まったのは `hotel_taito`（計画の失敗）と、以前から止まる GeoSPARQL、人口、最北の駅の Goal。
