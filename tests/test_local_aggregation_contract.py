@@ -64,3 +64,15 @@ def test_with_one_earlier_observation_its_position_is_not_a_choice():
 
 def test_a_defaulted_measurement_is_found_whatever_the_count():
     assert local_aggregation_violations('n = o.get("count", 0)', 1) == ["o.get('count', 0)"]
+
+
+def test_observations_passed_to_a_function_are_followed_into_it():
+    code = ('import json\n\n\ndef first_count(observations):\n    """Count of the first."""\n'
+            '    d = [json.loads(t) for t in observations]\n    return d[0].get("count", 0)\n\n\n'
+            'print(first_count(previous_observations))')
+    assert sorted(local_aggregation_violations(code)) == ['d[0]', "d[0].get('count', 0)"]
+
+
+def test_a_keyword_argument_is_followed_too():
+    code = 'def f(xs):\n    """F."""\n    return xs[1]\n\nf(xs=previous_observations)'
+    assert local_aggregation_violations(code) == ['xs[1]']

@@ -7,7 +7,7 @@ from .semantic_repairer import SemanticRepairer
 from .skill_candidate_repairer import SkillCandidateRepairer
 from .intent import Intent
 from .intent_execution import IntentExecution
-from .skill_candidate import new_skill_code
+from .skill_candidate import SkillCandidate, drop_copied_skills, new_skill_code
 from .skill_candidate_generator import SkillCandidateGenerator
 from .skill_function import parse_skill
 from .skill_library import SkillLibrary, linked_skills
@@ -38,7 +38,7 @@ class IntentExecutor:
             raise ValueError('At most one dataset_id or registered service_ids are required')
         skills = self.retriever.retrieve(intent.text, k)
         retrieved = tuple(f'{skill.name}@v{self.skill_library.versions(skill.name)[-1]}' for skill in skills)
-        candidate = self.generator.generate(intent, skills)
+        candidate = self._without_copies(self.generator.generate(intent, skills))
         attempts, candidate_attempts = [], []
         for repair_count in range(3):
             observations = self.worker.execute_candidate(intent, candidate, self.skill_library)
@@ -49,7 +49,8 @@ class IntentExecutor:
             if repair_count == 2:
                 return IntentExecution([], retrieved, tuple(linked_skills(candidate.code, self.skill_library)), None,
                                        Critique(False, observations.message), failure=observations, attempts=tuple(attempts))
-            candidate = self.repairer.repair(intent, candidate, observations, history=tuple(candidate_attempts))
+            candidate = self._without_copies(
+                self.repairer.repair(intent, candidate, observations, history=tuple(candidate_attempts)))
         critique = self.critic.check(intent, observations)
         attempts[-1] = replace(attempts[-1], critique=critique)
         if not critique.success and self.semantic_repairer is not None:
@@ -89,6 +90,11 @@ class IntentExecutor:
         if repaired.success:
             return proposal.candidate, result, repaired
         return candidate, observations, critique
+
+    def _without_copies(self, candidate: SkillCandidate) -> SkillCandidate:
+        """A copied definition of a saved Skill becomes a call to the saved one (see drop_copied_skills)."""
+        code = drop_copied_skills(candidate.code, self.skill_library)
+        return candidate if code == candidate.code else replace(candidate, code=code)
 
     @staticmethod
     def _attempt(code: str, result: list | ExecutionFailure) -> ExecutionAttempt:

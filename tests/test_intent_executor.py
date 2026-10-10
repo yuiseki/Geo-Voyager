@@ -92,3 +92,15 @@ def test_intent_execution_is_frozen():
     result = IntentExecution([], (), (), None, Critique(False, '未実行'))
     with pytest.raises(FrozenInstanceError):
         result.learned_skill = 'x@v1'
+
+
+def test_a_copied_definition_of_a_saved_skill_is_run_as_a_call_to_it(tmp_path):
+    library = SkillLibrary(tmp_path / 'skills'); library.add(COUNT)
+    copied = COUNT + '\n\nprint(count_tag_in_area("amenity", "cafe", "1"))'
+    run, _, (_, worker, *_) = executor(tmp_path, [SkillCandidate(copied, 'copy')], [[Observation('3')]],
+                                       retrieved=[library.get('count_tag_in_area')])
+    result = run.execute(INTENT)
+    ran = worker.execute_candidate.call_args.args[1].code
+    assert 'def count_tag_in_area' not in ran and ran == 'print(count_tag_in_area("amenity", "cafe", "1"))'
+    assert result.called_skills == ('count_tag_in_area@v1',) and result.learned_skill is None
+    assert library.versions('count_tag_in_area') == [1]

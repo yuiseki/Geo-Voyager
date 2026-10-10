@@ -14,7 +14,14 @@ VALID = '''説明:
 コード:
 ```python
 from geo_voyager.control_primitives import connect_duckdb, load_admin_units
-print("result")
+
+
+def least_populous():
+    """Find it."""
+    return "result"
+
+
+print(least_populous())
 ```'''
 
 
@@ -25,7 +32,8 @@ def test_generator_passes_intent_and_primitive_contracts_and_parses_candidate(re
     intent = Intent('東京都23区で人口が最も少ない区と人口を求める', ('yuiseki/jp-admin-2026-09',))
     candidate = SkillCandidateGenerator(client).generate(intent)
     assert candidate == SkillCandidate(
-        code='from geo_voyager.control_primitives import connect_duckdb, load_admin_units\nprint("result")',
+        code=('from geo_voyager.control_primitives import connect_duckdb, load_admin_units\n\n\n'
+              'def least_populous():\n    \"\"\"Find it.\"\"\"\n    return "result"\n\n\nprint(least_populous())'),
         description='行政区域から人口最小の区域を求める',
     )
     client.generate.assert_called_once()
@@ -359,8 +367,10 @@ def _reply(code):
     return f'説明:\n実行時に指定された対象の件数を取得する\n---\nコード:\n```python\n{code}\n```'
 
 
-GUESSED = 'from geo_voyager.control_primitives import call_service\nif intent_target["id_type"] == "relation":\n    area = int(intent_target["id_value"]) + 3600000000\nprint(area)'
-PLAIN = 'from geo_voyager.control_primitives import call_service\narea = int(intent_target["id_value"]) + 3600000000\nprint(area)'
+GUESSED = ('def area_of(target):\n    \"\"\"The Overpass area of a target.\"\"\"\n    if target["id_type"] == "relation":\n'
+           '        return int(target["id_value"]) + 3600000000\n    return None\n\n\nprint(area_of(intent_target))')
+PLAIN = ('def area_of(target):\n    \"\"\"The Overpass area of a target.\"\"\"\n    return int(target["id_value"]) + 3600000000\n\n\n'
+         'print(area_of(intent_target))')
 RESOLVED = Intent('渋谷区の amenity=cafe の地物数を求める', service_ids=('overpass',), target=TargetRef('渋谷区', 'relation_id', '1759477'))
 
 
@@ -393,9 +403,12 @@ def test_an_intent_without_a_resolved_target_is_not_checked():
 
 LOCAL = Intent('渋谷区と新宿区の件数を比べ、どちらが多いかを示す', service_ids=('overpass',), requires_context=True,
                previous_observations=(Observation('{"name": "渋谷区", "count": 459}'), Observation('{"name": "新宿区", "count": 343}')))
-DEFAULTED = 'import json\nd = [json.loads(t) for t in previous_observations]\nn = d[0].get("count", 0)\nprint(json.dumps({"count": n}))'
-BY_NAME = ('import json\nd = [json.loads(t) for t in previous_observations]\nm = [o for o in d if o["name"] == "渋谷区"]\n'
-           'assert m\nprint(json.dumps({"count": m[0]["count"]}))')
+DEFAULTED = ('import json\n\n\ndef first_count(observations):\n    \"\"\"Count of the first.\"\"\"\n'
+             '    d = [json.loads(t) for t in observations]\n    return d[0].get("count", 0)\n\n\n'
+             'print(json.dumps({"count": first_count(previous_observations)}))')
+BY_NAME = ('import json\n\n\ndef count_of(observations, name):\n    \"\"\"Count of the named object.\"\"\"\n'
+           '    d = [json.loads(t) for t in observations]\n    m = [o for o in d if o["name"] == name]\n    assert m\n'
+           '    return m[0]["count"]\n\n\nprint(json.dumps({"count": count_of(previous_observations, "渋谷区")}))')
 
 
 def test_the_local_aggregation_prompt_forbids_picking_by_position_and_defaulting():
@@ -429,6 +442,6 @@ def test_a_step_that_is_not_a_local_aggregation_is_not_checked_for_it():
 def test_one_earlier_observation_may_be_read_as_previous_observations_0():
     one = Intent('前段の件数を整形する', service_ids=('overpass',), requires_context=True,
                  previous_observations=(Observation('{"name": "渋谷区", "count": 459}'),))
-    client = Mock(); client.generate.return_value = _reply('import json\nd = json.loads(previous_observations[0])\nprint(json.dumps({"count": d["count"]}))')
+    client = Mock(); client.generate.return_value = _reply('import json\n\n\ndef count_of(observations):\n    \"\"\"Count.\"\"\"\n    return json.loads(observations[0])["count"]\n\n\nprint(json.dumps({"count": count_of(previous_observations)}))')
     SkillCandidateGenerator(client).generate(one)
     assert client.generate.call_count == 1

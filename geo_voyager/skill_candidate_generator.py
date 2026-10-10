@@ -16,9 +16,10 @@ def _parse_candidate(text: str) -> SkillCandidate:
         raise ValueError('Candidate must contain 説明: and a single --- separator')
     separator = lines.index('---')
     code_block = '\n'.join(lines[separator + 1:]).strip()
-    if not code_block.startswith('コード:'):
+    # A local model sometimes drops the colon ('コード' alone on its line); the fence below still marks the code.
+    if not (code_block.startswith('コード:') or code_block.startswith('コード\n')):
         raise ValueError('Candidate must contain コード:')
-    fenced = code_block.removeprefix('コード:').strip().splitlines()
+    fenced = code_block.removeprefix('コード:').removeprefix('コード').strip().splitlines()
     if len(fenced) < 2 or fenced[0] != '```python' or fenced[-1] != '```':
         raise ValueError('Candidate code must use a Python code fence')
     description = '\n'.join(lines[1:separator]).strip()
@@ -54,8 +55,9 @@ def skills_section(skills: list[SkillFunction] | tuple = ()) -> str:
     if not skills:
         return ''
     listed = '\n\n'.join(f'# Skill: {skill.name}\n{skill.code}' for skill in skills)
-    return ('\n\n再利用できる Skill（保存済みの関数）。これらは実行時に定義済みなので、名前で呼べる。定義をコピーしない。'
-            'Intent の一部または全部をこれらで果たせるなら、呼んで再利用する:\n' + listed + '\n')
+    return ('\n\n再利用できる Skill（保存済みの関数）。これらは実行時に定義済みなので、import も定義も不要で、名前で呼べる。'
+            '定義を書き写さない。Intent の一部または全部をこれらで果たせるなら、呼んで再利用する。'
+            '例: print(json.dumps(<Skill 名>(<引数>), ensure_ascii=False)):\n' + listed + '\n')
 
 
 def skill_rules(intent: Intent) -> str:
@@ -63,16 +65,17 @@ def skill_rules(intent: Intent) -> str:
     runtime = ([*(['dataset_id'] if intent.dataset_ids else []), *(['intent_target'] if intent.target is not None else []),
                 *(['previous_observations', 'intent_text'] if intent.previous_observations else [])])
     passing = (f'実行時変数（{"、".join(runtime)}）は関数の中で読まず、呼ぶ行で引数として渡す。' if runtime else '')
-    return ('\nコードの形: 必要なら、新しい処理を名前と引数と docstring（何をするかの 1〜3 文）を持つ関数 1 つにまとめ、'
-            'その下のトップレベルの行で関数（または再利用できる Skill）を呼んで、結果を print する。関数は 1 つまで。'
+    return ('\nコードの形: 新しい処理は、必ず名前と引数と docstring（何をするかの 1〜3 文）を持つ関数 1 つにまとめる。'
+            '関数は結果を return で返す（関数の中で print して終わらない）。その下のトップレベルの行で関数（または再利用できる Skill）を呼び、'
+            '返った値を print する。関数は 1 つまで。'
             '関数は後で別の Intent から呼ばれる部品になるので、対象・条件・データは引数で受け取り、汎用に書く。'
-            + passing + '既存の Skill だけで足りるなら、新しい関数は書かず、呼ぶ行だけでよい。\n')
+            + passing + '再利用できる Skill だけで足りるなら、新しい関数は書かず、その Skill を呼んで print する行だけでよい。\n')
 
 
-def contract_problems(intent: Intent, code: str) -> list[tuple[str, str]]:
+def contract_problems(intent: Intent, code: str, shown: tuple[str, ...] = ()) -> list[tuple[str, str]]:
     """What the code breaks, as (the code found, the note for the model), for the kinds of Intent that have a contract."""
     problems = []
-    shape = skill_shape_problems(code)
+    shape = skill_shape_problems(code, shown)
     if shape:
         problems.append(('skill shape: ' + '; '.join(shape), _shape_note(shape)))
     if intent.target is not None and intent.target.resolved:
@@ -91,6 +94,7 @@ class SkillCandidateGenerator:
         self.llm_client = llm_client if llm_client is not None else LlamaClient()
 
     def generate(self, intent: Intent, skills: list[SkillFunction] | tuple = ()) -> SkillCandidate:
+        shown = tuple(skill.name for skill in skills)
         datasets = '\n'.join(f'- {dataset_id}' for dataset_id in intent.dataset_ids)
         prompt = (
             'Intent を完遂する実行可能な Python コードと簡潔な説明を書いてください。\n'
@@ -290,16 +294,16 @@ class SkillCandidateGenerator:
                     'Exact layout, with every label on a separate line:\n説明:\n<description>\n---\nコード:\n```python\n<executable code>\n```'
                 ),
             ))
-            return self._keep_the_contract(intent, generate_once)
+            return self._keep_the_contract(intent, generate_once, shown)
         return self._keep_the_contract(
-            intent, lambda extra='': _parse_candidate(self.llm_client.generate(service_contract + prompt + extra)))
+            intent, lambda extra='': _parse_candidate(self.llm_client.generate(service_contract + prompt + extra)), shown)
 
     @staticmethod
-    def _keep_the_contract(intent: Intent, generate_once) -> SkillCandidate:
+    def _keep_the_contract(intent: Intent, generate_once, shown: tuple[str, ...] = ()) -> SkillCandidate:
         """Generate, and generate again with the reason while the code breaks a contract. Refuse after the retries."""
         candidate = generate_once()
         for retry in range(MAX_ID_TYPE_RETRIES + 1):
-            problems = contract_problems(intent, candidate.code)
+            problems = contract_problems(intent, candidate.code, shown)
             if not problems:
                 return candidate
             if retry == MAX_ID_TYPE_RETRIES:

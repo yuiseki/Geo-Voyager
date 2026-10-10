@@ -42,10 +42,20 @@ def local_aggregation_violations(code: str, observation_count: int | None = None
     except SyntaxError:
         return []
     observations = {'previous_observations'}
+    functions = {node.name: node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)}
     for _ in range(3):                         # decoded = [json.loads(t) for t in previous_observations], rows = list(decoded)
         for node in ast.walk(tree):
             if isinstance(node, ast.Assign) and _mentions(node.value, observations) and not _filters(node.value):
                 observations.update(target.id for target in node.targets if isinstance(target, ast.Name))
+            # the Observations passed to a function of the code: its parameter holds them inside it
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in functions:
+                parameters = [arg.arg for arg in functions[node.func.id].args.args]
+                for parameter, argument in zip(parameters, node.args):
+                    if _mentions(argument, observations) and not _filters(argument):
+                        observations.add(parameter)
+                for keyword in node.keywords:
+                    if keyword.arg and _mentions(keyword.value, observations) and not _filters(keyword.value):
+                        observations.add(keyword.arg)
     found = []
     for node in ast.walk(tree):
         if observation_count != 1 and isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name) \
