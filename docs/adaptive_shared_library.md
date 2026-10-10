@@ -209,3 +209,26 @@ llama.cpp のモデル（`gvt-llm`）が、Qwen3.6-35B-A3B（MoE、活性 3B）�
 - Intent が宣言していないサービスを呼ぶ関数を拒む（`478ce13`、8 周目の `ward_pop_total`）。API のパスが変数でも、サービスの id で見る。1〜8 周目に保存された Skill 215 個に当てると 4 個が該当した。この誤答 1 つと、前段の出力を集計するだけの step で、サービスをもう一度呼んでいたもの 3 つ。
 - Planner（step ごとの経路だけ）に、測定の出力のキーは件数なら `count`、条件なら `tag` にし、`cafe_count` のように条件をキー名に入れないよう書いた（`62477a7`、7 周目の `cafe_shibuya_vs_shinjuku`）。最初に全体を計画する経路のプロンプトは golden で固定しているので変えていない。
 - step の Critic に（`07fc407`）、Intent が書いたキー名ではなく、値と対象と条件で判定するよう書いた。過去 7 周の記録で、出力はあったのに却下された step 44 個を判定し直した（`bench/replay_rejected_steps.py`、[evidence/critic_key_names/](evidence/critic_key_names/)）。例を挙げない言い方（規則 1）では 44 個のうち 13 個が成功に変わった。しかし `cafe_count` の例は直らなかった。例を名指しした言い方（規則 2、採用）では 17 個が成功に変わり、どれも oracle と一致する正しい値だった。誤った出力は、規則 2 でも却下のままだった。例えば ramen を求められて cafe を数えたもの、世田谷区のはずが京都の結果だったもの、人口がすべて null のものがある。規則を足さないで判定し直しても、44 個のうち 2 個が成功に変わる。Critic の判定はもともと揺れる。
+
+## 9 周目（2026-10-11）
+
+コードは `478ce13`。記録は [evidence/adaptive_q38_r9/](evidence/adaptive_q38_r9/)。
+
+| | 7 周目 | 8 周目 | 9 周目 |
+|---|---|---|---|
+| DONE で終わり、正解 | 21 / 22 | 21 / 22 | 21 / 22 |
+| DONE で終わったが誤答 | 0 | 1 | 0 |
+| 外れた Goal | `cafe_shibuya_vs_shinjuku` | `ward_pop_total` | `ward_pop_max` |
+| 1 周の時間 | 57 分 | 58 分 | 51 分 |
+| 学習した Skill | 25 | 27 | 33 |
+| 保存済みの Skill を呼んだ回数 | 44 | 50 | 69 |
+| うち Seed | 28 | 31 | 25 |
+| うち、前の Goal で学習した Skill | 16 | 18 | 33 |
+
+- 新しい検査の働き:
+  - 渡されない実行時の値の検査: 10 回の生成で出た。どれも `hospital_minato` と `hotel_taito` の最初の step で、Planner が `対象:` を付けずに「港区の relation ID」を求めたもの。モデルは `intent_target` を受け取る関数を書いた。拒否で 1 step を失ったが、Planner は次の step に `対象: 港区` を付け直し、どちらも正解した。
+  - 宣言していないサービスの検査: 1 回出た（`ward_pop_max`）。
+  - Planner がキー名に条件を入れた Intent（`cafe_count` など）: 0 個（7 周目は 9 個）。
+- 以前の失敗 2 つは正解になった。7 周目に止まった `cafe_shibuya_vs_shinjuku` は、前の Goal で学習した Skill を 10 回呼んで 5 step で正解した。8 周目に誤答した `ward_pop_total` も正解した。どちらも 1 回の観測で、検査が効いたのか揺らぎなのかは分けていない。
+- 止まった `ward_pop_max`: Planner が、区の人口を 1 区ずつ別の step で測り、8 step の上限に達した。7、8 周目は正解している。
+- 前の Goal で学習した Skill を呼んだ回数が 33 回になった（7、8 周目は 16、18 回）。
