@@ -203,3 +203,19 @@ def test_a_step_that_asks_for_a_comparison_wants_the_answer_itself():
 def test_a_step_that_only_lists_things_is_not_told_to_want_a_selection():
     prompt = _step_prompt('台東区に境界が接する区の日本語名を求める')
     assert '比較の勝者' not in prompt
+
+
+def test_the_critic_judges_values_not_the_key_names_an_intent_wrote():
+    # Round 7: the Intent asked for cafe_count, the skill printed tag and count, and the step Critic rejected
+    # the right counts. Over 44 stored rejections, saying so turned 15 right answers to success and no wrong one.
+    from unittest.mock import Mock
+    from geo_voyager.critic import Critic
+    from geo_voyager.intent import Intent
+    from geo_voyager.observation import Observation
+
+    client = Mock(); client.generate.return_value = '判定: 成功\n理由: ok'
+    Critic(client).check(Intent('渋谷区の cafe の数を cafe_count で返す', service_ids=('overpass',)),
+                         [Observation('{"name": "渋谷区", "tag": "amenity=cafe", "count": 459}')])
+    prompt = client.generate.call_args.args[0]
+    assert 'キー名の違いは失敗の理由にしない' in prompt
+    assert prompt.index('キー名の違い') < prompt.index('Intent:\n')
