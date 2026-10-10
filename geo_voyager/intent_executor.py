@@ -7,7 +7,7 @@ from .semantic_repairer import SemanticRepairer
 from .skill_candidate_repairer import SkillCandidateRepairer
 from .intent import Intent
 from .intent_execution import IntentExecution
-from .skill_candidate import SkillCandidate, drop_copied_skills, entry_program, main_function_name, new_skill_code
+from .skill_candidate import SkillCandidate, drop_copied_skills, entry_program, main_function_name, new_skill_code, only_calls_a_saved_skill
 from .skill_candidate_generator import SkillCandidateGenerator
 from .skill_function import parse_skill
 from .skill_library import SkillLibrary, linked_skills
@@ -59,6 +59,9 @@ class IntentExecutor:
         called = tuple(linked_skills(entry_program(candidate.code, candidate.entry), self.skill_library))
         learned, note = None, None
         code = new_skill_code(candidate.code, candidate.description) if critique.success else None
+        wrapped = only_calls_a_saved_skill(code, self.skill_library) if code is not None else None
+        if wrapped is not None:
+            note, code = f'not saved as a Skill: it only calls the saved Skill {wrapped}', None
         if code is not None:
             try:
                 version = self.skill_library.add(code)

@@ -114,3 +114,14 @@ def test_a_dropped_copy_of_the_main_function_is_recorded_as_a_call_of_the_saved_
     ran = worker.execute_candidate.call_args.args[1]
     assert 'def count_tag_in_area' not in ran.code and ran.entry == 'count_tag_in_area'
     assert result.called_skills == ('count_tag_in_area@v1',) and result.learned_skill is None
+
+
+def test_a_function_that_only_calls_a_saved_skill_is_not_saved_as_another_skill(tmp_path):
+    library = SkillLibrary(tmp_path / 'skills'); library.add(COUNT)
+    wrapper = ('def count_cafes_in_area(intent_target, key="amenity", value="cafe"):\n    """Count cafes."""\n'
+               '    return count_tag_in_area(key, value, intent_target["id_value"])')
+    run, _, _ = executor(tmp_path, [SkillCandidate(wrapper, 'wrapper')], [[Observation('3')]],
+                         retrieved=[library.get('count_tag_in_area')])
+    result = run.execute(INTENT)
+    assert result.learned_skill is None and library.names() == ['count_tag_in_area']
+    assert result.called_skills == ('count_tag_in_area@v1',) and 'only calls' in result.note

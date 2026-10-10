@@ -2,7 +2,8 @@
 from .id_type_literals import id_type_comparisons
 from .intent import Intent
 from .local_aggregation_contract import local_aggregation_violations
-from .skill_candidate import entry_problems, skill_shape_problems
+from .skill_candidate import entry_problems, main_function_name, skill_shape_problems
+from .place_names import place_words_in
 from .skill_function import SkillFunction
 from .llama_client import LlamaClient
 from .skill_candidate import SkillCandidate
@@ -121,6 +122,11 @@ def contract_problems(intent: Intent, code: str, shown: tuple[str, ...] = ()) ->
     """What the code breaks, as (the code found, the note for the model), for the kinds of Intent that have a contract."""
     problems = []
     shape = entry_problems(code) or skill_shape_problems(code, shown)
+    name = main_function_name(code)
+    places = place_words_in(name, intent.target.name if intent.target is not None else None) if name else []
+    if places:
+        shape = shape + [f'関数名 {name} に場所の名前（{", ".join(places)}）が入っている。関数は後で別の場所にも使われる部品なので、'
+                         '何をするかで名付け（例: count_tag_in_area）、場所は intent_target で受け取る']
     if shape:
         problems.append(('skill shape: ' + '; '.join(shape), _shape_note(shape)))
     if intent.target is not None and intent.target.resolved:

@@ -191,3 +191,20 @@ def drop_copied_skills(code: str, library) -> str:
             del lines[start:function.end_lineno]
     result = ''.join(lines)
     return re.sub(r'\n{3,}', '\n\n', result).strip('\n') if result != code else code
+
+
+def only_calls_a_saved_skill(code: str, library) -> str | None:
+    """The saved Skill a function does nothing but call (its body, apart from the docstring, is one return of a call
+    of it), or None. Such a function is another name for the saved Skill and is not saved as a Skill of its own."""
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return None
+    main = _main_function(tree)
+    if main is None:
+        return None
+    body = main.body[1:] if ast.get_docstring(main) is not None else main.body
+    if len(body) == 1 and isinstance(body[0], ast.Return) and isinstance(body[0].value, ast.Call) \
+            and isinstance(body[0].value.func, ast.Name) and body[0].value.func.id in set(library.names()):
+        return body[0].value.func.id
+    return None

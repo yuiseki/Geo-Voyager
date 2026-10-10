@@ -474,3 +474,12 @@ def test_the_saved_skills_come_after_the_explanation_and_before_the_services():
 def test_tag_discovery_does_not_forbid_writing_the_condition_the_intent_gives_as_a_default():
     prompt = _prompt_for(Intent('cuisine キーの値を並べる', service_ids=('taginfo',)))
     assert 'Intent が条件を明示しているときは、その値を引数の既定値に書いてよい' in prompt
+
+
+def test_a_function_named_after_the_place_is_generated_again():
+    named = 'def count_hotels_in_taito(intent_target, key="tourism", value="hotel"):\n    """Count."""\n    return 1'
+    plain = 'def count_tag_in_area(intent_target, key="tourism", value="hotel"):\n    """Count."""\n    return 1'
+    client = Mock(); client.generate.side_effect = [_reply(named), _reply(plain)]
+    intent = Intent('台東区の tourism=hotel の地物数', service_ids=('overpass',), target=TargetRef('台東区', 'relation_id', '1758888'))
+    assert SkillCandidateGenerator(client).generate(intent).code == plain
+    assert 'taito' in client.generate.call_args_list[1].args[0]
