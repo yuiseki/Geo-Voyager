@@ -49,3 +49,12 @@ def test_rejudge_recomputes_correctness_from_the_recorded_final_observation():
 def test_rejudge_keeps_rows_without_an_oracle_unmeasured():
     [row] = rejudge([{'id': 'cafe_shibuya', 'correct': None, 'final_observation': '{"count": 459}'}])
     assert row['correct'] is None
+
+
+def test_a_ward_named_in_romaji_or_without_ku_is_the_same_winner():
+    # Seen in a run: {"winner": "Shibuya", "count": 459}. The answer is right; only the language differs.
+    oracle, labels = {'counts': [459, 343]}, ('渋谷区', '新宿区')
+    for text in ('{"name": "Shibuya", "count": 459, "winner": "Shibuya"}', '{"winner": "shibuya-ku", "count": 459}',
+                 '渋谷 の方が多い（459 件）'):
+        assert judge_winner(text, oracle, labels), text
+    assert not judge_winner('{"winner": "Shinjuku", "count": 459}', oracle, labels)

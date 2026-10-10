@@ -41,11 +41,23 @@ def judge_max(final_text: str, oracle: dict) -> bool:
     return oracle['name'] in text and str(oracle['count']) in numbers_in(text)
 
 
+# The romaji of the wards the comparison Goals name, so that an answer in English names the same winner.
+WARD_ROMAJI = {'渋谷区': 'shibuya', '新宿区': 'shinjuku', '港区': 'minato', '台東区': 'taito', '世田谷区': 'setagaya'}
+
+
+def _names_of(label: str) -> set[str]:
+    names = {label.lower()}
+    if label in WARD_ROMAJI:
+        names |= {label.removesuffix('区'), WARD_ROMAJI[label]}
+    return names
+
+
 def judge_winner(final_text: str, oracle: dict, labels: tuple[str, str]) -> bool:
-    """A comparison is answered when the larger side is named together with its count."""
-    text = normalize_text(final_text)
+    """A comparison is answered when the larger side is named together with its count. A ward may be named in
+    Japanese, without 区, or in romaji."""
+    text = normalize_text(final_text).lower()
     winner = max(range(2), key=lambda index: oracle['counts'][index])
-    return labels[winner].lower() in text.lower() and str(oracle['counts'][winner]) in numbers_in(text)
+    return any(name in text for name in _names_of(labels[winner])) and str(oracle['counts'][winner]) in numbers_in(text)
 
 
 def judge_close(final_text: str, oracle: dict, tolerance: float = 0.02) -> bool:

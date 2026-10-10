@@ -58,7 +58,7 @@
 - 再利用は増えた。`cafe_shibuya` で学習した `get_ward_relation_id` が、`hospital_minato`、`hotel_taito`、`library_setagaya`、`cafe_vs_restaurant_shibuya`、`nom_shibuya_relation` の 5 つの Goal で呼ばれた。`tag_ramen_vs_sushi` の比較の関数は、同じ Goal で学習した 2 つの件数の Skill を呼んだ。Seed の `count_station_records` も初めて呼ばれた。
 - 条件を引数で受け取る関数が増えた（`count_hotels_in_taito(intent_target, ..., key="tourism", value="hotel")` など）。ただし、そうした数える Skill が別の Goal から呼ばれた例は無い。Goal ごとに新しい数える関数を書いている。
 - 名前に区の名前を入れた Skill は、かえって増えた（`count_hotels_in_taito`、`count_cafe_in_shibuya`、`get_setagaya_relation_id` など）。`get_setagaya_relation_id` は中で `get_ward_relation_id` を呼ぶだけの包みで、こうした「呼ぶだけの別名」が増えている。説明は読まれているが、関数名の付け方は変わっていない。
-- judge が誤答とした 1 件（`cafe_shibuya_vs_shinjuku`）は、459 と 343 を求めて勝者を `"winner": "Shibuya"` と英語で返した。`judge_winner` は日本語の区名を探すので不一致になった。答えの中身は正しい。judge の側の問題で、記録のまま数えている。
+- judge が誤答とした 1 件（`cafe_shibuya_vs_shinjuku`）は、459 と 343 を求めて勝者を `"winner": "Shibuya"` と英語で返した。`judge_winner` は日本語の区名を探すので不一致になった。答えの中身は正しい。judge を直し（区名を日本語、区を除いた形、ローマ字のどれでも照合する。`bench/goals.py` の `WARD_ROMAJI`）、保存済みの記録を判定し直すと、この 1 件は正解になり、2 周目は 17 / 22 になる。ほかの周で DONE で終わった実行の判定は変わらない（1 周目の 22 Goal の周で、途中で止まった 1 件の最後の Observation の判定だけが変わる）。
 - 1 周ずつで、揺らぎは測っていない。
 
 次の候補（決めていない）: 名前に対象の名前（区名など）を入れた関数を、決定的な検査で作り直させる。既存の Skill を呼ぶだけの関数（本体が 1 行の呼び出し）は、保存せずに呼び出しとして扱う。
