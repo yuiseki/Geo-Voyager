@@ -48,3 +48,32 @@ def test_a_skill_learned_for_one_intent_is_called_by_the_next(tmp_path):
                 print(f'--- {name}@v{version}\n' + library.get(name, version).code, flush=True)
         assert second.critique.success
         assert first.learned_skill in second.called_skills          # the lookup was reused, not rewritten
+
+
+SHIBUYA = Intent('Nominatim で東京都の区を名前で検索し、その区の OSM relation ID を求める',
+                 service_ids=('nominatim',), target=TargetRef('渋谷区'))
+SHINJUKU = Intent('Nominatim で東京都の区を名前で検索し、その区の OSM relation ID を求める',
+                  service_ids=('nominatim',), target=TargetRef('新宿区'))
+
+
+def test_the_same_kind_of_intent_for_another_target_calls_the_saved_skill(tmp_path):
+    """What recurs in use: the same kind of step for another target (in another Goal). The saved Skill takes the
+    target as an argument, so the step for 新宿区 can call the Skill learned for 渋谷区."""
+    base, model = os.environ.get('GEO_VOYAGER_EMBEDDING_BASE_URL'), os.environ.get('GEO_VOYAGER_EMBEDDING_MODEL')
+    if not base or not model:
+        pytest.skip('The embedding service is not configured')
+    library = SkillLibrary(tmp_path / 'skills')
+    llm = LlamaClient()
+    with benchmark_environment() as names:
+        executor = IntentExecutor(SkillRetriever(library, EmbeddingClient(base, model)), Worker(names['internal']),
+                                  SkillCandidateGenerator(llm), Critic(llm), library, SkillCandidateRepairer(llm))
+        first = executor.execute(SHIBUYA)
+        print('FIRST:', json.dumps(asdict(first), ensure_ascii=False, default=str), flush=True)
+        assert first.critique.success and first.learned_skill is not None
+        second = executor.execute(SHINJUKU)
+        print('SECOND:', json.dumps(asdict(second), ensure_ascii=False, default=str), flush=True)
+        for name in library.names():
+            for version in library.versions(name):
+                print(f'--- {name}@v{version}\n' + library.get(name, version).code, flush=True)
+        assert second.critique.success and '1758858' in second.observations[0].text      # 新宿区
+        assert first.learned_skill in second.called_skills

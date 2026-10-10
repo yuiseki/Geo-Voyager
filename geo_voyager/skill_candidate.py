@@ -53,17 +53,18 @@ def entry_program(code: str, entry: str | None = None) -> str:
     main = _main_function(tree)
     if main is None and entry is None:
         return code
-    if main is not None:
-        name = main.name
-        names = [a.arg for a in (*main.args.posonlyargs, *main.args.args, *main.args.kwonlyargs)]
-    else:
-        name, names = entry, list(RUNTIME_NAMES)
+    if main is None:
+        # The copy of a saved Skill was dropped, and the saved one is linked in front: pass it the runtime values
+        # it takes, as found from its signature when it runs.
+        return (code.rstrip() + '\n\n\nimport inspect as _inspect\nimport json as _json\n'
+                + f'_runtime = {{name: globals().get(name) for name in {RUNTIME_NAMES!r}}}\n'
+                + f'_taken = _inspect.signature({entry}).parameters\n'
+                + f'print(_json.dumps({entry}(**{{k: v for k, v in _runtime.items() if k in _taken}}), ensure_ascii=False, default=str))')
+    names = [a.arg for a in (*main.args.posonlyargs, *main.args.args, *main.args.kwonlyargs)]
     # a runtime value the Intent does not have (no dataset, no target) is passed as None
     arguments = ', '.join(f'{n}=globals().get({n!r})' for n in names if n in RUNTIME_NAMES)
-    if main is None:            # a saved Skill, linked in front: pass only the runtime values it takes
-        arguments = f'**{{k: v for k, v in dict({", ".join(f"{n}=globals().get({n!r})" for n in RUNTIME_NAMES)}).items() if k in __import__("inspect").signature({name}).parameters}}}}'
     return (code.rstrip() + '\n\n\n' + 'import json as _json\n'
-            + f'print(_json.dumps({name}({arguments}), ensure_ascii=False, default=str))')
+            + f'print(_json.dumps({main.name}({arguments}), ensure_ascii=False, default=str))')
 
 
 def entry_problems(code: str) -> list[str]:

@@ -33,8 +33,12 @@ def test_a_program_with_top_level_statements_is_run_as_it_is():
 
 
 def test_a_named_entry_is_called_when_the_code_has_no_function_left():
-    program = entry_program('import json', entry='count_cafes')
-    assert program.splitlines()[-1].startswith('print(') and 'count_cafes(' in program
+    # the saved Skill is linked in front of the program; here it is put there by hand
+    program = COUNT + '\n\n' + entry_program('import json', entry='count_cafes')
+    assert json.loads(run(program, intent_target={'name': '新宿区'}, previous_observations=None))['name'] == '新宿区'
+    # and it is only given the runtime values it takes
+    program = 'def f():\n    """F."""\n    return 1\n\n' + entry_program('import json', entry='f')
+    assert run(program, intent_target={'name': 'x'}) == '1'
 
 
 @pytest.mark.parametrize('code,problem', [
