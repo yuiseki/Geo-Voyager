@@ -1,0 +1,12 @@
+shared1: 19 steps with a Skill of the same kind already in the library
+shared1: granite-embedding: a Skill of the same kind in the top 4: count 7 / 9, relation_id 10 / 10
+shared1: embeddinggemma: a Skill of the same kind in the top 4: count 7 / 9, relation_id 10 / 10
+shared2: 19 steps with a Skill of the same kind already in the library
+shared2: granite-embedding: a Skill of the same kind in the top 4: count 6 / 10, relation_id 7 / 9
+shared2: embeddinggemma: a Skill of the same kind in the top 4: count 8 / 10, relation_id 7 / 9
+shared3: 21 steps with a Skill of the same kind already in the library
+shared3: granite-embedding: a Skill of the same kind in the top 4: count 4 / 10, relation_id 11 / 11
+shared3: embeddinggemma: a Skill of the same kind in the top 4: count 9 / 10, relation_id 11 / 11
+shared4: 19 steps with a Skill of the same kind already in the library
+shared4: granite-embedding: a Skill of the same kind in the top 4: count 8 / 10, relation_id 9 / 9
+shared4: embeddinggemma: a Skill of the same kind in the top 4: count 10 / 10, relation_id 6 / 9

@@ -83,3 +83,30 @@ judge を直し（勝者の区名を日本語、区を除いた形、ローマ�
 - 名前の付け方は検査で直せたが、モデルが既存の Skill を呼ぶかどうか（今日の確かめでは、知識として分かっていても振る舞いが伴わない）は、名前の問題とは別にある。
 
 正解は 3 周とも 16〜17 / 22 で、変わっていない。止まる Goal も同じ（GeoSPARQL の一部、人口の 2 本、最北の駅。計画の失敗と最終 Critic の失敗）。
+
+## 検索の embedding の切り替えと、書き直しの指摘を足した 4 周目（2026-10-10）
+
+3 周目の生成のプロンプトを読み直すと、地物を数える step で見せた Skill は、ほとんどが人口の Seed Skill だった。既にあった数える Skill は見せていなかった。`granite-embedding` は、「港区内の amenity=hospital の OSM 地物数」に対して人口の Skill を最上位に置いた（日本語の問い合わせと英語の説明文が混ざることが効いている、という仮説で、確かめていない）。
+
+- 保存済みの各周の step で、その時点の Library に同じ働きの Skill があるとき、それが上位 4 件に入るかを両方のモデルで測った（`bench/retrieval_recall.py`、[evidence/adaptive_shared4/retrieval_recall_all_rounds.txt](evidence/adaptive_shared4/retrieval_recall_all_rounds.txt)）。数える Skill は、3 周目の記録で granite 4 / 10、embeddinggemma 9 / 10。relation ID の Skill は両方ほぼ全部。
+- お嬢様の判断で、検索の embedding を常駐の `embeddinggemma`（NodePort 30194）に切り替えた（環境変数 `GEO_VOYAGER_EMBEDDING_BASE_URL=http://localhost:30194`、`GEO_VOYAGER_EMBEDDING_MODEL=embeddinggemma`）。
+- 書き直しの指摘（`rewritten_skills`、`SkillCandidateGenerator._reuse_once`）: 生成コードが、見せた Skill のサービス呼び出し（サービスと API のパス）をすべて自分で書いていて、その Skill を呼んでいなければ、Skill の名前と呼び出しを示して 1 回だけ書き直させる。2 回目は受け入れる（見せた Skill に条件が書き込まれていて合わないこともあるため）。3 周目の生成 55 回に当てると 20 回が該当した。
+
+4 周目（`200b43f`、[evidence/adaptive_shared4/](evidence/adaptive_shared4/)）:
+
+| | 1 周目 | 2 周目 | 3 周目 | 4 周目 |
+|---|---|---|---|---|
+| 変えたこと | | ハーネスの説明 | 場所の名前、呼ぶだけの関数 | embeddinggemma、書き直しの指摘 |
+| DONE で終わり、正解（今の judge） | 16 | 17 | 17 | 17 |
+| 学習した Skill | 31 | 29 | 29 | 27 |
+| Library の名前の数（Seed 6 を含む） | 35 | 35 | 34 | 31 |
+| 保存済みの Skill を呼んだ回数 | 7 | 12 | 6 | 10 |
+| うち、前の Goal で学習した Skill | 6 | 10 | 3 | 8 |
+| 名前に区の名前を入れた Skill | 4 | 8 | 0 | 0 |
+
+- 書き直しの指摘は 17 回出た。relation ID を調べる Skill は、`get_osm_relation_id` が 5 つの Goal で呼ばれた。relation ID の Skill は 4 個（前の周は 5〜7 個）。
+- Seed の `count_station_records` と `northernmost_station` が呼ばれた。
+- 数える Skill は、まだタグごとに別の関数（`count_amenity_cafe`、`count_amenity_hospital`、`count_tourism_hotel`、`count_cuisine_ramen` など）で、どれもタグを関数の中に書き込み、タグの引数を持たない。そのため、別のタグの Goal は呼べず、新しく書く。同じタグの別の区（`cafe_shibuya_vs_shinjuku` の新宿区）では `count_amenity_cafe` が呼ばれた。
+- 正解の数は 4 周とも 16〜17 で変わらない。どれも 1 周ずつで、揺らぎは測っていない。
+
+次の候補: Intent の条件（タグの key と value など）が、関数の引数の既定値ではなく、関数の本体に文字列として書き込まれていたら、作り直させる決定的な検査。これで数える Skill がタグの引数を持てば、別のタグの Goal から呼べるようになる見込み（確かめていない）。
