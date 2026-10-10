@@ -165,6 +165,7 @@ PYTHONPATH=. .venv/bin/python -m bench.adaptive_summary ~/tmp/geo-voyager-bench/
 ## 9. 文書の一覧
 
 - 全体と最新: この文書、[adaptive_round_1.md](adaptive_round_1.md)、[adaptive_round_2.md](adaptive_round_2.md)
+- 構想（Dataset Graph、World Graph、Exploration Graph、Skill library。Voyager と ARTEX から得た示唆）: [architecture_vision.md](architecture_vision.md)
 - 究極のゴールに向けて（study-geoai-algo-py の水準の分析）: [analysis_sandbox_design.md](analysis_sandbox_design.md)、[study_geoai_goals_proposal.md](study_geoai_goals_proposal.md)、[analysis_sandbox.md](analysis_sandbox.md)（実装と G1 の再現）
 - 計画（Planner）: [observation_driven_planning.md](observation_driven_planning.md)、[observation_driven_recovery.md](observation_driven_recovery.md)、[planner_service_contract.md](planner_service_contract.md)
 - 対象: [identity_references.md](identity_references.md)、[target_ref.md](target_ref.md)、[entity_target_e2e.md](entity_target_e2e.md)
