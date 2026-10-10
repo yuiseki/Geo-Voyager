@@ -7,7 +7,7 @@ from .semantic_repairer import SemanticRepairer
 from .skill_candidate_repairer import SkillCandidateRepairer
 from .intent import Intent
 from .intent_execution import IntentExecution
-from .skill_candidate import SkillCandidate, drop_copied_skills, main_function_name, new_skill_code
+from .skill_candidate import SkillCandidate, drop_copied_skills, entry_program, main_function_name, new_skill_code
 from .skill_candidate_generator import SkillCandidateGenerator
 from .skill_function import parse_skill
 from .skill_library import SkillLibrary, linked_skills
@@ -47,7 +47,7 @@ class IntentExecutor:
             if not isinstance(observations, ExecutionFailure):
                 break
             if repair_count == 2:
-                return IntentExecution([], retrieved, tuple(linked_skills(candidate.code, self.skill_library)), None,
+                return IntentExecution([], retrieved, tuple(linked_skills(entry_program(candidate.code, candidate.entry), self.skill_library)), None,
                                        Critique(False, observations.message), failure=observations, attempts=tuple(attempts))
             candidate = self._without_copies(
                 self.repairer.repair(intent, candidate, observations, history=tuple(candidate_attempts)))
@@ -56,7 +56,7 @@ class IntentExecutor:
         if not critique.success and self.semantic_repairer is not None:
             candidate, observations, critique = self._semantic_repair(
                 intent, candidate, observations, critique, tuple(candidate_attempts), attempts)
-        called = tuple(linked_skills(candidate.code, self.skill_library))
+        called = tuple(linked_skills(entry_program(candidate.code, candidate.entry), self.skill_library))
         learned, note = None, None
         code = new_skill_code(candidate.code, candidate.description) if critique.success else None
         if code is not None:
