@@ -77,3 +77,56 @@ def test_sandbox_rejects_external_network():
         with pytest.raises(ValueError, match='internal'):
             DockerSandbox(network='external').run('fixed code')
     assert run.call_count == 1
+
+
+# ---- the analysis profile: more memory, CPU and time, data read-only, one writable output directory
+
+def _analysis_command(tmp_path, **overrides):
+    from geo_voyager.docker_sandbox import ANALYSIS_PROFILE
+    from dataclasses import replace
+    data, out = tmp_path / 'data', tmp_path / 'out'
+    data.mkdir(); out.mkdir()
+    profile = replace(ANALYSIS_PROFILE, data_dir=str(data), out_dir=str(out), **overrides)
+    with patch("geo_voyager.docker_sandbox.subprocess.run") as run:
+        run.return_value = subprocess.CompletedProcess([], 0, "{}\n", "")
+        DockerSandbox(image="geo-voyager-analysis:test", profile=profile).run('print("{}")')
+    return run.call_args.args[0], run.call_args.kwargs, data, out
+
+
+def test_the_analysis_profile_has_8g_without_swap_4_cpus_600_s_and_no_network(tmp_path):
+    command, kwargs, _, _ = _analysis_command(tmp_path)
+    for flag, value in {"--memory": "8g", "--memory-swap": "8g", "--cpus": "4", "--pids-limit": "512",
+                        "--network": "none", "--user": "65534:65534", "--cap-drop": "ALL"}.items():
+        assert command[command.index(flag) + 1] == value
+    assert "--read-only" in command and "--privileged" not in command
+    assert "/tmp:rw,noexec,nosuid,size=2g" in command
+    assert kwargs["timeout"] == 600
+
+
+def test_data_is_mounted_read_only_and_only_the_output_directory_is_writable(tmp_path):
+    command, _, data, out = _analysis_command(tmp_path)
+    mounts = [command[i + 1] for i, flag in enumerate(command) if flag == "--mount"]
+    assert mounts == [f"type=bind,source={data},target=/data,readonly", f"type=bind,source={out},target=/out"]
+    assert "-v" not in command and "--volume" not in command
+
+
+def test_an_output_directory_that_is_not_empty_is_refused(tmp_path):
+    from geo_voyager.docker_sandbox import ANALYSIS_PROFILE
+    from dataclasses import replace
+    out = tmp_path / 'out'; out.mkdir(); (out / 'old.png').write_text('x')
+    with pytest.raises(ValueError, match='empty'):
+        DockerSandbox(profile=replace(ANALYSIS_PROFILE, data_dir=str(tmp_path), out_dir=str(out))).run('pass')
+
+
+def test_a_missing_data_directory_is_refused(tmp_path):
+    from geo_voyager.docker_sandbox import ANALYSIS_PROFILE
+    from dataclasses import replace
+    with pytest.raises(ValueError, match='data'):
+        DockerSandbox(profile=replace(ANALYSIS_PROFILE, data_dir=str(tmp_path / 'nothing'))).run('pass')
+
+
+def test_the_default_profile_is_unchanged():
+    from geo_voyager.docker_sandbox import DEFAULT_PROFILE
+    assert (DEFAULT_PROFILE.memory, DEFAULT_PROFILE.cpus, DEFAULT_PROFILE.timeout, DEFAULT_PROFILE.tmpfs) == \
+        ("128m", "1", 30, "/tmp:rw,noexec,nosuid,size=16m")
+    assert DEFAULT_PROFILE.data_dir is None and DEFAULT_PROFILE.out_dir is None

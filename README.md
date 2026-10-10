@@ -105,14 +105,14 @@ docker pull python:3.12-slim
 ```
 
 `DockerSandbox().run(code)` は Python をコンテナの stdin に送り、stdout を文字列で返します。
-非0終了は `subprocess.CalledProcessError`、30秒の timeout は `subprocess.TimeoutExpired` になります。
+非0終了は `subprocess.CalledProcessError`、timeout（既定の枠は30秒、分析の枠は600秒）は `subprocess.TimeoutExpired` になります。Worker は timeout をその Candidate の失敗（`TimeoutError`）として返します。
 timeout 時は専用の一意なコンテナ名を指定して強制削除します（削除コマンドは最大5秒）。
 通常終了時は `--rm` でコンテナを削除します。
 
 実行制約は UID/GID 65534、read-only root filesystem、
 `/tmp:rw,noexec,nosuid,size=16m` の tmpfs、cap-drop ALL、no-new-privileges、
-memory 128 MiB、CPU 1、PID 128、network none です。
-bind/volume mount と Docker socket の共有は行いません。コードは host 上では実行しません。
+memory 128 MiB（swap なし）、CPU 1、PID 128、network none です（既定の枠）。分析の枠は memory 8 GiB（swap なし）、CPU 4、PID 512、`/tmp` 2 GiB、600 秒、network none です。
+bind/volume mount と Docker socket の共有は行いません。例外は分析の枠（`ANALYSIS_PROFILE`）で、固定した分析データを `/data` に読み取り専用で、空の出力ディレクトリを `/out` に書き込み可でマウントします（[docs/analysis_sandbox.md](docs/analysis_sandbox.md)）。コードは host 上では実行しません。
 `--pull never` により実行時にはイメージを取得しません。
 
 ## Docker ネットワーク分離の検証

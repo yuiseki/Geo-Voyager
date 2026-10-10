@@ -1,0 +1,16 @@
+{"scenes_in_area": 53948, "rows_used": 32593, "undergrounded_share": 0.1159, "all_overhead_accuracy": 0.8841, "street_auc": 0.8491, "street_accuracy": 0.9049, "street_coefficients": {"roadway_width": -0.421, "sidewalk_left": -0.036, "sidewalk_right": -0.009, "green_ratio": 0.674, "colorfulness": 0.144, "lights_road": -0.999}, "with_poles_and_wires_auc": 0.9875, "poles_visible_coefficient": -5.946}
+ok  scenes_in_area: expected 53948 ± 0, got 53948
+ok  rows_used: expected 32593 ± 0, got 32593
+ok  undergrounded_share: expected 0.116 ± 0.001, got 0.1159
+ok  all_overhead_accuracy: expected 0.884 ± 0.001, got 0.8841
+ok  street_auc: expected 0.849 ± 0.01, got 0.8491
+ok  street_accuracy: expected 0.905 ± 0.01, got 0.9049
+ok  with_poles_and_wires_auc: expected 0.988 ± 0.01, got 0.9875
+ok  street_coefficients.lights_road: expected -0.999 ± 0.02, got -0.999
+ok  street_coefficients.green_ratio: expected 0.674 ± 0.02, got 0.674
+ok  street_coefficients.roadway_width: expected -0.421 ± 0.02, got -0.421
+ok  street_coefficients.colorfulness: expected 0.144 ± 0.02, got 0.144
+ok  street_coefficients.sidewalk_left: expected -0.036 ± 0.02, got -0.036
+ok  street_coefficients.sidewalk_right: expected -0.009 ± 0.02, got -0.009
+ok  poles_visible_coefficient: expected -5.9 ± 0.1, got -5.946
+14 / 14 within tolerance, 5.8 s, output in /home/yuiseki/tmp/geo-voyager-analysis-out/G1-20261010-095926
