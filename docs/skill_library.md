@@ -110,3 +110,24 @@ Voyager の action prompt（`voyager/prompts/action_template.txt`、`action_resp
 一方、同じ Intent をもう一度流すケースは、3 ケースとも保存済みの Skill を呼ばなかった（前の形では、書き写しの除去で 3 ケースとも通っていた）。関数だけを書く形にしてから、モデルは同じ Intent でも毎回少し違う関数を書く（名前を変える、本体を書き換える）。書き写しとして判定できたのは、import を中へ移しただけの 1 件（判定の改善後に保存済みの記録で確かめた。テストは流し直していない）。
 
 - 同じ Intent の繰り返しで保存済みの Skill を呼ばせるのは、Voyager も扱っていない（Voyager の curriculum は同じタスクを繰り返さない）。どう扱うかは決めていない。
+
+### 同じ Intent の扱いと、別の対象への再利用（2026-10-10）
+
+同じ Intent をそのまま 2 回流すテストは、Selector があった時代に「学習した Skill が再利用されるか」を確かめる代用として書いたものだった。実際の運用では、適応ループが同じ Intent の繰り返しを止めるので、まったく同じ Intent はほとんど来ない。来るのは「同じ種類で対象が違う」Intent（別の Goal での「新宿区の relation ID」など）である。お嬢様の判断で、次のようにした。
+
+- `test_service_learning.py` の期待を、「2 回目も成功し、保存済みの Skill が検索で見えている」に緩めた（呼ぶことは求めない）。
+- `test_skill_composition.py` に、渋谷区の relation ID で学習したあと、同じ種類の Intent を新宿区で流し、保存済みの Skill を呼んで新宿区（1758858）を返すことを確かめるテストを足した。
+
+流してみて、私の実装の誤りが 2 つ見つかり、直した。
+
+- 書き写しを取り除いた結果、main が無くなったときに保存済みの Skill を呼ぶコード（`entry_program` の `entry`）が、Python として読めなかった（波括弧の数の誤り）。単体テストが、生成した文字列を見るだけで、実行していなかった。実行して確かめるテストに直した。この誤りのため、6 回目では、書き写しを正しく除去できた実行が構文エラーになり、repair が関数を一から書き直して失敗していた。
+- そのときに呼んだ保存済みの Skill が、`called_skills` に記録されていなかった（呼び出しの行を足す前のコードでリンクを調べていた）。7 回目で「呼んでいない」と見えた 3 件は、実際には保存済みの Skill を呼んでいた。
+
+8 回目（`test_skill_composition.py` の 2 テスト、各 1 回）: 2 つとも通った。
+
+| テスト | 1 つ目の Intent | 2 つ目の Intent |
+|---|---|---|
+| 合成（relation ID を調べる → その区のカフェを数える） | `get_ward_relation_id` を保存 | 新しい関数 `count_amenity_in_ward` が `get_ward_relation_id` を呼んだ（モデルが自分で呼んだ）。459 件 |
+| 別の対象（渋谷区 → 新宿区） | `get_ward_relation_id` を保存 | モデルは関数を書き写し、それを除去して保存済みの Skill を新宿区で呼んだ。1758858 |
+
+7 回目の `test_service_learning.py` は 3 ケースとも通った（緩めた期待で）。記録は [evidence/skill_composition/](evidence/skill_composition/)。どれも 1 回ずつで、揺らぎは測っていない。
