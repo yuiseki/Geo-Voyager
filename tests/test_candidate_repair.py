@@ -283,3 +283,13 @@ def test_a_repair_that_keeps_the_position_gets_the_original_back():
 def test_a_step_that_is_not_a_local_aggregation_is_not_checked_for_position():
     _, _, llm = repair_local([code_reply(POSITIONAL_CODE.replace('count_all', 'count'))], requires_context=False)
     assert llm.generate.call_count == 1
+
+
+def test_a_repair_that_turns_a_function_back_into_a_script_is_asked_again():
+    original = 'def count(intent_target):\n    """Count."""\n    return intent_target["x"]'
+    script = 'print(1)'
+    fixed = 'def count(intent_target):\n    """Count."""\n    return intent_target["y"]'
+    llm = Mock(); llm.generate.side_effect = [code_reply(script), code_reply(fixed)]
+    failure = ExecutionFailure('failed', '', "Traceback\nKeyError: 'x'", 73)
+    result = SkillCandidateRepairer(llm).repair(Intent('数える', service_ids=('overpass',)), SkillCandidate(original, 'c'), failure)
+    assert result.code == fixed and llm.generate.call_count == 2

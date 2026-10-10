@@ -19,9 +19,6 @@ from geo_voyager.control_primitives import connect_duckdb, load_admin_units
 def least_populous():
     """Find it."""
     return "result"
-
-
-print(least_populous())
 ```'''
 
 
@@ -33,7 +30,7 @@ def test_generator_passes_intent_and_primitive_contracts_and_parses_candidate(re
     candidate = SkillCandidateGenerator(client).generate(intent)
     assert candidate == SkillCandidate(
         code=('from geo_voyager.control_primitives import connect_duckdb, load_admin_units\n\n\n'
-              'def least_populous():\n    \"\"\"Find it.\"\"\"\n    return "result"\n\n\nprint(least_populous())'),
+              'def least_populous():\n    \"\"\"Find it.\"\"\"\n    return "result"'),
         description='行政区域から人口最小の区域を求める',
     )
     client.generate.assert_called_once()
@@ -41,12 +38,12 @@ def test_generator_passes_intent_and_primitive_contracts_and_parses_candidate(re
     for text in (intent.text, intent.dataset_ids[0], 'connect_duckdb()',
                  'dataset_url(dataset_id)', 'load_admin_units(dataset_id, connection, area=None)',
                  'load_admin_units(dataset_id, connection, area="東京都23区")',
-                 '外部URLを直接使わない', 'stdout', 'dataset_id は実行環境から与えられる',
+                 '外部URLを直接使わない', 'return で返す', 'dataset_id は実行環境から関数の引数として与えられる',
                  '再利用可能', 'load_stations(dataset_id, connection)',
                  'latitude', 'longitude', 'aggregate(expression)', 'avg(population)',
                  'fetchone()[0]',
                  'from geo_voyager.control_primitives import connect_duckdb, load_admin_units',
-                 'pandas DataFrame ではない', 'order(expression)', 'fetchone()', 'dataset_id = ... という代入を書かない', 'stdout に選択・集計の意味', 'トップレベル', 'Primitive 名を変更・推測しない', '接続部分の import と with 行は変更せず', '返答の1行目は必ず「説明:」', '説明本文を同じ行に書かない'):
+                 'pandas DataFrame ではない', 'order(expression)', 'fetchone()', 'dataset_id = ... という代入を書かない', '選択・集計の意味が分かるキー', 'トップレベルには import と', 'Primitive 名を変更・推測しない', 'with 行はこの形のまま使う', '1行目は必ず「説明:」だけ', '説明本文は2行目から', '計画:'):
         assert text in prompt
     assert "13101" not in prompt and "13123" not in prompt
 
@@ -165,7 +162,7 @@ def test_service_generator_requires_explicit_primitive_import_and_discovery_outp
     SkillCandidateGenerator(client).generate(Intent('タグを調べる', service_ids=('taginfo',)))
     prompt = client.generate.call_args.args[0]
     assert 'call_service is not a global' in prompt
-    assert 'Print discovered keys/values' in prompt
+    assert 'Return discovered keys/values' in prompt
 
 
 def test_service_candidate_generation_uses_low_temperature_sampling():
@@ -214,7 +211,7 @@ def test_service_output_contract_forbids_inline_description():
     client = Mock()
     client.generate.return_value = VALID
     SkillCandidateGenerator(client).generate(Intent('地理オブジェクトを調べる', service_ids=('yuisekin-geosparql',)))
-    assert '説明本文を同じ行に書かない' in client.generate.call_args.args[0]
+    assert '説明本文は2行目から' in client.generate.call_args.args[0]
 
 
 def test_overpass_contract_requires_json_output_directive():
@@ -266,7 +263,7 @@ def test_service_candidate_emits_machine_readable_output_and_rejects_missing_req
     client = Mock(); client.generate.return_value = VALID
     SkillCandidateGenerator(client).generate(Intent('一覧を取得', service_ids=('yuisekin-geosparql',)))
     prompt = client.generate.call_args.args[0]
-    assert 'stdout は JSON のみ' in prompt
+    assert '戻り値は JSON にできる値' in prompt
     assert 'N/A' in prompt and '必須' in prompt
     assert 'geo:osmRelation ではない' in prompt
 
@@ -367,10 +364,9 @@ def _reply(code):
     return f'説明:\n実行時に指定された対象の件数を取得する\n---\nコード:\n```python\n{code}\n```'
 
 
-GUESSED = ('def area_of(target):\n    \"\"\"The Overpass area of a target.\"\"\"\n    if target["id_type"] == "relation":\n'
-           '        return int(target["id_value"]) + 3600000000\n    return None\n\n\nprint(area_of(intent_target))')
-PLAIN = ('def area_of(target):\n    \"\"\"The Overpass area of a target.\"\"\"\n    return int(target["id_value"]) + 3600000000\n\n\n'
-         'print(area_of(intent_target))')
+GUESSED = ('def area_of(intent_target):\n    \"\"\"The Overpass area of a target.\"\"\"\n    if intent_target["id_type"] == "relation":\n'
+           '        return int(intent_target["id_value"]) + 3600000000\n    return None')
+PLAIN = 'def area_of(intent_target):\n    \"\"\"The Overpass area of a target.\"\"\"\n    return int(intent_target["id_value"]) + 3600000000'
 RESOLVED = Intent('渋谷区の amenity=cafe の地物数を求める', service_ids=('overpass',), target=TargetRef('渋谷区', 'relation_id', '1759477'))
 
 
@@ -403,12 +399,11 @@ def test_an_intent_without_a_resolved_target_is_not_checked():
 
 LOCAL = Intent('渋谷区と新宿区の件数を比べ、どちらが多いかを示す', service_ids=('overpass',), requires_context=True,
                previous_observations=(Observation('{"name": "渋谷区", "count": 459}'), Observation('{"name": "新宿区", "count": 343}')))
-DEFAULTED = ('import json\n\n\ndef first_count(observations):\n    \"\"\"Count of the first.\"\"\"\n'
-             '    d = [json.loads(t) for t in observations]\n    return d[0].get("count", 0)\n\n\n'
-             'print(json.dumps({"count": first_count(previous_observations)}))')
-BY_NAME = ('import json\n\n\ndef count_of(observations, name):\n    \"\"\"Count of the named object.\"\"\"\n'
-           '    d = [json.loads(t) for t in observations]\n    m = [o for o in d if o["name"] == name]\n    assert m\n'
-           '    return m[0]["count"]\n\n\nprint(json.dumps({"count": count_of(previous_observations, "渋谷区")}))')
+DEFAULTED = ('import json\n\n\ndef first_count(previous_observations):\n    \"\"\"Count of the first.\"\"\"\n'
+             '    d = [json.loads(t) for t in previous_observations]\n    return d[0].get("count", 0)')
+BY_NAME = ('import json\n\n\ndef count_of(previous_observations, name="渋谷区"):\n    \"\"\"Count of the named object.\"\"\"\n'
+           '    d = [json.loads(t) for t in previous_observations]\n    m = [o for o in d if o["name"] == name]\n    assert m\n'
+           '    return m[0]["count"]')
 
 
 def test_the_local_aggregation_prompt_forbids_picking_by_position_and_defaulting():
@@ -442,6 +437,6 @@ def test_a_step_that_is_not_a_local_aggregation_is_not_checked_for_it():
 def test_one_earlier_observation_may_be_read_as_previous_observations_0():
     one = Intent('前段の件数を整形する', service_ids=('overpass',), requires_context=True,
                  previous_observations=(Observation('{"name": "渋谷区", "count": 459}'),))
-    client = Mock(); client.generate.return_value = _reply('import json\n\n\ndef count_of(observations):\n    \"\"\"Count.\"\"\"\n    return json.loads(observations[0])["count"]\n\n\nprint(json.dumps({"count": count_of(previous_observations)}))')
+    client = Mock(); client.generate.return_value = _reply('import json\n\n\ndef count_of(previous_observations):\n    \"\"\"Count.\"\"\"\n    return json.loads(previous_observations[0])["count"]')
     SkillCandidateGenerator(client).generate(one)
     assert client.generate.call_count == 1

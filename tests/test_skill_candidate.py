@@ -124,3 +124,13 @@ def test_a_copy_without_the_docstring_or_with_another_is_still_a_copy(tmp_path):
     library.add('def a(x):\n    """Saved words."""\n    return x + 1\n')
     for copy in ('def a(x):\n    return x + 1\n\nprint(a(1))', 'def a(x):\n    """Other words."""\n    return x + 1\n\nprint(a(1))'):
         assert drop_copied_skills(copy, library) == 'print(a(1))'
+
+
+def test_a_copy_that_moved_its_imports_into_the_function_is_still_a_copy(tmp_path):
+    # Seen with the local model: the same function, with `import json` moved from the top into its body.
+    from geo_voyager.skill_library import SkillLibrary
+    from geo_voyager.skill_candidate import drop_copied_skills
+    library = SkillLibrary(tmp_path)
+    library.add('import json\n\n\ndef a(x):\n    """A."""\n    return json.dumps(x)\n')
+    copy = 'def a(x):\n    import json\n    return json.dumps(x)\n'
+    assert drop_copied_skills(copy, library) == ''

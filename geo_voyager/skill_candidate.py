@@ -19,6 +19,75 @@ RUNTIME_NAMES = ('intent_target', 'previous_observations', 'dataset_id', 'intent
 class SkillCandidate:
     code: str
     description: str
+    # The function to call when the code no longer defines it (its copy of a saved Skill was dropped).
+    entry: str | None = None
+
+
+def _main_function(tree: ast.Module) -> ast.FunctionDef | None:
+    functions = [node for node in tree.body if isinstance(node, ast.FunctionDef)]
+    return functions[-1] if functions else None
+
+
+def main_function_name(code: str) -> str | None:
+    try:
+        main = _main_function(ast.parse(code))
+    except SyntaxError:
+        return None
+    return main.name if main is not None else None
+
+
+def _only_imports_and_functions(tree: ast.Module) -> bool:
+    return all(isinstance(node, (ast.Import, ast.ImportFrom, ast.FunctionDef)) for node in tree.body)
+
+
+def entry_program(code: str, entry: str | None = None) -> str:
+    """The program the sandbox runs: the code, then a call of its main function (the last one) with the runtime
+    values its parameters name, and the result printed as JSON. As in Voyager, the model writes only functions and
+    the environment calls the main one. Code with statements of its own at the top level is run as it is."""
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return code
+    if not _only_imports_and_functions(tree):
+        return code
+    main = _main_function(tree)
+    if main is None and entry is None:
+        return code
+    if main is not None:
+        name = main.name
+        names = [a.arg for a in (*main.args.posonlyargs, *main.args.args, *main.args.kwonlyargs)]
+    else:
+        name, names = entry, list(RUNTIME_NAMES)
+    # a runtime value the Intent does not have (no dataset, no target) is passed as None
+    arguments = ', '.join(f'{n}=globals().get({n!r})' for n in names if n in RUNTIME_NAMES)
+    if main is None:            # a saved Skill, linked in front: pass only the runtime values it takes
+        arguments = f'**{{k: v for k, v in dict({", ".join(f"{n}=globals().get({n!r})" for n in RUNTIME_NAMES)}).items() if k in __import__("inspect").signature({name}).parameters}}}}'
+    return (code.rstrip() + '\n\n\n' + 'import json as _json\n'
+            + f'print(_json.dumps({name}({arguments}), ensure_ascii=False, default=str))')
+
+
+def entry_problems(code: str) -> list[str]:
+    """Why the environment can not call the code's main function: no function, statements at the top level, or a
+    parameter that is neither a runtime value nor given a default."""
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return []           # the run reports it
+    main = _main_function(tree)
+    if main is None:
+        return ['関数が無い: 処理を、名前と引数と docstring を持つ関数にまとめる。実行環境がその関数を呼ぶ']
+    problems = []
+    if not _only_imports_and_functions(tree):
+        problems.append('トップレベルに import と関数の定義以外を書いている。実行環境が最後の関数を呼び、戻り値を出力するので、呼び出しや print をトップレベルに書かない')
+    positional = [*main.args.posonlyargs, *main.args.args]
+    defaults = len(main.args.defaults)
+    required = [a.arg for a in positional[:len(positional) - defaults]]
+    required += [a.arg for a, d in zip(main.args.kwonlyargs, main.args.kw_defaults) if d is None]
+    missing = [name for name in required if name not in RUNTIME_NAMES]
+    if missing:
+        problems.append(f'関数 {main.name} の引数 {", ".join(missing)} は実行環境から渡せない。'
+                        f'実行環境が渡せるのは {", ".join(RUNTIME_NAMES)} だけなので、他の引数には既定値を付ける')
+    return problems
 
 
 def _functions(tree: ast.Module) -> list[ast.FunctionDef]:
@@ -94,6 +163,7 @@ def _same_function(a: ast.FunctionDef, b: ast.FunctionDef) -> bool:
     """The same name, arguments and body, apart from comments, blank lines and the docstring."""
     def body(function):
         nodes = function.body[1:] if ast.get_docstring(function) is not None else function.body
+        nodes = [node for node in nodes if not isinstance(node, (ast.Import, ast.ImportFrom))]   # imports moved in
         return [ast.dump(node) for node in nodes], ast.dump(function.args), ast.dump(function.returns) if function.returns else None
     return a.name == b.name and body(a) == body(b)
 

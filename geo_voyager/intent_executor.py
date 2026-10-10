@@ -7,7 +7,7 @@ from .semantic_repairer import SemanticRepairer
 from .skill_candidate_repairer import SkillCandidateRepairer
 from .intent import Intent
 from .intent_execution import IntentExecution
-from .skill_candidate import SkillCandidate, drop_copied_skills, new_skill_code
+from .skill_candidate import SkillCandidate, drop_copied_skills, main_function_name, new_skill_code
 from .skill_candidate_generator import SkillCandidateGenerator
 from .skill_function import parse_skill
 from .skill_library import SkillLibrary, linked_skills
@@ -92,9 +92,14 @@ class IntentExecutor:
         return candidate, observations, critique
 
     def _without_copies(self, candidate: SkillCandidate) -> SkillCandidate:
-        """A copied definition of a saved Skill becomes a call to the saved one (see drop_copied_skills)."""
+        """A copied definition of a saved Skill becomes a call to the saved one (see drop_copied_skills). When the
+        copy was the main function, the saved Skill of that name becomes the entry."""
         code = drop_copied_skills(candidate.code, self.skill_library)
-        return candidate if code == candidate.code else replace(candidate, code=code)
+        if code == candidate.code:
+            return candidate
+        main = main_function_name(candidate.code)
+        entry = main if main is not None and main_function_name(code) != main else candidate.entry
+        return replace(candidate, code=code, entry=entry)
 
     @staticmethod
     def _attempt(code: str, result: list | ExecutionFailure) -> ExecutionAttempt:

@@ -1,0 +1,19 @@
+--- get_osm_relation_id@v1
+from geo_voyager.control_primitives import call_service
+
+
+def get_osm_relation_id(intent_target, **kwargs):
+    """Nominatim で対象名を検索し、OSM relation ID を取得する"""
+    name = intent_target["name"]
+    path = "/search"
+    params = {"q": name, "format": "jsonv2", "limit": "1"}
+    response = call_service(service_id="nominatim", path=path, params=params)
+    data = __import__("json").loads(response)
+    if not data:
+        raise ValueError("No result found")
+    item = data[0]
+    osm_id = item.get("osm_id")
+    if osm_id is None:
+        raise ValueError("No osm_id found")
+    return {"name": name, "relation_id": str(osm_id)}
+.

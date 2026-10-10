@@ -5,7 +5,7 @@ from geo_voyager.intent import Intent
 from geo_voyager.skill_candidate_generator import SkillCandidateGenerator
 from geo_voyager.target_ref import TargetRef
 
-VALID = '説明:\nS\n---\nコード:\n```python\ndef answer():\n    """Answer."""\n    return 1\n\n\nprint(answer())\n```'
+VALID = '説明:\nS\n---\nコード:\n```python\ndef answer():\n    """Answer."""\n    return 1\n```'
 
 
 def prompt_for(intent):

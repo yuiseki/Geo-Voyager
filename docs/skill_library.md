@@ -83,3 +83,30 @@
 - それでも結果は Voyager の狙いと同じ（保存済みの Skill が再利用され、版が増えない）。書き写しは、ローカル LLM の癖として決定的に吸収できる。
 - 保存された関数の中には、引数を取らない `solve()` のように、部品として汎用でないものがある。汎用さは検査していない。
 - 各回 1 回ずつの実行で、揺らぎは測っていない。同じ Intent を 2 回流しただけで、別の Intent から Skill を呼ぶ（合成）は、まだ試していない。
+
+## Voyager のプロンプトに寄せる、と合成の確認（2026-10-10）
+
+Voyager の action prompt（`voyager/prompts/action_template.txt`、`action_response_format.txt`、`voyager/agents/action.py`）に寄せて、生成の形を変えた（単体テスト 844 件）。
+
+- Voyager では、モデルは関数だけを書き、環境が最後の関数（main）を `await main(bot)` で呼ぶ。同じ形にした: 生成コードは import と関数の定義だけ。Worker が最後の関数を、引数の名前に合う実行時の値（`intent_target`、`previous_observations`、`dataset_id`、`intent_text`。無いものは None）で呼び、戻り値を JSON で出力する（`entry_program`）。トップレベルに処理を書いたコード、実行環境が渡せない引数に既定値が無い関数は、理由を添えて作り直させる（`entry_problems`）。書き写しを取り除いて main が無くなったときは、保存済みの同名の Skill を呼ぶ。
+- 見せる Skill を、Voyager の「役に立つプログラム」と同じくプロンプトの最初に置いた（以前は末尾）。
+- 返答の形式に、Voyager の Explain / Plan / Code に当たる「説明 / 計画 / コード」を入れた（計画は読み捨てる）。
+- コードの決まりを、Voyager の番号つきの規則に寄せて書いた（関数を 1 つ書く、実行環境が渡せる値、Skill をできるだけ呼んで書き写さない、部品として汎用に書く、return で返す、何をするか分かる関数名）。
+- 以前のプロンプトに残っていた、関数を書くなという指示（「関数やクラスの定義は不要です。短いトップレベルのスクリプトを書いてください」、「no function definitions」）と、stdout に print せよという指示を消した。名前付き関数の Skill と矛盾していた。
+- runtime repair にも、関数だけの形を保つこと、関数名と引数を変えないことを指示し、関数を呼ぶスクリプトに戻した修正は作り直させる。
+- 書き写しの判定で、関数の中に移した import も無視する（実 LLM の版 2 に、import を関数の中へ移しただけの書き写しがあった）。
+
+### 合成の確認（`integration/test_skill_composition.py`、1 回）
+
+空の Library で、1 つ目の Intent（Nominatim で渋谷区の OSM relation ID を求める）を実行し、続けて別の Intent（区の名前から relation ID を調べ、その区の amenity=cafe を Overpass で数える）を実行した。
+
+- 1 つ目: 関数 `get_osm_relation_id` を Skill として保存（`{"name": "渋谷区", "relation_id": "1759477"}`）。
+- 2 つ目: 検索でその Skill が見つかり、生成された関数 `count_amenity_in_target` が `get_osm_relation_id` を呼んだ。結果は `{"name": "渋谷区", "relation_id": "1759477", "tag": "amenity=cafe", "count": 459}` で、oracle の 459 と一致した。新しい関数は Skill として保存された。
+
+ローカル LLM が、別の Intent のために、保存済みの Skill を部品として自分で呼んだ（書き写しの除去ではない）。Voyager の合成が、この 1 回では成り立った。記録は [evidence/skill_composition/](evidence/skill_composition/)。
+
+### 同じ Intent の 2 回目（`test_service_learning.py`、同じ実行）
+
+一方、同じ Intent をもう一度流すケースは、3 ケースとも保存済みの Skill を呼ばなかった（前の形では、書き写しの除去で 3 ケースとも通っていた）。関数だけを書く形にしてから、モデルは同じ Intent でも毎回少し違う関数を書く（名前を変える、本体を書き換える）。書き写しとして判定できたのは、import を中へ移しただけの 1 件（判定の改善後に保存済みの記録で確かめた。テストは流し直していない）。
+
+- 同じ Intent の繰り返しで保存済みの Skill を呼ばせるのは、Voyager も扱っていない（Voyager の curriculum は同じタスクを繰り返さない）。どう扱うかは決めていない。

@@ -2,7 +2,7 @@
 from .id_type_literals import id_type_comparisons
 from .intent import Intent
 from .local_aggregation_contract import local_aggregation_violations
-from .skill_candidate import skill_shape_problems
+from .skill_candidate import entry_problems, skill_shape_problems
 from .skill_function import SkillFunction
 from .llama_client import LlamaClient
 from .skill_candidate import SkillCandidate
@@ -22,7 +22,9 @@ def _parse_candidate(text: str) -> SkillCandidate:
     fenced = code_block.removeprefix('コード:').removeprefix('コード').strip().splitlines()
     if len(fenced) < 2 or fenced[0] != '```python' or fenced[-1] != '```':
         raise ValueError('Candidate code must use a Python code fence')
-    description = '\n'.join(lines[1:separator]).strip()
+    head = lines[1:separator]
+    # 計画: (the plan, as in Voyager's response) is read but not kept in the description
+    description = '\n'.join(head[:head.index('計画:')] if '計画:' in head else head).strip()
     code_lines = fenced[1:-1]
     code = '\n'.join(code_lines).strip()
     if not description or not code or any(line.startswith('```') for line in code_lines):
@@ -31,6 +33,15 @@ def _parse_candidate(text: str) -> SkillCandidate:
 
 
 MAX_ID_TYPE_RETRIES = 2
+
+RESPONSE_FORMAT = ('返答は次の形式だけ。前置きや追記は禁止。1行目は必ず「説明:」だけ。説明本文は2行目から 1 文で書く。\n'
+                   '「計画:」の下に、どの Skill や Primitive をどの順で使うかを番号つきで短く書く。\n'
+                   '説明:\n<何をする関数か>\n計画:\n1) ...\n2) ...\n---\nコード:\n```python\n'
+                   'from geo_voyager.control_primitives import call_service\n'
+                   '\n\ndef <何をするかが分かる名前>(<実行環境が渡す値>, <既定値つきの引数>):\n'
+                   '    """<何をするか>"""\n'
+                   '    ...\n'
+                   '    return <結果>\n```\n')
 
 
 def _id_type_note(found: list[str]) -> str:
@@ -51,31 +62,34 @@ def _shape_note(found: list[str]) -> str:
 
 
 def skills_section(skills: list[SkillFunction] | tuple = ()) -> str:
-    """The saved Skills the code may call, as Voyager shows its retrieved programs. Empty when there are none."""
+    """The saved Skills the code may call, shown first, as Voyager shows its retrieved programs."""
     if not skills:
         return ''
     listed = '\n\n'.join(f'# Skill: {skill.name}\n{skill.code}' for skill in skills)
-    return ('\n\n再利用できる Skill（保存済みの関数）。これらは実行時に定義済みなので、import も定義も不要で、名前で呼べる。'
-            '定義を書き写さない。Intent の一部または全部をこれらで果たせるなら、呼んで再利用する。'
-            '例: print(json.dumps(<Skill 名>(<引数>), ensure_ascii=False)):\n' + listed + '\n')
+    return ('以下は、これまでに成功して保存された役に立つ関数（Skill）です。実行時に定義済みなので、import も定義も不要で、'
+            '名前で呼べます。\n```python\n' + listed + '\n```\n\n')
 
 
 def skill_rules(intent: Intent) -> str:
-    """How to shape the code so that its function can become a reusable Skill."""
+    """How to write the code, numbered as in Voyager's action prompt."""
     runtime = ([*(['dataset_id'] if intent.dataset_ids else []), *(['intent_target'] if intent.target is not None else []),
                 *(['previous_observations', 'intent_text'] if intent.previous_observations else [])])
-    passing = (f'実行時変数（{"、".join(runtime)}）は関数の中で読まず、呼ぶ行で引数として渡す。' if runtime else '')
-    return ('\nコードの形: 新しい処理は、必ず名前と引数と docstring（何をするかの 1〜3 文）を持つ関数 1 つにまとめる。'
-            '関数は結果を return で返す（関数の中で print して終わらない）。その下のトップレベルの行で関数（または再利用できる Skill）を呼び、'
-            '返った値を print する。関数は 1 つまで。'
-            '関数は後で別の Intent から呼ばれる部品になるので、対象・条件・データは引数で受け取り、汎用に書く。'
-            + passing + '再利用できる Skill だけで足りるなら、新しい関数は書かず、その Skill を呼んで print する行だけでよい。\n')
+    arguments = ('、'.join(runtime) + ' だけ。これらは関数の中で直接読まず、引数として受け取る' if runtime
+                 else 'ない。引数を取るなら既定値を付ける')
+    return ('\nコードの決まり:\n'
+            '1) 名前と引数と docstring（何をするかの 1〜3 文）を持つ関数を 1 つ書く。トップレベルには import と、その関数の定義だけを書く。'
+            '実行環境がその関数を呼び、戻り値（dict や list など JSON にできる値）を JSON で出力する。関数を呼ぶ行や print は書かない。\n'
+            f'2) 実行環境が引数として渡せる値は {arguments}。それ以外の引数には既定値を付ける。\n'
+            '3) 上に Skill があれば、できるだけ呼んで再利用する。Skill の定義を書き写さない。\n'
+            '4) 関数は後で別の Intent から部品として呼ばれる。対象・条件・データは引数で受け取り、汎用に書く。答えの値を埋め込まない。\n'
+            '5) 結果は return で返す。必須の値が無ければ例外にし、既定値で成功を装わない。\n'
+            '6) 関数名は、何をするかが分かる名前にする。\n')
 
 
 def contract_problems(intent: Intent, code: str, shown: tuple[str, ...] = ()) -> list[tuple[str, str]]:
     """What the code breaks, as (the code found, the note for the model), for the kinds of Intent that have a contract."""
     problems = []
-    shape = skill_shape_problems(code, shown)
+    shape = entry_problems(code) or skill_shape_problems(code, shown)
     if shape:
         problems.append(('skill shape: ' + '; '.join(shape), _shape_note(shape)))
     if intent.target is not None and intent.target.resolved:
@@ -97,8 +111,7 @@ class SkillCandidateGenerator:
         shown = tuple(skill.name for skill in skills)
         datasets = '\n'.join(f'- {dataset_id}' for dataset_id in intent.dataset_ids)
         prompt = (
-            'Intent を完遂する実行可能な Python コードと簡潔な説明を書いてください。\n'
-            '関数やクラスの定義は不要です。短いトップレベルのスクリプトを書いてください。\n'
+            'Intent を完遂する Python の関数と簡潔な説明を書いてください。\n'
             '利用可能な Control Primitives（geo_voyager.control_primitives から import）:\n'
             '- connect_duckdb(): sandbox 用 DuckDB 接続を返す。with で接続を管理する。\n'
             '- dataset_url(dataset_id): 登録済み行政区・駅 Dataset の Gateway URL を返す。\n'
@@ -123,27 +136,25 @@ class SkillCandidateGenerator:
             'from geo_voyager.control_primitives import connect_duckdb, load_admin_units, load_stations\n'
             '- Dataset へのアクセスは Control Primitives のみ使う。\n'
             '- 外部URLを直接使わない。HTTP や read_parquet を直接呼ばない。\n'
-            '- 最終結果を stdout に出す。stdout に選択・集計の意味と具体的な回答値を明示する。\n'
-            '例えば最小人口なら、最も少ない区を求めたこと、得られた区名と人口を文章で示す。\n'
-            '- dataset_id は実行環境から与えられる。既存のグローバル変数を参照するだけにする。\n'
+            '- 結果は return で返す。選択・集計の意味が分かるキーと具体的な回答値を持つ dict にする。\n'
+            '例えば最小人口なら、{"name": 区名, "population": 人口} を返す。\n'
+            '- dataset_id は実行環境から関数の引数として与えられる。\n'
             'dataset_id = ... という代入を書かない。Dataset ids は利用範囲のメタデータでありコードへ埋め込まない。\n'
             '- 再利用可能な分析コードにする。答えの区名や人口を埋め込まない。\n'
             '- 標準 Python と上記 Primitive・DuckDB relation の操作だけで実装する。\n'
             '- UUID 生成や Skill の保存はしない。\n'
             '- 1件だけ生成し、前置きや追記を付けない。\n\n'
-            '出力形式と接続部分（分析と stdout を続けて実装してください）:\n'
-            '接続部分の import と with 行は変更せず、以下をそのまま使ってください。\n'
-            '接続関数は connect_duckdb（duck の綴り、DuckDB）です。\n'
-            '説明:\n調査コードの簡潔な説明\n---\nコード:\n```python\n'
+            '接続部分の例（with 行はこの形のまま使う。接続関数は connect_duckdb、duck の綴り）:\n'
             'from geo_voyager.control_primitives import connect_duckdb, load_admin_units, load_stations\n'
-            'with connect_duckdb() as connection:\n'
-            '    # 行政区域なら load_admin_units(dataset_id, connection, area="東京都23区")\n'
-            '    # 駅なら load_stations(dataset_id, connection)（import も追加する）\n'
-            '    # Intent に必要な relation 操作と print をここに書く\n```\n\n'
-            + skill_rules(intent) + skills_section(skills) +
+            'def <何をするかが分かる名前>(dataset_id):\n'
+            '    """<何をするか>"""\n'
+            '    with connect_duckdb() as connection:\n'
+            '        # 行政区域なら load_admin_units(dataset_id, connection, area="東京都23区")\n'
+            '        # 駅なら load_stations(dataset_id, connection)（import も追加する）\n'
+            '        # Intent に必要な relation 操作をして、結果を return する\n\n'
+            + skill_rules(intent) +
             f'Intent:\n{intent.text}\n\n利用する Dataset ids:\n{datasets}\n\n'
-            '返答の1行目は必ず「説明:」のみ。説明本文を同じ行に書かない。2行目から説明を書き、必須ラベルを省略しない。\n'
-            '続けて「---」「コード:」「```python」、Pythonコード、最後に「```」をそれぞれ独立した行に書く。'
+            + RESPONSE_FORMAT
         )
         graph = load_service_graph()
         available = [graph.get(service_id) for service_id in intent.service_ids] if intent.service_ids else ([] if intent.requires_context else graph.all())
@@ -169,36 +180,33 @@ class SkillCandidateGenerator:
         )
         if not intent.dataset_ids:
             prompt = (
-                'Generate one short executable Python script that fulfills the Intent. Use precise API syntax, no speculation or unfinished code.\n'
+                'Write one Python function that fulfills the Intent. Use precise API syntax, no speculation or unfinished code.\n'
                 'description に対象・使用サービス・出力内容を含める。Intent の範囲を説明で省略しない。答えを説明へ固定しない。\n'
                 'For tag discovery, choose one relevant dictionary result. Use its key and value together as variables in one equality filter, not a key-existence filter.\n'
                 'Do not guess tags or use a hardcoded tag fallback. Do not make broad unfiltered geographic queries.\n'
                 'Every call_service call must explicitly supply path, chosen from the registered endpoint paths above. Never omit path.\n'
                 'call_service is not a global: you MUST import it with from geo_voyager.control_primitives import call_service.\n'
-                'Print exactly one JSON value for this Intent; no headings or logs. Name each key for what its value is, for example '
+                'Return exactly one JSON-serialisable value for this Intent (the environment prints it as JSON); no headings or logs. Name each key for what its value is, for example '
                 'value, count, distance_km, label. Never put a value under a key that means something else, such as a count or a tag key under relation_id.\n'
-                'Print discovered keys/values when tag discovery is requested, inside the JSON.\n'
-                'Write at most 40 lines of code. No comments, no function definitions, no speculation or alternative approaches.\n'
+                'Return discovered keys/values when tag discovery is requested, inside the returned value.\n'
+                'Write at most 40 lines of code. No comments, no speculation or alternative approaches.\n'
                 'Before returning, check imports, every endpoint path, balanced square brackets in tag filters, and the protocol grammar.\n'
                 '標準ライブラリと call_service のみで実装する。直接 HTTP や外部 URL を使わない。\n'
                 'call_service の params は dict[str, str] をそのまま渡す。params を urlencode しない。\n'
                 'body は str。フォーム本文を送る場合だけ urllib.parse.urlencode を使う。\n'
                 '返答は JSON 本文の文字列なので json.loads で解析する。HTTP status_code フィールドを仮定しない。\n'
                 '探索結果を変数に取り、後続サービスの問い合わせに使う。答えやタグを事前に固定しない。\n'
-                '無駄なコメント・仮定・未実装の分岐は書かない。最終結果の具体的な回答を stdout に出す。\n'
+                '無駄なコメント・仮定・未実装の分岐は書かない。最終結果の具体的な回答を return で返す。\n'
                 '結果が空なら例外にする。必須フィールドが無い場合も例外にし、N/A やデフォルト値で成功を装わない。\n'
-                '後続が解析できるよう stdout は JSON のみ（json.dumps）。キーは、その値が何かを表す意味の分かる名前にする（例: value、count、distance_km）。固定のスキーマはない。\n'
+                '後続が解析できるよう、戻り値は JSON にできる値（dict や list）にする。実行環境が JSON で出力する。キーは、その値が何かを表す意味の分かる名前にする（例: value、count、distance_km）。固定のスキーマはない。\n'
                 '出力が対象（区域・地物など、安定した ID を持つ実体）の一覧や、その対象についての測定なら、各対象を name と relation_id 等の ID で出力し、'
                 '順番を固定する。一意なIDと指定件数を assert し、合わなければ例外にする。'
                 '対象でないもの（タグの値、件数のランキング、距離など）は、name や relation_id のキーを使わず、意味に沿ったキー（例: {"value": "pizza", "count": 132565}）で出力する。\n'
                 'description は任意対象の測定という再利用可能な操作を説明し、対象の名前や答えを固定しない。\n'
                 'UUID や Skill 保存処理を書かない。\n'
-                + skill_rules(intent) + skills_section(skills) +
+                + skill_rules(intent) +
                 f'Intent:\n{intent.text}\n\n'
-                '出力形式は厳密に次の形式。前置きや追記は禁止。返答の1行目は必ず「説明:」だけ。説明本文を同じ行に書かない。説明本文は2行目から。\n'
-                '説明:\n調査コードの簡潔な説明\n---\nコード:\n```python\n'
-                'from geo_voyager.control_primitives import call_service\n'
-                '# サービスの結果を解析し print する短いコード\n```\n'
+                + RESPONSE_FORMAT
             )
         if intent.requires_context:
             prompt += '\nローカル集計の Intent。外部サービスを呼ばず previous_observations のデータだけを解析・集計する。\n'
@@ -206,10 +214,10 @@ class SkillCandidateGenerator:
             prompt += ('\n前段 Observation の JSON の形（値は実行時に取得）:\n'
                        + describe_observations(intent.previous_observations)
                        + '\n実行環境の previous_observations は前段 stdout の list[str]。intent_text は現在の Intent 本文。'
-                         '結果をコードへ埋め込まず実行時にこの変数を解析して利用する。'
+                         '結果をコードへ埋め込まず、関数の引数として受け取ったこの値を実行時に解析して利用する。'
                          '再利用コードでは対象や番号を intent_text または前段データから取り出す。'
                          'previous_observations や intent_text を代入で上書きしない。json.loads(previous_observations[index]) を使う。'
-                         '最終結果は意味の分かるキーを持つ JSON を print する。')
+                         '最終結果は意味の分かるキーを持つ値を return で返す。')
         if not intent.dataset_ids:
             if intent.target is not None:
                 prompt += ('\nこの Intent は対象についての Intent なので、出力に対象の name と ID を含める。'
@@ -278,10 +286,10 @@ class SkillCandidateGenerator:
                            'その実測値を用いて Intent の集計・選択を実行する。')
             def generate_once(extra: str = '') -> SkillCandidate:
                 return _parse_candidate(self.llm_client.generate(
-                service_contract + prompt + extra, temperature=0.2, enable_thinking=True,
+                skills_section(skills) + service_contract + prompt + extra, temperature=0.2, enable_thinking=True,
                 max_tokens=3072, reasoning_budget_tokens=1024, assistant_prefix="説明:\n",
                 system_prompt=(
-                    'You are a precise Python programmer. Return exactly one description and executable script '
+                    'You are a precise Python programmer. Return exactly one description, a short plan and one Python function '
                     'in the requested format. Description must be one sentence. '
                     'Code must be short, with no comments, no speculation, no unfinished branches. '
                     'First line must be exactly 説明:, with description on the next line. '
@@ -290,13 +298,14 @@ class SkillCandidateGenerator:
                     'When the Intent names a target, describe the operation on a runtime-resolved target, never on the current name. '
                     'The code MUST use the runtime variable intent_target. If it has id_value, that id (of type id_type) is the key and the name is only for display: never choose a target by its name, and if previous_observations exist, find the target there by that id. If it has only a name, take it from intent_target["name"] and match it against the name field of the objects. '
                     'Do not fix current IDs or names in code or description. '
-                    'Discover answers from service responses, never invent them. Print the concrete results. '
-                    'Exact layout, with every label on a separate line:\n説明:\n<description>\n---\nコード:\n```python\n<executable code>\n```'
+                    'Discover answers from service responses, never invent them. Return the concrete results; the environment calls the function. '
+                    'Reuse the saved Skills shown first as much as possible, by calling them; never copy their definitions. '
+                    'Exact layout, with every label on a separate line:\n説明:\n<description>\n計画:\n1) ...\n---\nコード:\n```python\n<imports and one function>\n```'
                 ),
             ))
             return self._keep_the_contract(intent, generate_once, shown)
         return self._keep_the_contract(
-            intent, lambda extra='': _parse_candidate(self.llm_client.generate(service_contract + prompt + extra)), shown)
+            intent, lambda extra='': _parse_candidate(self.llm_client.generate(skills_section(skills) + service_contract + prompt + extra)), shown)
 
     @staticmethod
     def _keep_the_contract(intent: Intent, generate_once, shown: tuple[str, ...] = ()) -> SkillCandidate:

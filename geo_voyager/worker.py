@@ -5,7 +5,7 @@ from .docker_sandbox import DockerSandbox
 from .execution_failure import ExecutionFailure, GENERATED_ERROR_EXIT, candidate_lines, sandbox_program
 from .intent import Intent
 from .observation import Observation
-from .skill_candidate import SkillCandidate
+from .skill_candidate import SkillCandidate, entry_program
 from .skill_library import SkillLibrary, link
 from .services import load_service_graph
 
@@ -54,4 +54,5 @@ class Worker:
 
     def execute_candidate(self, intent: Intent, candidate: SkillCandidate,
                           library: SkillLibrary | None = None) -> list[Observation] | ExecutionFailure:
-        return self._execute_code(intent, candidate.code, library)
+        # The model writes functions; the call of the main one is added here (see entry_program).
+        return self._execute_code(intent, entry_program(candidate.code, candidate.entry), library)

@@ -20,7 +20,7 @@ from geo_voyager.worker import Worker
 
 MINATO = TargetRef('港区', 'relation_id', '1761717')
 MINATO_LONG = TargetRef('港区, 東京都, 日本', 'relation_id', '1761717')
-VALID = '説明:\nS\n---\nコード:\n```python\ndef answer():\n    """Answer."""\n    return 1\n\n\nprint(answer())\n```'
+VALID = '説明:\nS\n---\nコード:\n```python\ndef answer():\n    """Answer."""\n    return 1\n```'
 
 
 def obs(value) -> Observation:

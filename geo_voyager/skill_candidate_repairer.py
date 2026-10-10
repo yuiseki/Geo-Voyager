@@ -3,6 +3,7 @@ from typing import Sequence
 from .default_fallback import introduced_fallbacks
 from .id_type_literals import id_type_comparisons
 from .local_aggregation_contract import local_aggregation_violations
+from .skill_candidate import entry_problems
 from .execution_attempt import ExecutionAttempt
 from .execution_failure import ExecutionFailure, bounded_output
 from .intent import Intent
@@ -64,7 +65,8 @@ class SkillCandidateRepairer:
             'load_stations(dataset_id, connection): relation(name,latitude,longitude)。\n'
             'call_service(service_id, *, path="", params=None, body=None, content_type=None) -> str。'
             'params は dict[str,str]、body=None は GET、それ以外は POST。body は str のまま渡す。encode して bytes にしてはいけない。返答は text。JSON は json.loads。\n'
-            '最終結果を stdout に出す。環境変数・秘密情報を出力しない。\n'
+            '元のコードが関数だけでできていれば、その形を保つ: import と関数の定義だけを書き、関数を呼ぶ行や print は書かない（実行環境が最後の関数を呼び、戻り値を JSON で出力する）。'
+            '結果は return で返す。関数名と引数は変えない。環境変数・秘密情報を出力しない。\n'
             '出力形式のみ:\n説明:\n<description>\n---\nコード:\n```python\n<complete code>\n```\n\n'
             f'Intent:\n{intent.text}\n前段 Observation:\n{describe_observations(intent.previous_observations)}\n'
             'previous_observations は実行時 list[str]。intent_text は実行時の現在 Intent。結果をコードに固定せず解析する。\n'
@@ -90,6 +92,8 @@ class SkillCandidateRepairer:
             hidden = introduced_fallbacks(candidate.code, repaired.code, failure.stderr)
             guesses = id_type_comparisons(repaired.code) if intent.target is not None and intent.target.resolved else []
             guesses += local_aggregation_violations(repaired.code, len(intent.previous_observations)) if intent.requires_context else []
+            # code written as a function stays a function the environment can call
+            guesses += entry_problems(repaired.code) if not entry_problems(candidate.code) else []
             if not hidden and not guesses:
                 return repaired
             self.rejected_fallbacks.append(hidden + guesses)
