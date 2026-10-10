@@ -161,3 +161,15 @@ def test_planner_rejects_unregistered_dataset_id():
 
     with pytest.raises(KeyError, match="unknown/dataset"):
         Planner(client).plan_intents(Hypothesis("コンビニ密度には差がある"), load_dataset_graph())
+
+
+def test_planner_asks_for_general_output_keys_that_saved_skills_use():
+    # Round 7: an Intent asked for cafe_count, the saved skill printed tag and count, and the step Critic
+    # rejected the right counts for the key name. Only the step-by-step planner is told; the first-plan route is fixed.
+    from geo_voyager.goal_history import GoalHistory
+    from geo_voyager.planner import SHARED_RULES
+
+    client = Mock(); client.generate.return_value = '調査項目: 渋谷区の件数\n利用データセット: []\n利用サービス:\n  - overpass\n対象: 渋谷区'
+    Planner(client).next('渋谷区の amenity=cafe の数', GoalHistory())
+    assert '件数なら count、条件なら tag' in client.generate.call_args.args[0]
+    assert 'cafe_count' not in SHARED_RULES
