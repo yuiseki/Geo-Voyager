@@ -4,6 +4,14 @@
 
 次の段階では、study-geoai の実験を Goal と oracle に変える（各実験の README に、Claude Code が得た数字が残っている）。sandbox の設計は、その Goal を実行できることを基準にする。
 
+## 0. 決まったこと（2026-10-10、お嬢様の判断）
+
+- Geo-Voyager は study-geoai-algo-py から完全に独立させる。コードもデータも使わない（パッケージを入れない、キャッシュを複製しない、study-geoai 側も変えない）。study-geoai は、README に書かれた数字を oracle の出典として使うだけ。データの取得と固定、Primitive は、Geo-Voyager が自前で持つ。
+- データは、Geo-Voyager が版を固定して取得したものを、分析のコンテナに読み取り専用でマウントする（2.3 の案 A）。README の「bind/volume mount は行わない」方針は、この読み取り専用のデータに限って変える。
+- 分析の枠のメモリは 8GB（swap なし）。CPU 4、実行時間 600 秒、同時に 1 つは推奨のまま（明示の判断はまだ）。
+
+以下の 2.1、2.3、2.4、3 には、独立させる前の案（study_geoai のパッケージとキャッシュを使う案）が残っている。決まったことと食い違うところは、上の決定が優先する。食い違いを直した節は「（独立版）」と書いた。
+
 ## 1. 今の sandbox と、study-geoai が必要とするもの
 
 | 項目 | 今の Geo-Voyager の Worker | study-geoai の実験 | 出典 |
@@ -63,15 +71,26 @@
 - 分析のコンテナも、UID 65534、読み取り専用のルート、cap-drop ALL、no-new-privileges、メモリと PID の上限、ネットワークなし（案 A）を保つ。
 - 変わるのは、読み取り専用のデータのマウント（案 A）と、書ける `/out` と大きめの `/tmp` だけ。Docker の socket やホームディレクトリは渡さない。
 
+## 2.7（独立版）データ、Primitive、oracle の関係
+
+study-geoai のコードを使わないので、oracle の数字（study-geoai の README）を Geo-Voyager の環境で再現できることを、別に確かめる必要がある。
+
+1. データの準備: Geo-Voyager に、元の出どころ（study-geoai が使ったのと同じ出どころと版。Hugging Face のコミット、Overture のリリース、z.yuiseki.net のミラーなど）から、必要な範囲だけを取得して Parquet に固定するスクリプトを自前で書く。出どころと版は、study-geoai の README と `docs/datasets/` の記述（文書）を読んで合わせる。コードは読まずに書く。
+2. 参照解: Claude Code が Geo-Voyager の中に、各 Goal の参照解（分析のコード）を書き、分析のコンテナで動かす。study-geoai の README の数字が許容誤差の中で出れば、データと環境が oracle を再現できると判断する。出なければ、データの定義の違い（特徴量の作り方、除外の条件）を README の記述から探して合わせるか、その Goal を外す。
+3. Goal と oracle: 参照解で再現できた数字だけを oracle にする。ローカル LLM の答えは、この oracle と比べる。
+4. Primitive: Geo-Voyager が自前で書く。データの読み込み（固定したデータを DuckDB で開く）だけを渡し、特徴量の作り方と分析は LLM に書かせる。地図を描く関数を渡すかは、可視化の Goal を作るときに決める。
+
+study-geoai の README は、データの定義（行、目的変数、特徴量、除外の条件）を文章で詳しく書いているので、コードを読まずに再現できる見込みがある。ただし、Overture の POI の束ね方（`basic_category` を名前の語で束ねる）のように、文章だけでは完全に決まらない定義もある。そうした Goal は、最初の候補から外す。
+
 ## 3. 進め方の案
 
 1. 分析用イメージを作り、study-geoai の `uv.lock` と同じ版で import できることをテストで確かめる（`tests/test_env.py` の ortools と highspy の同居も）。
 2. 資源の枠を DockerSandbox と Worker に足す（今の枠は変えない）。単体テストで、枠ごとの docker の引数を確かめる。
-3. データのマウント（案 A）と成果物の取り出しを足す。study-geoai の 001-A（線形回帰）の `run.py` を、そのまま分析のコンテナで動かし、README の数字（台東区の R² 0.364 など）が出ることを確かめる。ここで「環境が oracle を再現できる」ことを、LLM なしで確かめる。
+3. データのマウント（案 A）と成果物の取り出しを足す。最初の Goal の参照解（2.7、Claude Code が Geo-Voyager の中に書く）を分析のコンテナで動かし、study-geoai の README の数字が出ることを確かめる。ここで「環境が oracle を再現できる」ことを、ローカル LLM なしで確かめる。（独立版。当初は study-geoai の `run.py` をそのまま動かす案だった）
 4. ここまでできたら、次の段階（study-geoai の実験を Goal と oracle に変える）に進む。
 
-## 4. 決めていただきたいこと
+## 4. 決めていただいたこと
 
-- データの読み方（2.3）を案 A から始めてよいか。案 A は、今の README の「bind/volume mount は行わない」方針を変える。
-- 分析の枠の資源（メモリ 4GB、CPU 4、600 秒、同時 1 つ）でよいか。
-- study-geoai 側に小さな変更（キャッシュの場所を環境変数で変えられるようにする）を入れてよいか。公開リポジトリなので、コミットは英語。
+- データの読み方: 案 A から始める。
+- 分析の枠のメモリ: 8GB。
+- study-geoai 側の変更: しない。Geo-Voyager は study-geoai から完全に独立させる（0 節）。
