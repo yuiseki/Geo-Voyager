@@ -49,8 +49,24 @@ def test_generator_passes_intent_and_primitive_contracts_and_parses_candidate(re
 
 
 @pytest.mark.parametrize('reply', [
+    # The local model writes these now and then (12 of 473 replies in rounds 6 to 11); the code is still unambiguous.
+    VALID.replace('説明:\n', '説明: ', 1),
+    VALID.replace('\n---\n', '\n', 1),
+    VALID.replace('\n---\nコード:\n', '\n', 1),
+    VALID.replace('説明:\n', '説明: ', 1).replace('\n---\nコード:\n', '\n計画:\n1) 読む\n\n', 1),
+])
+def test_generator_reads_a_candidate_with_the_description_inline_or_without_the_separator(reply):
+    client = Mock()
+    client.generate.return_value = reply
+    candidate = SkillCandidateGenerator(client).generate(Intent('調査', ('yuiseki/jp-admin-2026-09',)))
+    assert candidate.description == '行政区域から人口最小の区域を求める'
+    assert candidate.code.endswith('return "result"')
+
+
+@pytest.mark.parametrize('reply', [
     '', 'print("ok")', VALID.replace('説明:', '解説:', 1),
-    VALID.replace('\n---\n', '\n', 1), VALID.replace('コード:', 'Python:', 1),
+    VALID.replace('コード:', 'Python:', 1), VALID.replace('\n---\nコード:\n', '\n本文\n', 1).replace('```python\n', '', 1),
+    VALID.replace('---', '---\n---', 1),
     VALID.replace('```python', '```json', 1), VALID + '\n追記',
     '説明:\n\n---\nコード:\n```python\nprint("ok")\n```',
     '説明:\n説明本文\n---\nコード:\n```python\n   \n```',

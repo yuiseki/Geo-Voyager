@@ -13,6 +13,14 @@ from .observation_context import describe_observations
 
 def _parse_candidate(text: str) -> SkillCandidate:
     lines = text.strip().splitlines()
+    # A local model sometimes writes the description on the 説明: line, or leaves out the --- line. Where the code
+    # starts is still plain (the コード line, or the fence itself), so the reply is read as if it had both.
+    if lines and lines[0].startswith('説明:') and lines[0] != '説明:':
+        lines[:1] = ['説明:', lines[0].removeprefix('説明:').strip()]
+    if '---' not in lines:
+        start = next((index for index, line in enumerate(lines) if line in ('コード:', 'コード', '```python')), None)
+        if start is not None:
+            lines[start:start] = ['---'] + (['コード:'] if lines[start] == '```python' else [])
     if not lines or lines[0] != '説明:' or lines.count('---') != 1:
         raise ValueError('Candidate must contain 説明: and a single --- separator')
     separator = lines.index('---')
