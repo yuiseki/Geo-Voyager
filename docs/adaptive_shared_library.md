@@ -128,3 +128,31 @@ judge を直し（勝者の区名を日本語、区を除いた形、ローマ�
 - 数える関数は、`count_cafe_in_area(intent_target, key="amenity", value="cafe")` のように、条件を既定値つきの引数で受ける形になった。ただし中で Seed を呼ばず、自前で Overpass に問い合わせるものもある。
 - `count_libraries_in_setaagaya` は、区名の綴りの誤りで場所の名前の検査をすり抜けた。
 - 正解は 16 / 22 で、4 周目と同じ範囲。止まったのは `hotel_taito`（計画の失敗）と、以前から止まる GeoSPARQL、人口、最北の駅の Goal。
+
+## モデルを Qwen3.8-27B に替えた 6 周目（2026-10-10）
+
+llama.cpp のモデル（`gvt-llm`）が、Qwen3.6-35B-A3B（MoE、活性 3B）から Qwen3.8-27B（dense、Q4_K_S、`n_ctx` 8192）に替わった。コードは 5 周目と同じ（`a5c2c5b`）。モデルの効果だけを見る周。記録は [evidence/adaptive_q38_r6/](evidence/adaptive_q38_r6/)。
+
+- 速さ: 生成は約 35 トークン/秒、プロンプトの読み込みは約 600 トークン/秒。Generator の 1 回は約 50 秒。1 周は 80 分（前のモデルは 30〜40 分）。
+- コンテキストの超過（8192）による失敗は、ログに 0 件。
+
+途中で見つかった環境の問題: データセット系の 4 Goal（人口 2、駅 2）は、データの取得が `502 Bad Gateway` で失敗した。gateway は起動時に Hugging Face の署名付き CDN URL を一度だけ解決して使っていた。その URL の有効期限は 1 時間で、80 分かかる周の終わりにあるデータセット系の Goal は、期限切れの URL を読みに行った（前のモデルの周は 1 時間以内に終わっていたので出なかった）。gateway を、Hub の `resolve/` のリダイレクトを毎回たどる形に直した（`5e37c51`。たどるのは https の Hub から https の Hub の配下への転送だけで、他のリダイレクトは今まで通り拒む）。直した gateway で `stations_count` を 1 回流し、正解で止まった。6 周目のデータセット系の 4 Goal は、この理由で測れていない。
+
+| | 5 周目（前のモデル） | 6 周目（Qwen3.8-27B） |
+|---|---|---|
+| DONE で終わり、正解 | 16 / 22 | 17 / 22 |
+| データセット系を除く 18 Goal で正解 | 15 / 18 | 17 / 18 |
+| 学習した Skill | 24 | 23 |
+| 保存済みの Skill を呼んだ回数 | 23 | 50 |
+| うち Seed | 12 | 31 |
+| うち、前の Goal で学習した Skill | 10 | 14 |
+| Seed の版が増えた（同じ名前で書き直された）数 | 2 | 0 |
+
+- 以前から止まっていた GeoSPARQL の 3 Goal が、すべて正解になった。
+- Seed の `count_tag_in_area` は、書き直されずに 10 回呼ばれた。`get_relation_id` は 13 回、`route_summary` は 7 回。
+- 合成をモデルが書いた: `count_tag_in_area_for_target` は、学習した `check_area_exists_for_target` と Seed の `count_tag_in_area` を呼ぶ。
+- タグごとの数える関数は `count_amenity_library_in_area` の 1 個だけになった（5 周目までは Goal ごとにあった）。
+- 残った書き直し: モデルが学習した Skill を、同じ名前で劣化させて書き直した例が 1 つある。`count_tag_in_area_with_area_check` の版 1 は `(intent_target, key="amenity", value="cafe")` を受け取るが、版 2 は `previous_observations[0]` を読み、`tourism=hotel` を中に書き込んだ。
+- データセット系以外で止まったのは `cafe_shibuya_vs_shinjuku` だけ。両区の件数（459、343）までは得たが、比べる step（対象なし）のコードが、渡されない `intent_target` で前段の Observation を絞り込もうとして None で落ちた（3 回）。この形の失敗は 1〜5 周目には無かった。渡されない実行時の値を読む関数を拒む決定的な検査を足した（`1d374bc`。1〜6 周目に保存された Skill 163 個に当てると 2 個が該当し、どちらも本当の誤り）。7 周目には入っていない。
+
+見立て（1 周だけの観測で、揺らぎは測っていない）: dense の 27B は、見せた Skill を呼んで合成する力が前のモデルより強い。5 周目に見えた Seed の書き直しは、主にモデルの性質だった可能性が高い。
