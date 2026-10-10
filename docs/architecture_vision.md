@@ -17,7 +17,7 @@ Geo-Voyager の究極のゴールは、study-geoai-algo-py（Claude Code が台�
 
 お嬢様の構想に、もう 1 つの資産がある。Autonomous-GeoAI（`/Workspaces/repos/__yuiseki/_research/Autonomous-GeoAI`）の `.agents/skills` で、Knowledge Graph または How-to Graph と呼ぶべきもの。Skill library がモデル自身の獲得したスキルであるのに対して、How-to Graph は、人間が教科書やレシピや作業マニュアルを読むように、モデルが読む与えられた手順の知識である。Agent Skills の形式（name と description、手順、必要なときに読む references、テスト済みの scripts）で、分析の段階ごとに 24 本ある（データを知る、単位を決めてそろえる、予測して評価を疑う、構造を探す、ネットワークと最適化、残す）。study-geoai-algo-py で得た教訓を一般化したもの。
 
-3 つのリポジトリは繋がっている。Geo-Voyager v0.1.0 の Control Primitives は、もともと study-geoai から持ち込んだもの。
+3 つのリポジトリは繋がっている。Geo-Voyager v0.1.0 の Control Primitives は、もともと study-geoai から持ち込んだもの。Geo-Voyager は How-to Graph を直接読んでよい（お嬢様の判断、2026-10-10）。scripts も例として読ませてよく、必要なら整理して Control Primitive にしてよい。study-geoai からの独立（コードとキャッシュを使わない）とは別の扱い。
 
 資産を、与えられたものと獲得したものに分けると、次の対になる。
 
