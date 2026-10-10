@@ -1,0 +1,12 @@
+from geo_voyager.control_primitives import call_service
+import json
+
+resp = call_service("nominatim", path="/search", params={"q": "上野駅", "format": "jsonv2", "limit": "1"})
+data = json.loads(resp)
+assert len(data) > 0, "No results found"
+item = data[0]
+lat = item["lat"]
+lon = item["lon"]
+osm_type = item["osm_type"]
+osm_id = item["osm_id"]
+print(json.dumps({"lat": lat, "lon": lon, "osm_type": osm_type, "osm_id": osm_id}))

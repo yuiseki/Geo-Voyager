@@ -34,3 +34,25 @@
 - ローカル LLM が、見せた Skill を実際に呼ぶか、関数 1 つの形で書けるか。`integration/test_service_learning.py`（1 回目で関数を保存し、2 回目でそれを呼ぶ）は書き換えたが、まだ流していない。
 - runtime repair のプロンプトには、呼んでいる Skill の定義を見せていない。repair が Skill の中の失敗を直そうとして、Skill を作り直す可能性がある。
 - Goal をまたいで Skill を持ち越す測り方（今の `bench/run_adaptive.py` と `bench/run_goals.py` は、実行ごとに空の Library から始める）。
+
+## 実 LLM での 1 回目（2026-10-10）
+
+`integration/test_service_learning.py` の 3 ケース（Taginfo と Overpass で火山、Nominatim で上野駅、YuisekinGeoSPARQL で台東区に接する区）を 1 回ずつ流した。各ケースは、空の Library で同じ Intent を 2 回実行し、1 回目で関数を Skill として保存し、2 回目でそれを呼ぶことを期待する。3 ケースとも失敗した。記録は [evidence/skill_library_llm1/](evidence/skill_library_llm1/)。
+
+| ケース | 1 回目 | 2 回目 |
+|---|---|---|
+| taginfo_overpass | 成功。関数 `discover_volcanoes_in_japan` を Skill として保存 | 検索でその Skill が上位に来て Generator に見せたが、呼ばずに、関数の無いトップレベルのコードを書き直した。実行と Critic は成功 |
+| nominatim | 成功。ただし関数を書かず、トップレベルのコードだけだったので、保存する Skill が無い | （1 回目で失敗の判定のため実行せず） |
+| geosparql | 成功。関数 `query_touching_wards` を保存（結果を返さず中で print する関数） | 説明には「query_touching_wards 関数を用いて」と書いたが、コードでは関数の定義をそのまま書き写した。さらに「コード:」のコロンを落とし、形式の検査で失敗した |
+
+分かったこと:
+
+- ローカル LLM は、見せた Skill を呼ばない。書き写すか、無視して書き直す。3 ケースのどれでも、保存した Skill を呼んだ実行は無かった。
+- 関数にまとめるかどうかを LLM に任せる（今の指示は「必要なら」）と、関数を書かないことがある（nominatim）。そのとき何も保存されない。
+- 保存された関数が、値を返さず中で print する形になることがある（geosparql）。呼ぶ側が結果を受け取れないので、部品として使いにくい。
+
+次に試すこと（決定的にできるもの）:
+
+1. 保存済みの Skill と同じ名前の関数を定義し、中身が保存済みの版と同じなら、その定義を取り除いて保存済みの Skill を呼ばせる（書き写しを呼び出しに戻す）。中身が違えば、Voyager と同じく新しい版として扱う。
+2. 保存済みの Skill を呼ばないコードには、新しい関数を 1 つ必ず定義させる（Voyager は毎回関数を書かせる）。トップレベルだけのコードは、理由を添えて作り直させる。
+3. 関数は値を返すこと（print だけで終わらない）を、指示と検査に入れる。

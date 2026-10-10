@@ -1,0 +1,44 @@
+説明:
+taginfoで火山の主要なタグ(key/value)を特定し、nominatimで日本の境界を取得後、overpassで日本国内の該当火山地物を検索して名前とタグ情報を出力する。
+---
+コード:
+```python
+from geo_voyager.control_primitives import call_service
+import json
+
+taginfo_resp = call_service("taginfo", path="/api/4/search/by_value", params={"query": "volcano", "sortname": "count_all", "sortorder": "desc", "page": "1", "rp": "5"})
+taginfo_data = json.loads(taginfo_resp)
+if not taginfo_data.get("data"):
+    raise Exception("No volcano tags found")
+candidate = taginfo_data["data"][0]
+t_key = candidate["key"]
+t_value = candidate["value"]
+
+nominatim_resp = call_service("nominatim", path="/search", params={"q": "Japan", "format": "jsonv2", "limit": "1"})
+nominatim_data = json.loads(nominatim_resp)
+if not nominatim_data:
+    raise Exception("Japan not found")
+japan = nominatim_data[0]
+if japan["osm_type"] != "relation":
+    raise Exception("Japan osm_type is not relation")
+area_id = int(japan["osm_id"]) + 3600000000
+
+verify_resp = call_service("overpass", path="/api/interpreter", params={"data": f"[out:json];area({area_id});out ids;"})
+verify_data = json.loads(verify_resp)
+if not verify_data.get("elements"):
+    raise Exception("Area verification failed")
+
+ql = f"[out:json];nwr[\"{t_key}\"=\"{t_value}\"](area:{area_id});out body;"
+overpass_resp = call_service("overpass", path="/api/interpreter", params={"data": ql})
+overpass_data = json.loads(overpass_resp)
+elements = overpass_data.get("elements", [])
+if not elements:
+    raise Exception("No volcanoes found")
+
+results = []
+for el in elements:
+    tags = el.get("tags", {})
+    name = tags.get("name", "Unknown")
+    results.append({"name": name, "key": t_key, "value": t_value})
+print(json.dumps(results, ensure_ascii=False))
+```
