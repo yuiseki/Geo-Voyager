@@ -113,3 +113,14 @@ def test_a_function_with_a_docstring_keeps_it():
 def parse_skill_description(code):
     from geo_voyager.skill_function import parse_skill
     return parse_skill(code).description
+
+
+def test_a_copy_without_the_docstring_or_with_another_is_still_a_copy(tmp_path):
+    # Seen with the local model: it copies a shown Skill without its docstring, and the description it writes
+    # this time, put in as the docstring, differs from the saved one.
+    from geo_voyager.skill_library import SkillLibrary
+    from geo_voyager.skill_candidate import drop_copied_skills
+    library = SkillLibrary(tmp_path)
+    library.add('def a(x):\n    """Saved words."""\n    return x + 1\n')
+    for copy in ('def a(x):\n    return x + 1\n\nprint(a(1))', 'def a(x):\n    """Other words."""\n    return x + 1\n\nprint(a(1))'):
+        assert drop_copied_skills(copy, library) == 'print(a(1))'

@@ -91,10 +91,10 @@ def skill_shape_problems(code: str, shown: tuple[str, ...] = ()) -> list[str]:
 
 
 def _same_function(a: ast.FunctionDef, b: ast.FunctionDef) -> bool:
-    """The same function apart from comments, blank lines and the docstring's layout."""
+    """The same name, arguments and body, apart from comments, blank lines and the docstring."""
     def body(function):
         nodes = function.body[1:] if ast.get_docstring(function) is not None else function.body
-        return [ast.dump(node) for node in nodes], ast.dump(function.args), (ast.get_docstring(function) or '').split()
+        return [ast.dump(node) for node in nodes], ast.dump(function.args), ast.dump(function.returns) if function.returns else None
     return a.name == b.name and body(a) == body(b)
 
 
