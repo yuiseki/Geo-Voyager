@@ -53,8 +53,16 @@ def main() -> None:
     outcomes = Counter(outcome(row) for row in rows)
     total = Counter()
     print(f'{len(rows)} runs')
+    learned_before: set[str] = set()      # Skills learned by earlier runs (with a shared library, earlier Goals)
     for row in rows:
         fired = checks(row)
+        steps = row['steps']
+        called = [skill for step in steps for skill in step.get('called_skills') or []]
+        learned = [step['learned_skill'] for step in steps if step.get('learned_skill')]
+        fired['skills_learned'] += len(learned)
+        fired['skills_called'] += len(called)
+        fired['skills_called_from_an_earlier_goal'] += sum(1 for skill in called if skill in learned_before)
+        learned_before.update(learned)
         total.update(fired)
         shown = ', '.join(f'{k}={v}' for k, v in sorted(fired.items()) if v)
         print(f"{row['id']:28s} {outcome(row):24s} steps={len(row['steps'])} planner_calls={row['planner_calls']} "

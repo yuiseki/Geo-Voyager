@@ -119,12 +119,13 @@ def parse_spec(spec: str) -> dict:
     return parsed
 
 
-def run_one(spec: str, names, directory: Path, embedding: EmbeddingClient) -> dict:
+def run_one(spec: str, names, directory: Path, embedding: EmbeddingClient, shared: Path | None = None) -> dict:
     options = parse_spec(spec)
     goal = next(goal for goal in GOALS if goal.id == options['goal_id'])
     directory.mkdir(parents=True, exist_ok=False)
-    (directory / 'skill_library').mkdir()
-    library = SkillLibrary(directory / 'skill_library')
+    if shared is None:
+        (directory / 'skill_library').mkdir()
+    library = SkillLibrary(shared if shared is not None else directory / 'skill_library')
     llm = logged_llm(directory)
     critic = Critic(llm)
     repairer = SkillCandidateRepairer(llm)
@@ -164,14 +165,21 @@ def run_one(spec: str, names, directory: Path, embedding: EmbeddingClient) -> di
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('--out', required=True)
+    parser.add_argument('--library', help='one Skill library for all runs, carried from Goal to Goal. Made from the '
+                                          "repository's seed Skills when it does not exist yet")
     parser.add_argument('specs', nargs='+')
     args = parser.parse_args()
     out = Path(args.out).expanduser()
     out.mkdir(parents=True, exist_ok=True)
+    shared = Path(args.library).expanduser() if args.library else None
+    if shared is not None and not shared.exists():
+        import shutil
+        shutil.copytree(Path(__file__).resolve().parents[1] / 'skill_library', shared,
+                        ignore=shutil.ignore_patterns('embedding.json'))
     embedding = EmbeddingClient(os.environ['GEO_VOYAGER_EMBEDDING_BASE_URL'], os.environ['GEO_VOYAGER_EMBEDDING_MODEL'])
     with benchmark_environment() as names:
         for number, spec in enumerate(args.specs, start=1):
-            row = run_one(spec, names, out / f'{number:02d}_{spec.replace(":", "_").replace("=", "")}', embedding)
+            row = run_one(spec, names, out / f'{number:02d}_{spec.replace(":", "_").replace("=", "")}', embedding, shared)
             with (out / 'results.jsonl').open('a') as file:
                 file.write(json.dumps(row, ensure_ascii=False) + '\n')
             print(spec, '| stop', row['stop_reason'], '| steps', len(row['steps']), '| goal critic', row['critique']['success'],
