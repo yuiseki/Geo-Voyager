@@ -440,3 +440,37 @@ def test_one_earlier_observation_may_be_read_as_previous_observations_0():
     client = Mock(); client.generate.return_value = _reply('import json\n\n\ndef count_of(previous_observations):\n    \"\"\"Count.\"\"\"\n    return json.loads(previous_observations[0])["count"]')
     SkillCandidateGenerator(client).generate(one)
     assert client.generate.call_count == 1
+
+
+# ---- the harness is explained first: the life of a function, how values reach it, and an example
+
+def _prompt_for(intent, skills=()):
+    client = Mock(); client.generate.return_value = VALID
+    SkillCandidateGenerator(client).generate(intent, skills)
+    return client.generate.call_args.args[0]
+
+
+def test_the_prompt_opens_with_how_the_environment_works():
+    prompt = _prompt_for(RESOLVED)
+    head = prompt[:prompt.index('利用可能な登録済み Service')]
+    assert head.startswith('この環境の仕組み')
+    for part in ('Skill として保存', '後の別の Intent', '引数を変えて呼', '既定値', 'この Intent では intent_target だけ', '関数名や関数の中に書き込まない'):
+        assert part in head, part
+
+
+def test_the_environment_says_which_runtime_values_this_intent_has():
+    assert 'この Intent では intent_target だけ' in _prompt_for(RESOLVED)
+    assert 'この Intent では dataset_id だけ' in _prompt_for(Intent('人口が最も多い区', ('yuiseki/jp-admin-2026-09',)))
+    assert '値を何も渡さない' in _prompt_for(Intent('cuisine の値を並べる', service_ids=('taginfo',)))
+
+
+def test_the_saved_skills_come_after_the_explanation_and_before_the_services():
+    from geo_voyager.skill_function import parse_skill
+    skill = parse_skill('def count_tag_in_area(intent_target, key="amenity", value="cafe"):\n    """Count."""\n    return 1')
+    prompt = _prompt_for(RESOLVED, [skill])
+    assert prompt.index('この環境の仕組み') < prompt.index('# Skill: count_tag_in_area') < prompt.index('利用可能な登録済み Service')
+
+
+def test_tag_discovery_does_not_forbid_writing_the_condition_the_intent_gives_as_a_default():
+    prompt = _prompt_for(Intent('cuisine キーの値を並べる', service_ids=('taginfo',)))
+    assert 'Intent が条件を明示しているときは、その値を引数の既定値に書いてよい' in prompt

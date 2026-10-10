@@ -70,6 +70,37 @@ def skills_section(skills: list[SkillFunction] | tuple = ()) -> str:
             '名前で呼べます。\n```python\n' + listed + '\n```\n\n')
 
 
+def harness_section(intent: Intent) -> str:
+    """What the environment does with the function, shown first. A probe of the local model found that it knew how
+    its function is called and that a shown Skill can be called by name, but not that its function is saved and
+    called again by later Intents, nor how conditions reach a function (docs/harness_understanding.md)."""
+    runtime = ([*(['dataset_id'] if intent.dataset_ids else []), *(['intent_target'] if intent.target is not None else []),
+                *(['previous_observations', 'intent_text'] if intent.previous_observations else [])])
+    passed = ('実行環境が引数として渡すのは、この Intent では ' + '、'.join(runtime) + ' だけ。それ以外の引数には既定値を付ける。'
+              if runtime else '実行環境はこの Intent では値を何も渡さない。引数には全て既定値を付ける。')
+    if intent.target is not None:
+        example = ('  def count_tag_in_area(intent_target, key="amenity", value="cafe"):\n'
+                   '  なら、後の Intent「新宿区のホテルの数」では、次の関数だけを書けばよい:\n'
+                   '  def count_hotels_in_area(intent_target, key="tourism", value="hotel"):\n'
+                   '      """対象の区域の tourism=hotel の地物数を返す。"""\n'
+                   '      return count_tag_in_area(intent_target, key=key, value=value)\n')
+    else:
+        example = ('  def tag_usage_count(key="cuisine", value="ramen"):\n'
+                   '  なら、後の Intent「cuisine=sushi の使用数」では、次の関数だけを書けばよい:\n'
+                   '  def sushi_usage_count(key="cuisine", value="sushi"):\n'
+                   '      """cuisine=sushi の使用数を返す。"""\n'
+                   '      return tag_usage_count(key=key, value=value)\n')
+    return ('この環境の仕組み（最初に読む）:\n'
+            '- Intent ごとに、Python の関数を 1 つ書く。実行環境がその関数を呼び、戻り値を JSON で出力する。\n'
+            '- 実行が成功し、Intent に答えたと判定されると、その関数は関数名のまま Skill として保存される。'
+            '後の別の Intent では、近い Skill が「保存済みの関数」として見せられ、新しい関数の中から名前で、引数を変えて呼ばれる。'
+            'つまり、いま書く関数は、後で部品として別の引数で呼ばれる。\n'
+            f'- {passed}\n'
+            '- 条件（タグ、件数、移動手段など）は既定値つきの引数で受け取り、既定値に今回の値を書く。'
+            '後の Intent の関数は、その引数に別の値を渡して呼ぶ。対象の名前や今回の条件を、関数名や関数の中に書き込まない。\n'
+            '- 例: 保存済みの Skill が\n' + example + '\n')
+
+
 def skill_rules(intent: Intent) -> str:
     """How to write the code, numbered as in Voyager's action prompt."""
     runtime = ([*(['dataset_id'] if intent.dataset_ids else []), *(['intent_target'] if intent.target is not None else []),
@@ -173,7 +204,7 @@ class SkillCandidateGenerator:
             '返答の JSON は json.loads で解析する。サービス固有のリクエストは Intent に応じて生成する。\n'
             'Service へのアクセスも call_service のみ使う。任意 URL や直接 HTTP は使わない。\n'
             'タグ探索の要求では辞書サービスから実行時にキー・値を調べ、得た結果を後続検索に使う。'
-            'キー・値をコードに固定しない。返された data の key/value を変数として使う。'
+            'キー・値をコードに固定しない。返された data の key/value を変数として使う（Intent が条件を明示しているときは、その値を引数の既定値に書いてよい）。'
             '辞書が空なら失敗させ、既知のタグへ fallback しない。\n'
             'コードは短くする。複雑な三重引用符は避け、クエリ文字列の引用符を正しく閉じる。\n'
             f'Intent の Service ids: {", ".join(intent.service_ids)}\n'
@@ -286,7 +317,7 @@ class SkillCandidateGenerator:
                            'その実測値を用いて Intent の集計・選択を実行する。')
             def generate_once(extra: str = '') -> SkillCandidate:
                 return _parse_candidate(self.llm_client.generate(
-                skills_section(skills) + service_contract + prompt + extra, temperature=0.2, enable_thinking=True,
+                harness_section(intent) + skills_section(skills) + service_contract + prompt + extra, temperature=0.2, enable_thinking=True,
                 max_tokens=3072, reasoning_budget_tokens=1024, assistant_prefix="説明:\n",
                 system_prompt=(
                     'You are a precise Python programmer. Return exactly one description, a short plan and one Python function '
@@ -305,7 +336,7 @@ class SkillCandidateGenerator:
             ))
             return self._keep_the_contract(intent, generate_once, shown)
         return self._keep_the_contract(
-            intent, lambda extra='': _parse_candidate(self.llm_client.generate(skills_section(skills) + service_contract + prompt + extra)), shown)
+            intent, lambda extra='': _parse_candidate(self.llm_client.generate(harness_section(intent) + skills_section(skills) + service_contract + prompt + extra)), shown)
 
     @staticmethod
     def _keep_the_contract(intent: Intent, generate_once, shown: tuple[str, ...] = ()) -> SkillCandidate:
