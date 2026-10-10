@@ -1,0 +1,29 @@
+22 runs
+cafe_shibuya                 correct                  steps=4 planner_calls=5  303.5s skills_called=6, skills_learned=2
+ramen_shinjuku               correct                  steps=2 planner_calls=4  124.1s planner_refused:api_detail=1, skills_called=4, skills_called_from_an_earlier_goal=2
+hospital_minato              correct                  steps=2 planner_calls=3   98.5s skills_called=4, skills_called_from_an_earlier_goal=2, skills_learned=1
+hotel_taito                  correct                  steps=2 planner_calls=3  111.0s skills_called=4, skills_called_from_an_earlier_goal=2, skills_learned=1
+library_setagaya             correct                  steps=2 planner_calls=3  111.7s skills_called=5, skills_called_from_an_earlier_goal=3
+cafe_vs_restaurant_shibuya   correct                  steps=2 planner_calls=3  104.4s skills_called=4, skills_called_from_an_earlier_goal=2, skills_learned=2
+cafe_shibuya_vs_shinjuku     stopped:max_steps        steps=8 planner_calls=9  608.7s planner_refused:api_detail=1, skills_called=4, skills_learned=1
+tag_sushi_count              correct                  steps=1 planner_calls=3   62.5s planner_refused:target_not_entity=1, skills_called=1
+tag_top3_cuisine             correct                  steps=1 planner_calls=2   37.2s skills_learned=1
+tag_ramen_vs_sushi           correct                  steps=1 planner_calls=3   83.8s planner_refused:target_not_entity=1, skills_learned=1
+nom_shibuya_relation         correct                  steps=1 planner_calls=2   39.0s skills_called=1
+nom_setagaya_south           correct                  steps=1 planner_calls=2   46.2s skills_called=1, skills_learned=1
+nom_tokyo_tower              correct                  steps=1 planner_calls=2   49.3s skills_called=2, skills_called_from_an_earlier_goal=1, skills_learned=1
+route_auto_km                correct                  steps=1 planner_calls=2   35.2s skills_called=1, skills_learned=1
+route_walk_minutes           correct                  steps=4 planner_calls=6  249.4s planner_refused:other=1, skills_learned=1
+sparql_ward_count            correct                  steps=2 planner_calls=4  168.3s planner_refused:target_not_entity=1, skills_learned=1
+sparql_min_relation_ward     correct                  steps=2 planner_calls=4  127.8s final_critic_failure=1, skills_called=1, skills_called_from_an_earlier_goal=1, skills_learned=2
+sparql_four_char_wards       correct                  steps=3 planner_calls=6  189.0s final_critic_failure=1, planner_refused:target_not_entity=1, skills_called=2, skills_called_from_an_earlier_goal=2, skills_learned=2
+ward_pop_max                 correct                  steps=2 planner_calls=5  174.0s final_critic_failure=1, planner_refused:target_not_entity=1, skills_learned=2
+ward_pop_total               correct                  steps=3 planner_calls=5  213.6s planner_refused:target_not_entity=1, skills_called=2, skills_called_from_an_earlier_goal=1, skills_learned=3
+stations_count               correct                  steps=2 planner_calls=3  101.4s skills_called=2, skills_learned=1
+stations_northmost           correct                  steps=2 planner_calls=3  309.4s skills_learned=1
+outcomes: {'correct': 21, 'stopped:max_steps': 1}
+checks fired: {'final_critic_failure': 3, 'planner_refused:api_detail': 2, 'planner_refused:other': 1, 'planner_refused:target_not_entity': 6, 'skills_called': 44, 'skills_called_from_an_earlier_goal': 16, 'skills_learned': 25}
+docs/evidence/adaptive_q38_r7/results.jsonl
+ calls 44 seed 28 learned 25
+  {'get_relation_id': 13, 'count_tag_in_area': 10, 'get_ward_label_and_relation_id': 5, 'verify_area_and_count_tag': 5, 'get_all_wards_with_relation_ids': 4, 'count_station_records': 2, 'verify_area_and_count_osm_features': 1, 'tag_usage_count': 1, 'get_nominatim_south_latitude': 1, 'route_summary': 1, 'top_areas_by_population': 1}
+  seed versions bumped: []
