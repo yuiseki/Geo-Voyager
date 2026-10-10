@@ -58,7 +58,7 @@ class IntentExecutor:
                 intent, candidate, observations, critique, tuple(candidate_attempts), attempts)
         called = tuple(linked_skills(candidate.code, self.skill_library))
         learned, note = None, None
-        code = new_skill_code(candidate.code) if critique.success else None
+        code = new_skill_code(candidate.code, candidate.description) if critique.success else None
         if code is not None:
             try:
                 version = self.skill_library.add(code)

@@ -11,6 +11,7 @@ import re
 
 from .skill_function import parse_skill
 
+TRIPLE_QUOTE = '"' * 3
 RUNTIME_NAMES = ('intent_target', 'previous_observations', 'dataset_id', 'intent_text')
 
 
@@ -24,8 +25,11 @@ def _functions(tree: ast.Module) -> list[ast.FunctionDef]:
     return [node for node in tree.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))]
 
 
-def new_skill_code(code: str) -> str | None:
-    """The new Skill in a candidate: its imports and its one function. None when it defines no function."""
+def new_skill_code(code: str, description: str = '') -> str | None:
+    """The new Skill in a candidate: its imports and its one function. None when it defines no function.
+
+    A local model often leaves out the docstring. The candidate's own description (its 説明) then becomes it.
+    """
     try:
         tree = ast.parse(code)
     except SyntaxError:
@@ -34,7 +38,15 @@ def new_skill_code(code: str) -> str | None:
     if len(functions) != 1:
         return None
     imports = [ast.get_source_segment(code, node) for node in tree.body if isinstance(node, (ast.Import, ast.ImportFrom))]
-    return '\n'.join(imports) + ('\n\n\n' if imports else '') + ast.get_source_segment(code, functions[0])
+    function = functions[0]
+    source = ast.get_source_segment(code, function)
+    if ast.get_docstring(function) is None and description.strip():
+        lines = source.splitlines()
+        header = function.body[0].lineno - function.lineno          # the lines of the signature
+        indent = ' ' * function.body[0].col_offset
+        text = ' '.join(description.split()).replace(TRIPLE_QUOTE, "'''")
+        source = '\n'.join(lines[:header] + [indent + TRIPLE_QUOTE + text + TRIPLE_QUOTE] + lines[header:])
+    return '\n'.join(imports) + ('\n\n\n' if imports else '') + source
 
 
 def _returns_a_value(function: ast.FunctionDef) -> bool:
@@ -66,7 +78,7 @@ def skill_shape_problems(code: str, shown: tuple[str, ...] = ()) -> list[str]:
             return []
         return ['関数が無い: 処理を名前と引数と docstring を持つ関数 1 つにまとめるか、見せた Skill を呼ぶ']
     try:
-        parse_skill(new_skill_code(code) or '')
+        parse_skill(new_skill_code(code, description='(the candidate description)') or '')
     except ValueError as error:
         return [str(error)]
     function = functions[0]

@@ -198,3 +198,8 @@ def test_a_step_that_asks_for_a_comparison_wants_the_answer_itself():
     prompt = _step_prompt('cafe と restaurant の件数を比較し、どちらが多いかを示す')
     assert '比較の勝者' in prompt and '自分で比較・計算して答えを導かない' in prompt
     assert '最終判定' not in prompt
+
+
+def test_a_step_that_only_lists_things_is_not_told_to_want_a_selection():
+    prompt = _step_prompt('台東区に境界が接する区の日本語名を求める')
+    assert '比較の勝者' not in prompt

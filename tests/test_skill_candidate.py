@@ -32,7 +32,6 @@ def test_a_good_candidate_has_no_problem():
 
 @pytest.mark.parametrize('code,problem', [
     ('def a():\n    """A."""\n\ndef b():\n    """B."""\n', 'more than one function'),
-    ('def a():\n    return 1\n', 'docstring'),
     ('def a():\n    """A."""\n    return intent_target["id_value"]\n', 'reads intent_target'),
     ('def a():\n    """A."""\n    return len(previous_observations)\n', 'reads previous_observations'),
 ])
@@ -95,3 +94,22 @@ def test_a_copy_that_differs_only_in_comments_and_blank_lines_is_still_a_copy(tm
     library.add('def a(x):\n    """A."""\n    return x + 1\n')
     copied = 'def a(x):\n    """A."""\n\n    # add one\n    return x + 1\nprint(a(1))'
     assert drop_copied_skills(copied, library) == 'print(a(1))'
+
+
+def test_a_function_without_a_docstring_takes_the_candidates_description():
+    code = 'import json\n\n\ndef a(x):\n    return x\n\n\nprint(a(1))'
+    assert skill_shape_problems(code) == []                         # the description fills the docstring
+    saved = new_skill_code(code, description='Return x unchanged.')
+    assert '"""Return x unchanged."""' in saved and saved.startswith('import json')
+    from geo_voyager.skill_function import parse_skill
+    assert parse_skill(saved).description == 'Return x unchanged.'
+
+
+def test_a_function_with_a_docstring_keeps_it():
+    code = 'def a(x):\n    """Own words."""\n    return x\n\nprint(a(1))'
+    assert parse_skill_description(new_skill_code(code, description='other')) == 'Own words.'
+
+
+def parse_skill_description(code):
+    from geo_voyager.skill_function import parse_skill
+    return parse_skill(code).description

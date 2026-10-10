@@ -1,3 +1,4 @@
+import re
 import json
 
 from .critique import Critique
@@ -8,6 +9,9 @@ from .target_identity import identity_conflict, resolve_target
 
 
 THINKING_MAX_TOKENS = 4096
+# Only a step whose Intent asks for a comparison, a selection or a total is told to want that answer itself. Told
+# to every step, the model also failed a step that only listed things (the wards touching Taito).
+ASKS_FOR_AN_ANSWER = re.compile(r'比較|どちら|多い|少ない|最大|最小|最も|上位|合計|選ぶ|特定')
 THINKING_BUDGET_TOKENS = 1024
 
 
@@ -68,7 +72,7 @@ class Critic:
                        'Observation のどれかに値として実際に出力されていなければならない。複数の Observation の数値から自分で比較・計算して答えを導かない。'
                        '答えの材料だけが別々の Observation にあり、答えそのものを出力した Observation が無いときは失敗とし、'
                        '理由に、どの材料からどんな答えを出す作業が足りないかを書く。')
-        else:
+        elif ASKS_FOR_AN_ANSWER.search(intent.text):
             prompt += ('\nIntent が比較・選択・集計（比較の勝者、最大・最小、一覧からの選択、合計など）を求めるときは、その答えそのものが'
                        'Observation に値として出力されていなければならない。Observation の数値から自分で比較・計算して答えを導かない。'
                        '材料の数値だけで答えが出力されていなければ失敗とする。')
