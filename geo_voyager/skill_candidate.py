@@ -227,6 +227,21 @@ def only_calls_a_saved_skill(code: str, library) -> str | None:
     return None
 
 
+def called_service_ids(code: str) -> set[str]:
+    """The service id of every call_service in the code whose service is written as a string, whatever its path."""
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return set()
+    ids = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == 'call_service':
+            service = node.args[0] if node.args else {k.arg: k.value for k in node.keywords}.get('service_id')
+            if isinstance(service, ast.Constant):
+                ids.add(service.value)
+    return ids
+
+
 def service_calls(code: str) -> set[tuple[str, str]]:
     """The (service id, path) of every call_service in the code whose service and path are written as strings."""
     try:

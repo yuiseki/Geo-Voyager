@@ -2,7 +2,7 @@
 from .id_type_literals import id_type_comparisons
 from .intent import Intent
 from .local_aggregation_contract import local_aggregation_violations
-from .skill_candidate import entry_problems, main_function_name, rewritten_skills, service_calls, skill_shape_problems, unpassed_runtime_reads
+from .skill_candidate import entry_problems, main_function_name, rewritten_skills, service_calls, skill_shape_problems, unpassed_runtime_reads, called_service_ids
 from .place_names import place_words_in
 from .skill_function import SkillFunction
 from .llama_client import LlamaClient
@@ -137,6 +137,12 @@ def contract_problems(intent: Intent, code: str, shown: tuple[str, ...] = ()) ->
         shape = shape + [f'関数 {name} が {", ".join(unpassed)} を使っているが、この Intent では実行環境はそれを渡さず None になる。'
                          f'この Intent で渡されるのは {", ".join(passed_runtime_values(intent)) or "何も無い"} だけなので、'
                          '必要な値はそこから取り出す']
+    undeclared = sorted(called_service_ids(code) - set(intent.service_ids))
+    if undeclared:
+        allowed = ('Service ' + '、'.join(intent.service_ids) if intent.service_ids
+                   else 'Dataset ' + '、'.join(intent.dataset_ids) if intent.dataset_ids else '前段の Observation')
+        shape = shape + [f'この Intent に無い Service（{", ".join(undeclared)}）を呼んでいる。この Intent が使えるのは {allowed} だけなので、'
+                         'そこから値を得る']
     if shape:
         problems.append(('skill shape: ' + '; '.join(shape), _shape_note(shape)))
     if intent.target is not None and intent.target.resolved:

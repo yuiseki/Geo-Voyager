@@ -519,7 +519,8 @@ def test_code_that_uses_other_services_than_the_shown_skill_is_not_pointed_out()
     other = ('def count(intent_target):\n    """Count."""\n'
              '    return call_service("overpass", path="/api/interpreter", body="x")')
     client = Mock(); client.generate.return_value = _reply(other)
-    SkillCandidateGenerator(client).generate(NAME_ONLY, [parse_skill(LOOKUP_SKILL)])
+    both = Intent('渋谷区の relation ID', service_ids=('nominatim', 'overpass'), target=TargetRef('渋谷区'))
+    SkillCandidateGenerator(client).generate(both, [parse_skill(LOOKUP_SKILL)])
     assert client.generate.call_count == 1
 
 
@@ -546,3 +547,15 @@ def test_contract_refuses_a_local_function_that_reads_the_target_it_is_not_given
             '    return [r for r in rows if r.get(intent_target["id_type"])]\n')
     problems = contract_problems(intent, code)
     assert any('intent_target' in found and 'None' in note for found, note in problems)
+
+
+def test_contract_refuses_a_service_the_intent_did_not_declare():
+    # Round 8: a jp-admin dataset Intent summed OSM population tags from Overpass, and the total was wrong.
+    from geo_voyager.skill_candidate_generator import contract_problems
+
+    code = ('import json\nfrom geo_voyager.control_primitives import call_service\n\n'
+            'def ward_populations(dataset_id, endpoint="/api/interpreter"):\n    """人口。"""\n'
+            '    return json.loads(call_service("overpass", path=endpoint, params={"data": "x"}))\n')
+    problems = contract_problems(Intent('23区の人口', ('yuiseki/jp-admin-2026-09',)), code)
+    assert any('overpass' in found for found, _ in problems)
+    assert contract_problems(Intent('23区の人口', service_ids=('overpass',)), code.replace('dataset_id, ', '')) == []

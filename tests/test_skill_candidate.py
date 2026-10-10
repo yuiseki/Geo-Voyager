@@ -163,3 +163,12 @@ def test_an_unread_or_defaulted_runtime_parameter_is_not_a_problem():
     defaulted = 'def f(previous_observations, intent_target=None):\n    """f"""\n    return intent_target or len(previous_observations)\n'
     assert unpassed_runtime_reads(unread, ('previous_observations',)) == []
     assert unpassed_runtime_reads(defaulted, ('previous_observations',)) == []
+
+
+def test_called_service_ids_include_calls_whose_path_is_a_variable():
+    from geo_voyager.skill_candidate import called_service_ids
+
+    code = ('from geo_voyager.control_primitives import call_service\n\n'
+            'def f(dataset_id, endpoint="/api/interpreter"):\n    """f"""\n'
+            '    return call_service("overpass", path=endpoint, params={})\n')
+    assert called_service_ids(code) == {'overpass'}
