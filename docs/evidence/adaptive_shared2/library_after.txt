@@ -1,0 +1,1044 @@
+## calculate_minutes_from_seconds@v1
+from geo_voyager.control_primitives import call_service
+import json
+
+
+def calculate_minutes_from_seconds(intent_target=None, previous_observations=None, intent_text=""):
+    """Calculate minutes by dividing seconds from previous observations by 60."""
+    if not previous_observations:
+        raise ValueError("No previous observations provided")
+    
+    # Find the observation containing time_seconds
+    decoded = [json.loads(text) for text in previous_observations]
+    time_obs = None
+    for obs in decoded:
+        if "time_seconds" in obs:
+            time_obs = obs
+            break
+            
+    if time_obs is None:
+        raise ValueError("No time_seconds found in previous observations")
+        
+    time_seconds = time_obs["time_seconds"]
+    minutes = time_seconds / 60.0
+    
+    return {"minutes": minutes}
+
+## calculate_route_distance@v1
+from geo_voyager.control_primitives import call_service
+import json
+
+
+def calculate_route_distance(start_lat=35.6580, start_lon=139.7016, end_lat=35.6896, end_lon=139.7006):
+    """Calculate the driving distance in kilometers between two coordinates."""
+    body = json.dumps({
+        "locations": [
+            {"lat": start_lat, "lon": start_lon},
+            {"lat": end_lat, "lon": end_lon}
+        ],
+        "costing": "auto",
+        "units": "kilometers"
+    })
+    response = call_service("valhalla", path="/route", body=body, content_type="application/json")
+    data = json.loads(response)
+    trip = data.get("trip")
+    if not trip:
+        raise ValueError("No trip found in response")
+    length = trip.get("summary", {}).get("length")
+    if length is None:
+        raise ValueError("Length not found in trip summary")
+    return {"distance_km": length}
+
+## calculate_walking_time@v1
+from geo_voyager.control_primitives import call_service
+import json
+
+
+def calculate_walking_time(start_lat=35.6580, start_lon=139.7016, end_lat=35.6896, end_lon=139.7006):
+    """Calculate walking time in seconds between two coordinates."""
+    body = json.dumps({
+        "locations": [
+            {"lat": start_lat, "lon": start_lon},
+            {"lat": end_lat, "lon": end_lon}
+        ],
+        "costing": "pedestrian",
+        "units": "kilometers"
+    })
+    response = call_service("valhalla", path="/route", body=body, content_type="application/json")
+    data = json.loads(response)
+    trip = data.get("trip")
+    if not trip:
+        raise ValueError("No trip found in response")
+    time_seconds = trip.get("summary", {}).get("time")
+    if time_seconds is None:
+        raise ValueError("Time not found in trip summary")
+    return {"time_seconds": time_seconds}
+
+## compare_amenities_in_target@v1
+import json
+from geo_voyager.control_primitives import call_service
+
+
+def compare_amenities_in_target(intent_target, previous_observations=None, intent_text="", cafe_key="amenity", cafe_value="cafe", restaurant_key="amenity", restaurant_value="restaurant"):
+    """Compare counts of cafe and restaurant in the runtime target area."""
+    if previous_observations is None:
+        previous_observations = []
+    
+    results = []
+    for text in previous_observations:
+        if text:
+            try:
+                value_obj = json.loads(text)
+                if isinstance(value_obj, list):
+                    results.extend(value_obj)
+                else:
+                    results.append(value_obj)
+            except json.JSONDecodeError:
+                pass
+
+    cafe_data = None
+    restaurant_data = None
+    
+    for r in results:
+        if isinstance(r, dict) and r.get("tag") == f"{cafe_key}={cafe_value}":
+            cafe_data = r
+        elif isinstance(r, dict) and r.get("tag") == f"{restaurant_key}={restaurant_value}":
+            restaurant_data = r
+            
+    if cafe_data is None or restaurant_data is None:
+        raise ValueError("Missing cafe or restaurant data in previous observations")
+        
+    cafe_count = cafe_data["count"]
+    restaurant_count = restaurant_data["count"]
+    
+    if cafe_count >= restaurant_count:
+        return {"name": cafe_data["name"], "relation_id": cafe_data["relation_id"], "tag": cafe_data["tag"], "count": cafe_count, "winner": "cafe"}
+    else:
+        return {"name": restaurant_data["name"], "relation_id": restaurant_data["relation_id"], "tag": restaurant_data["tag"], "count": restaurant_count, "winner": "restaurant"}
+
+## compare_cafe_shibuya_shinjuku@v1
+import json
+from geo_voyager.control_primitives import call_service
+
+
+def compare_cafe_shibuya_shinjuku(intent_target, previous_observations=None, intent_text="", key="amenity", value="cafe"):
+    """Compare cafe counts in Shibuya and Shinjuku."""
+    if previous_observations is None:
+        previous_observations = []
+    
+    shibuya_count = None
+    shinjuku_count = None
+    
+    for text in previous_observations:
+        if text:
+            try:
+                obj = json.loads(text)
+                if isinstance(obj, dict) and obj.get("tag") == f"{key}={value}":
+                    name = obj.get("name", "")
+                    if name == "Shibuya":
+                        shibuya_count = obj["count"]
+                    elif name == "Shinjuku":
+                        shinjuku_count = obj["count"]
+            except:
+                pass
+
+    if shibuya_count is None or shinjuku_count is None:
+        raise ValueError("Missing cafe count data for Shibuya or Shinjuku")
+        
+    if shibuya_count >= shinjuku_count:
+        return {"name": "Shibuya", "relation_id": None, "tag": f"{key}={value}", "count": shibuya_count, "winner": "Shibuya"}
+    else:
+        return {"name": "Shinjuku", "relation_id": None, "tag": f"{key}={value}", "count": shinjuku_count, "winner": "Shinjuku"}
+
+## compare_ramen_sushi_usage@v1
+from geo_voyager.control_primitives import call_service
+import json
+
+
+def compare_ramen_sushi_usage(intent_target=None, previous_observations=None, intent_text="", key="cuisine", ramen_value="ramen", sushi_value="sushi"):
+    """Compare usage counts of ramen and sushi."""
+    ramen_data = get_ramen_count(key=key, value=ramen_value)
+    sushi_data = get_sushi_tag_count(key=key, value=sushi_value)
+    
+    ramen_count = ramen_data["count"]
+    sushi_count = sushi_data["count"]
+    
+    if ramen_count > sushi_count:
+        winner = ramen_value
+    elif sushi_count > ramen_count:
+        winner = sushi_value
+    else:
+        winner = "tie"
+        
+    return {"winner": winner, "ramen_count": ramen_count, "sushi_count": sushi_count}
+
+## count_amenities_in_target@v1
+from geo_voyager.control_primitives import call_service
+import json
+
+
+def count_amenities_in_target(intent_target, previous_observations=None, intent_text="", cafe_key="amenity", cafe_value="cafe", restaurant_key="amenity", restaurant_value="restaurant"):
+    """Count OSM features with amenity=cafe and amenity=restaurant in the runtime target area."""
+    if previous_observations is None:
+        previous_observations = []
+    
+    candidates = []
+    for text in previous_observations:
+        if text:
+            try:
+                value_obj = json.loads(text)
+                if isinstance(value_obj, list):
+                    candidates.extend(value_obj)
+                else:
+                    candidates.append(value_obj)
+            except json.JSONDecodeError:
+                pass
+    
+    matches = [t for t in candidates if isinstance(t, dict) and str(t.get(intent_target["id_type"])) == str(intent_target["id_value"])]
+    if not matches:
+        raise ValueError("Target not found in previous observations")
+    
+    target = matches[0]
+    osm_id = int(target["relation_id"])
+    area_id = osm_id + 3600000000
+    
+    def count_features(key, value):
+        ql = f"[out:json][timeout:12];nwr[\"{key}\"=\"{value}\"](area:{area_id});out count;"
+        response = call_service("overpass", path="/api/interpreter", body=ql, content_type="text/plain")
+        data = json.loads(response)
+        if not data.get("elements"):
+            raise ValueError(f"No count result found for {key}={value}")
+        count_str = data["elements"][0].get("tags", {}).get("total")
+        if count_str is None:
+            raise ValueError(f"Count tag not found for {key}={value}")
+        return int(count_str)
+    
+    cafe_count = count_features(cafe_key, cafe_value)
+    restaurant_count = count_features(restaurant_key, restaurant_value)
+    
+    return [
+        {"name": target["name"], "relation_id": target["relation_id"], "tag": f"{cafe_key}={cafe_value}", "count": cafe_count},
+        {"name": target["name"], "relation_id": target["relation_id"], "tag": f"{restaurant_key}={restaurant_value}", "count": restaurant_count}
+    ]
+
+## count_amenity_cafe_in_target@v1
+from geo_voyager.control_primitives import call_service
+import json
+
+
+def count_amenity_cafe_in_target(intent_target, previous_observations=None, intent_text="", key="amenity", value="cafe"):
+    """Count OSM features with the given key=value in the runtime target area."""
+    if previous_observations is None:
+        previous_observations = []
+    
+    candidates = []
+    for text in previous_observations:
+        if text:
+            try:
+                value_obj = json.loads(text)
+                if isinstance(value_obj, list):
+                    candidates.extend(value_obj)
+                else:
+                    candidates.append(value_obj)
+            except json.JSONDecodeError:
+                pass
+    
+    matches = [t for t in candidates if isinstance(t, dict) and str(t.get(intent_target["id_type"])) == str(intent_target["id_value"])]
+    if not matches:
+        raise ValueError("Target not found in previous observations")
+    
+    target = matches[0]
+    osm_id = int(target["relation_id"])
+    area_id = osm_id + 3600000000
+    
+    # Verify area exists first using POST
+    verify_ql = f"[out:json];area({area_id});out ids;"
+    verify_response = call_service("overpass", path="/api/interpreter", body=verify_ql, content_type="text/plain")
+    verify_data = json.loads(verify_response)
+    if not verify_data.get("elements"):
+        raise ValueError(f"Area {area_id} not found")
+
+    # Use POST for count query
+    ql = f"[out:json][timeout:12];nwr[\"{key}\"=\"{value}\"](area:{area_id});out count;"
+    
+    response = call_service("overpass", path="/api/interpreter", body=ql, content_type="text/plain")
+    data = json.loads(response)
+    
+    if not data.get("elements"):
+        raise ValueError("No count result found")
+    
+    count_str = data["elements"][0].get("tags", {}).get("total")
+    if count_str is None:
+        raise ValueError("Count tag not found")
+    
+    count = int(count_str)
+    
+    return {"name": target["name"], "relation_id": target["relation_id"], "tag": f"{key}={value}", "count": count}
+
+## count_amenity_library_in_target@v1
+from geo_voyager.control_primitives import call_service
+import json
+
+
+def count_amenity_library_in_target(intent_target, previous_observations=None, intent_text=None):
+    """Count amenity=library features in the runtime target area."""
+    if previous_observations is None:
+        previous_observations = []
+    
+    candidates = []
+    for text in previous_observations:
+        try:
+            value = json.loads(text)
+            if isinstance(value, list):
+                candidates.extend(value)
+            else:
+                candidates.append(value)
+        except:
+            continue
+            
+    matches = [t for t in candidates if isinstance(t, dict) and str(t.get(intent_target["id_type"])) == str(intent_target["id_value"])]
+    if not matches:
+        raise ValueError("Target not found in previous observations")
+    
+    target = matches[0]
+    osm_id = int(target["relation_id"])
+    area_id = osm_id + 3600000000
+    
+    ql = f"[out:json][timeout:12];nwr[\"amenity\"=\"library\"](area:{area_id});out count;"
+    
+    response = call_service("overpass", path="/api/interpreter", params={"data": ql})
+    data = json.loads(response)
+    
+    if not data.get("elements") or len(data["elements"]) == 0:
+        raise ValueError("No count element found")
+        
+    total_str = data["elements"][0].get("tags", {}).get("total", "0")
+    count = int(total_str)
+    
+    return {
+        "name": target["name"],
+        "relation_id": target["relation_id"],
+        "tag": "amenity=library",
+        "count": count
+    }
+
+## count_cafe_in_shibuya@v1
+from geo_voyager.control_primitives import call_service
+import json
+
+
+def count_cafe_in_shibuya(intent_target, previous_observations=None, intent_text="", key="amenity", value="cafe"):
+    """Count OSM features with amenity=cafe in Shibuya ward."""
+    if previous_observations is None:
+        previous_observations = []
+    
+    target = None
+    for text in previous_observations:
+        if text:
+            try:
+                obj = json.loads(text)
+                if isinstance(obj, dict) and "shibuya" in obj:
+                    target = obj
+                    break
+            except:
+                pass
+    
+    if target is None:
+        raise ValueError("Target not found in previous observations")
+        
+    osm_id = int(target["shibuya"])
+    area_id = osm_id + 3600000000
+    
+    ql = f"[out:json][timeout:12];nwr[\"{key}\"=\"{value}\"](area:{area_id});out count;"
+    params = {"data": ql}
+    response = call_service("overpass", path="/api/interpreter", params=params)
+    data = json.loads(response)
+    
+    if not data.get("elements"):
+        raise ValueError("No count element found")
+        
+    count_str = data["elements"][0].get("tags", {}).get("total", "0")
+    count = int(count_str)
+    
+    return {"name": "Shibuya", "relation_id": target["shibuya"], "tag": f"{key}={value}", "count": count}
+
+## count_cafe_in_shinjuku@v1
+from geo_voyager.control_primitives import call_service
+import json
+
+
+def count_cafe_in_shinjuku(intent_target, previous_observations=None, intent_text="", key="amenity", value="cafe"):
+    """Count OSM features with amenity=cafe in Shinjuku ward."""
+    if previous_observations is None:
+        previous_observations = []
+    
+    target = None
+    for text in previous_observations:
+        if text:
+            try:
+                obj = json.loads(text)
+                if isinstance(obj, dict) and "shinjuku" in obj:
+                    target = obj
+                    break
+            except:
+                pass
+    
+    if target is None:
+        raise ValueError("Target not found in previous observations")
+        
+    osm_id = int(target["shinjuku"])
+    area_id = osm_id + 3600000000
+    
+    ql = f"[out:json][timeout:12];nwr[\"{key}\"=\"{value}\"](area:{area_id});out count;"
+    params = {"data": ql}
+    response = call_service("overpass", path="/api/interpreter", params=params)
+    data = json.loads(response)
+    
+    if not data.get("elements"):
+        raise ValueError("No count element found")
+        
+    count_str = data["elements"][0].get("tags", {}).get("total", "0")
+    count = int(count_str)
+    
+    return {"name": "Shinjuku", "relation_id": target["shinjuku"], "tag": f"{key}={value}", "count": count}
+
+## count_ekidata_jp_records@v1
+from geo_voyager.control_primitives import connect_duckdb, load_stations
+
+
+def count_ekidata_jp_records(dataset_id, table_name="stations"):
+    """Get the total count of all records in the ekidata-jp station dataset."""
+    with connect_duckdb() as connection:
+        df = load_stations(dataset_id, connection)
+        count = df.aggregate("count(*) AS station_count").fetchone()[0]
+    return {"count": count, "description": "total station records in ekidata-jp"}
+
+## count_hospitals_in_area@v1
+from geo_voyager.control_primitives import call_service
+import json
+
+
+def count_hospitals_in_area(intent_target, previous_observations=None, intent_text=None):
+    """Count amenity=hospital features in the runtime-specified target area."""
+    if previous_observations is None:
+        previous_observations = []
+    
+    candidates = []
+    for text in previous_observations:
+        value = json.loads(text)
+        candidates += value if isinstance(value, list) else [value]
+    
+    matches = [t for t in candidates if isinstance(t, dict) and str(t.get(intent_target["id_type"])) == intent_target["id_value"]]
+    if not matches:
+        raise ValueError("Target not found in previous observations")
+    
+    target = matches[0]
+    osm_id = int(target["relation_id"])
+    area_id = osm_id + 3600000000
+    
+    ql = f"[out:json][timeout:12];nwr[\"amenity\"=\"hospital\"](area:{area_id});out count;"
+    
+    response = call_service("overpass", path="/api/interpreter", body=ql, content_type="text/plain")
+    data = json.loads(response)
+    
+    if not data.get("elements"):
+        raise ValueError("No elements found in response")
+    
+    count = int(data["elements"][0]["tags"]["total"])
+    
+    return {
+        "name": target["name"],
+        "relation_id": target["relation_id"],
+        "tag": "amenity=hospital",
+        "count": count
+    }
+
+## count_hotels_in_taito@v1
+from geo_voyager.control_primitives import call_service
+import json
+
+
+def count_hotels_in_taito(intent_target, previous_observations=None, intent_text="", key="tourism", value="hotel"):
+    """Count OSM features with tourism=hotel in the runtime target area."""
+    if previous_observations is None:
+        previous_observations = []
+    
+    candidates = []
+    for text in previous_observations:
+        if text:
+            try:
+                value_obj = json.loads(text)
+                if isinstance(value_obj, list):
+                    candidates.extend(value_obj)
+                else:
+                    candidates.append(value_obj)
+            except json.JSONDecodeError:
+                pass
+    
+    matches = [t for t in candidates if isinstance(t, dict) and str(t.get(intent_target["id_type"])) == str(intent_target["id_value"])]
+    if not matches:
+        raise ValueError("Target not found in previous observations")
+    
+    target = matches[0]
+    osm_id = int(target["relation_id"])
+    area_id = osm_id + 3600000000
+    
+    verify_ql = f"[out:json];area({area_id});out ids;"
+    verify_response = call_service("overpass", path="/api/interpreter", body=verify_ql, content_type="text/plain")
+    verify_data = json.loads(verify_response)
+    if not verify_data.get("elements"):
+        raise ValueError(f"Area {area_id} not found")
+
+    ql = f"[out:json][timeout:12];nwr[\"{key}\"=\"{value}\"](area:{area_id});out count;"
+    response = call_service("overpass", path="/api/interpreter", body=ql, content_type="text/plain")
+    data = json.loads(response)
+    
+    if not data.get("elements"):
+        raise ValueError("No count result found")
+    
+    count_str = data["elements"][0].get("tags", {}).get("total")
+    if count_str is None:
+        raise ValueError("Count tag not found")
+    
+    count = int(count_str)
+    
+    return {"name": target["name"], "relation_id": target["relation_id"], "tag": f"{key}={value}", "count": count}
+
+## count_ramen_in_target@v1
+from geo_voyager.control_primitives import call_service
+import json
+
+
+def count_ramen_in_target(intent_target, previous_observations=None, intent_text="", key="cuisine", value="ramen"):
+    """Count OSM features with cuisine=ramen in the runtime target area."""
+    if previous_observations is None:
+        previous_observations = []
+    
+    candidates = []
+    for text in previous_observations:
+        try:
+            value_obj = json.loads(text)
+            if isinstance(value_obj, list):
+                candidates.extend(value_obj)
+            else:
+                candidates.append(value_obj)
+        except:
+            continue
+            
+    target_id = intent_target["id_value"]
+    target_type = intent_target["id_type"]
+    
+    target = None
+    for item in candidates:
+        if isinstance(item, dict) and str(item.get(target_type)) == str(target_id):
+            target = item
+            break
+            
+    if target is None:
+        raise ValueError("Target not found in previous observations")
+        
+    osm_id = int(target["relation_id"])
+    area_id = osm_id + 3600000000
+
+    # Use GET with params for count query as per contract: "GET /api/interpreter is params of data on QL"
+    # The contract specifies POST for body, but 405 indicates POST is not allowed for this endpoint/method combination.
+    # Overpass API standardly supports GET with 'data' parameter.
+    
+    ql = f"[out:json][timeout:12];nwr[\"{key}\"=\"{value}\"](area:{area_id});out count;"
+    params = {"data": ql}
+    response = call_service("overpass", path="/api/interpreter", params=params)
+    data = json.loads(response)
+    
+    if not data.get("elements"):
+        raise ValueError("No count element found")
+        
+    count_str = data["elements"][0].get("tags", {}).get("total", "0")
+    count = int(count_str)
+    
+    return {"name": target["name"], "relation_id": target["relation_id"], "tag": f"{key}={value}", "count": count}
+
+## count_station_records@v1
+from geo_voyager.control_primitives import connect_duckdb, load_stations
+
+
+def count_station_records(dataset_id):
+    """Count every record of the station dataset, with no filtering by operating state and no merging of the same station."""
+    with connect_duckdb() as connection:
+        return load_stations(dataset_id, connection).aggregate("count(*) AS station_count").fetchone()[0]
+
+## count_tokyo_wards@v1
+from geo_voyager.control_primitives import call_service
+import json
+
+
+def count_tokyo_wards():
+    """Count the number of gs:Ward registered in Tokyo 23 wards."""
+    query = """
+    PREFIX gs: <https://yuiseki.net/geosparql/schema#>
+    
+    SELECT (COUNT(?ward) AS ?count) WHERE {
+      ?ward a gs:Ward .
+    }
+    """
+    response_text = call_service("yuisekin-geosparql", path="/geo/sparql", params={"query": query})
+    data = json.loads(response_text)
+    
+    count = data["results"]["bindings"][0]["count"]["value"]
+    return {"count": int(count)}
+
+## filter_wards_by_name_length@v1
+import json
+
+
+def filter_wards_by_name_length(previous_observations, min_length=4, max_length=4):
+    """Filter wards from previous observations by Japanese name length containing '区'."""
+    if not previous_observations:
+        raise ValueError("No previous observations provided")
+    
+    decoded = json.loads(previous_observations[0])
+    
+    if not isinstance(decoded, list):
+        raise TypeError("Expected a list in previous observations")
+    
+    if len(decoded) != 23:
+        raise ValueError(f"Expected 23 wards, got {len(decoded)}")
+    
+    count = 0
+    for ward in decoded:
+        name = ward.get("name")
+        if name is None:
+            raise KeyError("Ward object missing 'name' field")
+        if "区" in name and min_length <= len(name) <= max_length:
+            count += 1
+            
+    return {"count": count}
+
+## get_ramen_count@v1
+from geo_voyager.control_primitives import call_service
+import json
+
+
+def get_ramen_count(intent_target=None, previous_observations=None, intent_text="", key="cuisine", value="ramen"):
+    """Get the total usage count of cuisine=ramen in OSM."""
+    params = {"key": key, "value": value}
+    response = call_service("taginfo", path="/api/4/tag/stats", params=params)
+    data = json.loads(response)
+    
+    if not data.get("data"):
+        raise ValueError("No data found for cuisine=ramen")
+        
+    stats = data["data"][0]
+    all_stats = stats.get("all", [])
+    all_count = None
+    
+    if isinstance(all_stats, list):
+        for stat in all_stats:
+            if isinstance(stat, dict) and stat.get("type") == "all":
+                all_count = stat.get("count")
+                break
+    elif isinstance(all_stats, dict):
+        if all_stats.get("type") == "all":
+            all_count = all_stats.get("count")
+        elif "count" in all_stats:
+            all_count = all_stats.get("count")
+            
+    if all_count is None:
+        if "count" in stats:
+            all_count = stats.get("count")
+        else:
+            raise ValueError("Count for type 'all' not found")
+            
+    return {"key": key, "value": value, "count": all_count}
+
+## get_setagaya_relation_id@v1
+from geo_voyager.control_primitives import call_service
+
+
+def get_setagaya_relation_id(intent_target, name=None):
+    """Get the OSM relation ID for the runtime-specified ward."""
+    return get_ward_relation_id(intent_target, name=name)
+
+## get_setagaya_south_lat@v1
+from geo_voyager.control_primitives import call_service
+import json
+
+
+def get_setagaya_south_lat(intent_target, query="世田谷区"):
+    """Search Nominatim for the target area and return its southernmost latitude."""
+    params = {"q": query, "format": "jsonv2", "limit": "1"}
+    response = call_service("nominatim", path="/search", params=params)
+    data = json.loads(response)
+    if not data:
+        raise ValueError("No result found for query")
+    item = data[0]
+    bbox = item.get("boundingbox")
+    if not bbox:
+        raise ValueError("No boundingbox found")
+    south_lat = float(bbox[0])
+    osm_id = item.get("osm_id")
+    osm_type = item.get("osm_type")
+    if osm_type == "relation":
+        rel_id = osm_id
+    elif osm_type == "way":
+        rel_id = osm_id + 3600000000
+    else:
+        rel_id = osm_id
+    return {"name": item.get("name"), "relation_id": rel_id, "south_lat": south_lat}
+
+## get_shibuya_relation_id@v1
+from geo_voyager.control_primitives import call_service
+
+
+def get_shibuya_relation_id(intent_target, name=None):
+    """Get the OSM relation ID for the runtime-specified ward."""
+    return get_ward_relation_id(intent_target, name=name)
+
+## get_shinjuku_relation_id@v1
+from geo_voyager.control_primitives import call_service
+
+
+def get_shinjuku_relation_id(intent_target, name=None):
+    """Get the OSM relation ID for the runtime-specified ward."""
+    target_name = name if name else intent_target.get("name")
+    if not target_name:
+        raise ValueError("Target name is required")
+    
+    query = f"""
+    PREFIX gs: <https://yuiseki.net/geosparql/schema#>
+    PREFIX geo: <http://www.opengis.net/ont/geosparql#>
+    PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+    
+    SELECT ?label ?relation
+    WHERE {{
+      ?ward a gs:Ward .
+      ?ward rdfs:label ?label .
+      FILTER(LANG(?label) = "ja")
+      FILTER(STR(?label) = "{target_name}")
+      ?ward gs:osmRelation ?relation .
+    }}
+    ORDER BY ?label
+    """
+    
+    response = call_service("yuisekin-geosparql", path="/geo/sparql", params={"query": query})
+    import json
+    data = json.loads(response)
+    
+    bindings = data.get("results", {}).get("bindings", [])
+    if not bindings:
+        raise ValueError(f"No ward found with name {target_name}")
+    
+    row = bindings[0]
+    relation_uri = row["relation"]["value"]
+    relation_id = relation_uri.rsplit("/", 1)[-1]
+    
+    assert str(relation_id).isdigit(), f"Invalid relation ID: {relation_id}"
+    
+    return {"name": target_name, "relation_id": relation_id}
+
+## get_sushi_tag_count@v1
+from geo_voyager.control_primitives import call_service
+import json
+
+
+def get_sushi_tag_count(intent_target=None, previous_observations=None, intent_text="", key="cuisine", value="sushi"):
+    """Get the total usage count of cuisine=sushi in OSM."""
+    params = {"key": key, "value": value}
+    response = call_service("taginfo", path="/api/4/tag/stats", params=params)
+    data = json.loads(response)
+    
+    if not data.get("data"):
+        raise ValueError("No data found for cuisine=sushi")
+        
+    stats = data["data"][0]
+    all_count = None
+    
+    # The "all" field in tag/stats response is a list of stats
+    # Each stat has "type" and "count". We look for type "all".
+    # Based on typical taginfo API, "all" is a list.
+    # Let's handle both list and dict cases for robustness, but prioritize the list structure described in contract.
+    
+    all_stats = stats.get("all", [])
+    if isinstance(all_stats, list):
+        for stat in all_stats:
+            if isinstance(stat, dict) and stat.get("type") == "all":
+                all_count = stat.get("count")
+                break
+    elif isinstance(all_stats, dict):
+        # If "all" is a dict directly, it might have "count" or "type"
+        if all_stats.get("type") == "all":
+            all_count = all_stats.get("count")
+        else:
+            # Maybe the whole "all" dict is the stat for "all" type?
+            # Or maybe it's nested differently. Let's check if it has count directly.
+            if "count" in all_stats:
+                all_count = all_stats.get("count")
+                
+    if all_count is None:
+        # Fallback: if "all" is not found, maybe "all" key is missing or structure is unexpected.
+        # Try to find any stat with type "all" in the top level if "all" key is missing?
+        # Or maybe the response structure is different.
+        # Let's check if "all" key exists and is a list, but no "all" type found.
+        # In some taginfo versions, "all" might be a single object if only one type exists?
+        # But contract says: payload["data"] の要素のうち type が "all" のものの count が全体の使用数。
+        # So we must find it. If not found, it's an error.
+        # Check if "all" is missing entirely and try to find "count" at the top level of stats
+        if "count" in stats:
+            all_count = stats.get("count")
+        else:
+            raise ValueError("Count for type 'all' not found")
+        
+    return {"key": key, "value": value, "count": all_count}
+
+## get_sushi_usage_count@v1
+import json
+from geo_voyager.control_primitives import call_service
+
+
+def get_sushi_usage_count(intent_target=None, previous_observations=None, intent_text="", key="cuisine", value="sushi"):
+    """Get the total usage count of cuisine=sushi in OSM."""
+    params = {"key": key, "value": value}
+    response = call_service("taginfo", path="/api/4/tag/stats", params=params)
+    data = json.loads(response)
+    
+    if not data.get("data"):
+        raise ValueError("No data found for cuisine=sushi")
+        
+    stats = data["data"][0]
+    all_stats = stats.get("all", [])
+    all_count = None
+    
+    if isinstance(all_stats, list):
+        for stat in all_stats:
+            if isinstance(stat, dict) and stat.get("type") == "all":
+                all_count = stat.get("count")
+                break
+    elif isinstance(all_stats, dict):
+        if all_stats.get("type") == "all":
+            all_count = all_stats.get("count")
+        elif "count" in all_stats:
+            all_count = all_stats.get("count")
+            
+    if all_count is None:
+        if "count" in stats:
+            all_count = stats.get("count")
+        else:
+            raise ValueError("Count for type 'all' not found")
+            
+    return {"key": key, "value": value, "count": all_count}
+
+## get_tokyo_tower_coordinates@v1
+from geo_voyager.control_primitives import call_service
+import json
+
+
+def get_tokyo_tower_coordinates(intent_target, query="Tokyo Tower", format="jsonv2"):
+    """Get latitude and longitude for the target using nominatim search."""
+    params = {"q": query, "format": format, "limit": "1"}
+    response = call_service("nominatim", path="/search", params=params)
+    data = json.loads(response)
+    if not data:
+        raise ValueError("No result found for query")
+    result = data[0]
+    return {"name": result.get("display_name", query), "latitude": float(result["lat"]), "longitude": float(result["lon"]), "osm_type": result.get("osm_type"), "osm_id": result.get("osm_id")}
+
+## get_tokyo_ward_names_and_ids@v1
+from geo_voyager.control_primitives import call_service
+
+
+def get_tokyo_ward_names_and_ids():
+    """Get Japanese names and OSM relation IDs for all 23 wards of Tokyo."""
+    from geo_voyager.control_primitives import call_service
+    import json
+
+    query = """
+    PREFIX gs: <https://yuiseki.net/geosparql/schema#>
+    PREFIX geo: <http://www.opengis.net/ont/geosparql#>
+    PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+    
+    SELECT ?label ?relation WHERE {
+      ?ward a gs:Ward .
+      ?ward rdfs:label ?label .
+      FILTER(LANG(?label) = "ja")
+      ?ward gs:osmRelation ?relation .
+    }
+    ORDER BY ?label
+    """
+    response_text = call_service("yuisekin-geosparql", path="/geo/sparql", params={"query": query})
+    data = json.loads(response_text)
+    
+    wards = []
+    for row in data["results"]["bindings"]:
+        label = row["label"]["value"]
+        relation_uri = row["relation"]["value"]
+        relation_id = relation_uri.rsplit("/", 1)[-1]
+        assert str(relation_id).isdigit(), f"Invalid relation ID: {relation_id}"
+        wards.append({"name": label, "relation_id": int(relation_id)})
+        
+    assert len(wards) == 23, f"Expected 23 wards, got {len(wards)}"
+    return wards
+
+## get_ward_names_and_ids@v1
+from geo_voyager.control_primitives import call_service
+import json
+
+
+def get_ward_names_and_ids():
+    """Get Japanese names and OSM relation IDs for all 23 wards of Tokyo."""
+    query = """
+    PREFIX gs: <https://yuiseki.net/geosparql/schema#>
+    PREFIX geo: <http://www.opengis.net/ont/geosparql#>
+    PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+    
+    SELECT ?label ?relation WHERE {
+      ?ward a gs:Ward .
+      ?ward rdfs:label ?label .
+      FILTER(LANG(?label) = "ja")
+      ?ward gs:osmRelation ?relation .
+    }
+    ORDER BY ?label
+    """
+    response_text = call_service("yuisekin-geosparql", path="/geo/sparql", params={"query": query})
+    data = json.loads(response_text)
+    
+    wards = []
+    for row in data["results"]["bindings"]:
+        label = row["label"]["value"]
+        relation_uri = row["relation"]["value"]
+        relation_id = relation_uri.rsplit("/", 1)[-1]
+        assert str(relation_id).isdigit(), f"Invalid relation ID: {relation_id}"
+        wards.append({"name": label, "relation_id": int(relation_id)})
+        
+    assert len(wards) == 23, f"Expected 23 wards, got {len(wards)}"
+    return wards
+
+## get_ward_relation_id@v1
+from geo_voyager.control_primitives import call_service
+import json
+
+
+def get_ward_relation_id(intent_target, name=None):
+    """Get the OSM relation ID for the runtime-specified ward."""
+    target_name = name if name else intent_target.get("name")
+    if not target_name:
+        raise ValueError("Target name is required")
+    
+    query = f"""
+    PREFIX gs: <https://yuiseki.net/geosparql/schema#>
+    PREFIX geo: <http://www.opengis.net/ont/geosparql#>
+    PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+    
+    SELECT ?label ?relation
+    WHERE {{
+      ?ward a gs:Ward .
+      ?ward rdfs:label ?label .
+      FILTER(LANG(?label) = "ja")
+      FILTER(STR(?label) = "{target_name}")
+      ?ward gs:osmRelation ?relation .
+    }}
+    ORDER BY ?label
+    """
+    
+    response = call_service("yuisekin-geosparql", path="/geo/sparql", params={"query": query})
+    data = json.loads(response)
+    
+    bindings = data.get("results", {}).get("bindings", [])
+    if not bindings:
+        raise ValueError(f"No ward found with name {target_name}")
+    
+    row = bindings[0]
+    relation_uri = row["relation"]["value"]
+    relation_id = relation_uri.rsplit("/", 1)[-1]
+    
+    assert str(relation_id).isdigit(), f"Invalid relation ID: {relation_id}"
+    
+    return {"name": target_name, "relation_id": relation_id}
+
+## least_populous_area@v1
+from geo_voyager.control_primitives import connect_duckdb, load_admin_units
+
+
+def least_populous_area(dataset_id, area=None):
+    """Find the administrative area with the smallest population, in all areas or in one named set (for example 東京都23区). Returns its 5-digit code, name and population."""
+    with connect_duckdb() as connection:
+        row = load_admin_units(dataset_id, connection, area=area).order("population ASC, code5 ASC").limit(1).fetchone()
+    if row is None:
+        raise ValueError("No administrative area found")
+    code5, name, population = row
+    if type(population) is not int:
+        raise TypeError("population must be an integer")
+    return {"code5": code5, "name": name, "population": population}
+
+## most_populous_area@v1
+from geo_voyager.control_primitives import connect_duckdb, load_admin_units
+
+
+def most_populous_area(dataset_id, area=None):
+    """Find the administrative area with the largest population, in all areas or in one named set (for example 東京都23区). Returns its 5-digit code, name and population."""
+    with connect_duckdb() as connection:
+        row = load_admin_units(dataset_id, connection, area=area).order("population DESC, code5 ASC").limit(1).fetchone()
+    if row is None:
+        raise ValueError("No administrative area found")
+    code5, name, population = row
+    if type(population) is not int:
+        raise TypeError("population must be an integer")
+    return {"code5": code5, "name": name, "population": population}
+
+## northernmost_station@v1
+from geo_voyager.control_primitives import connect_duckdb, load_stations
+
+
+def northernmost_station(dataset_id):
+    """Find the station with the largest latitude in the station dataset, with no filtering by operating state. Returns its name, latitude and longitude."""
+    with connect_duckdb() as connection:
+        row = load_stations(dataset_id, connection).order("latitude DESC, name ASC").limit(1).fetchone()
+    if row is None:
+        raise ValueError("No station found")
+    name, latitude, longitude = row
+    return {"name": name, "latitude": latitude, "longitude": longitude}
+
+## top_areas_by_population@v1
+from geo_voyager.control_primitives import connect_duckdb, load_admin_units
+
+
+def top_areas_by_population(dataset_id, count, area=None):
+    """List the given number of administrative areas with the largest populations, largest first, in all areas or in one named set (for example 東京都23区). Each item has its 5-digit code, name and population."""
+    with connect_duckdb() as connection:
+        rows = load_admin_units(dataset_id, connection, area=area).order("population DESC, code5 ASC").limit(count).fetchall()
+    if len(rows) != count:
+        raise ValueError(f"{count} areas are required, {len(rows)} found")
+    if any(type(population) is not int for _, _, population in rows):
+        raise TypeError("population must be an integer")
+    return [{"code5": code5, "name": name, "population": population} for code5, name, population in rows]
+
+## top_cuisine_values@v1
+from geo_voyager.control_primitives import call_service
+import json
+
+
+def top_cuisine_values(key="cuisine", count=3):
+    """Get top 3 values for cuisine key by usage count."""
+    params = {"key": key, "page": 1, "rp": count, "sortname": "count", "sortorder": "desc"}
+    response = call_service("taginfo", path="/api/4/key/values", params=params)
+    data = json.loads(response)
+    
+    if not data.get("data"):
+        raise ValueError("No data found for cuisine key")
+        
+    results = []
+    for item in data["data"][:count]:
+        results.append({"value": item["value"], "count": item["count"]})
+        
+    return results
+
+## total_population@v1
+from geo_voyager.control_primitives import connect_duckdb, load_admin_units
+
+
+def total_population(dataset_id, area=None):
+    """Sum the population of the administrative areas, all of them or one named set (for example 東京都23区)."""
+    with connect_duckdb() as connection:
+        total = load_admin_units(dataset_id, connection, area=area).aggregate("sum(population) AS population_total").fetchone()[0]
+    if type(total) is not int:
+        raise TypeError("The population total must be an integer")
+    return total
+

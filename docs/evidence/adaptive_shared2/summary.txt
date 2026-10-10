@@ -1,0 +1,25 @@
+22 runs
+cafe_shibuya                 correct                  steps=2 planner_calls=3   56.6s skills_learned=2
+ramen_shinjuku               correct                  steps=2 planner_calls=3   53.4s skills_learned=2
+hospital_minato              correct                  steps=2 planner_calls=3   38.5s skills_called=1, skills_called_from_an_earlier_goal=1, skills_learned=1
+hotel_taito                  correct                  steps=2 planner_calls=3   38.7s skills_called=1, skills_called_from_an_earlier_goal=1, skills_learned=1
+library_setagaya             correct                  steps=2 planner_calls=3   38.0s skills_called=1, skills_called_from_an_earlier_goal=1, skills_learned=2
+cafe_vs_restaurant_shibuya   correct                  steps=3 planner_calls=5   69.2s final_critic_failure=1, skills_called=1, skills_called_from_an_earlier_goal=1, skills_learned=3
+cafe_shibuya_vs_shinjuku     wrong_accepted           steps=4 planner_calls=8  116.6s final_critic_failure=1, planner_refused:target_not_entity=2, skills_learned=3
+tag_sushi_count              correct                  steps=1 planner_calls=2   32.0s skills_learned=1
+tag_top3_cuisine             correct                  steps=1 planner_calls=2   19.4s skills_learned=1
+tag_ramen_vs_sushi           correct                  steps=3 planner_calls=6   72.4s final_critic_failure=1, planner_refused:target_not_entity=1, skills_called=2, skills_called_from_an_earlier_goal=1, skills_learned=3
+nom_shibuya_relation         correct                  steps=1 planner_calls=2   11.5s skills_called=2, skills_called_from_an_earlier_goal=2
+nom_setagaya_south           correct                  steps=1 planner_calls=2   17.4s skills_learned=1
+nom_tokyo_tower              correct                  steps=1 planner_calls=2   11.9s skills_learned=1
+route_auto_km                correct                  steps=1 planner_calls=2   18.8s skills_learned=1
+route_walk_minutes           correct                  steps=2 planner_calls=4   41.0s planner_refused:target_not_entity=1, skills_learned=2
+sparql_ward_count            correct                  steps=2 planner_calls=5   57.5s final_critic_failure=1, planner_refused:target_not_entity=1, skills_learned=2
+sparql_min_relation_ward     stopped:planner_failure  steps=1 planner_calls=3   29.1s planner_refused:target_not_entity=2, skills_called=1, skills_called_from_an_earlier_goal=1
+sparql_four_char_wards       stopped:final_critic_failed+ steps=2 planner_calls=6   61.4s final_critic_failure=3, planner_refused:target_not_entity=1, skills_learned=2
+ward_pop_max                 stopped:planner_failure  steps=2 planner_calls=4   55.1s planner_refused:two_targets=2, skills_called=1, skills_called_from_an_earlier_goal=1
+ward_pop_total               stopped:planner_failure  steps=1 planner_calls=4   38.0s planner_refused:format=1, planner_refused:target_not_entity=1, planner_refused:two_targets=1, skills_called=1, skills_called_from_an_earlier_goal=1
+stations_count               correct                  steps=2 planner_calls=4   50.2s planner_refused:other=1, skills_called=1, skills_learned=1
+stations_northmost           stopped:planner_failure  steps=0 planner_calls=2   14.5s planner_refused:format=2
+outcomes: {'correct': 16, 'wrong_accepted': 1, 'stopped:planner_failure': 4, 'stopped:final_critic_failed+': 1}
+checks fired: {'final_critic_failure': 7, 'planner_refused:format': 3, 'planner_refused:other': 1, 'planner_refused:target_not_entity': 9, 'planner_refused:two_targets': 3, 'skills_called': 12, 'skills_called_from_an_earlier_goal': 10, 'skills_learned': 29}

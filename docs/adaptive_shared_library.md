@@ -40,3 +40,25 @@
 - Intent の条件を、関数の引数として渡せるようにする（例えば、既定値つきの引数を推奨し、`count_tag_in_area(intent_target, tag="amenity=hospital")` のように、今回の値を既定値に書かせる。次の Intent はタグを変えて呼べる）。
 - 関数名や中身に、対象の名前（`setagaya`、`shibuya`）を入れることを拒否する検査。
 - 同じ働きの Skill を見つけてまとめる（例えば、本体が同じで名前だけ違う Skill を、保存のときに既存の名前の版として扱う）。
+
+## ハーネスの説明を足した後の 2 周目（2026-10-10）
+
+[harness_understanding.md](harness_understanding.md) の確かめで、モデルは「自分の関数が保存され、後の Intent から引数を変えて呼ばれること」と「条件を既定値つきの引数で受け取ること」を理解していなかった。プロンプトの先頭にその説明と実例を置き（`4e04069`）、持ち越しの 1 周を流し直した。記録は [evidence/adaptive_shared2/](evidence/adaptive_shared2/)。
+
+| | 1 周目（`b421ce6`） | 2 周目（`4e04069`） |
+|---|---|---|
+| DONE で終わり、正解 | 16 / 22 | 16 / 22 |
+| DONE で終わったが judge が誤答とした | 0 | 1（下記） |
+| 学習した Skill | 31 | 29 |
+| 保存済みの Skill を呼んだ回数 | 7 | 12 |
+| うち、前の Goal で学習した Skill | 6 | 10 |
+| 地物などを数える Skill のうち、条件を引数（既定値つき）で受け取るもの | 0 / 8 | 6 / 11 |
+| 名前に区の名前を入れた Skill | 4 | 8 |
+
+- 再利用は増えた。`cafe_shibuya` で学習した `get_ward_relation_id` が、`hospital_minato`、`hotel_taito`、`library_setagaya`、`cafe_vs_restaurant_shibuya`、`nom_shibuya_relation` の 5 つの Goal で呼ばれた。`tag_ramen_vs_sushi` の比較の関数は、同じ Goal で学習した 2 つの件数の Skill を呼んだ。Seed の `count_station_records` も初めて呼ばれた。
+- 条件を引数で受け取る関数が増えた（`count_hotels_in_taito(intent_target, ..., key="tourism", value="hotel")` など）。ただし、そうした数える Skill が別の Goal から呼ばれた例は無い。Goal ごとに新しい数える関数を書いている。
+- 名前に区の名前を入れた Skill は、かえって増えた（`count_hotels_in_taito`、`count_cafe_in_shibuya`、`get_setagaya_relation_id` など）。`get_setagaya_relation_id` は中で `get_ward_relation_id` を呼ぶだけの包みで、こうした「呼ぶだけの別名」が増えている。説明は読まれているが、関数名の付け方は変わっていない。
+- judge が誤答とした 1 件（`cafe_shibuya_vs_shinjuku`）は、459 と 343 を求めて勝者を `"winner": "Shibuya"` と英語で返した。`judge_winner` は日本語の区名を探すので不一致になった。答えの中身は正しい。judge の側の問題で、記録のまま数えている。
+- 1 周ずつで、揺らぎは測っていない。
+
+次の候補（決めていない）: 名前に対象の名前（区名など）を入れた関数を、決定的な検査で作り直させる。既存の Skill を呼ぶだけの関数（本体が 1 行の呼び出し）は、保存せずに呼び出しとして扱う。
