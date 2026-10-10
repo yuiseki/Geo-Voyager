@@ -8,7 +8,7 @@ import pytest
 
 from geo_voyager.dataset import Dataset
 from geo_voyager.dataset_graph import DatasetGraph
-from geo_voyager.fetch_gateway import NoRedirect, make_handler
+from geo_voyager.fetch_gateway import HubRedirect, make_handler
 
 
 @pytest.fixture
@@ -101,14 +101,35 @@ def test_worker_cannot_specify_an_arbitrary_url(gateway, path):
     gateway[1].assert_not_called()
 
 
-def test_redirect_is_not_followed_or_forwarded(gateway):
-    handler = NoRedirect()
-    assert handler.redirect_request(None, None, 302, "Found", {}, "http://other/") is None
+def test_redirect_to_another_host_is_not_followed_or_forwarded(gateway):
+    handler = HubRedirect()
+    request_ = MagicMock(full_url="https://huggingface.co/datasets/x/resolve/abc/a.parquet")
+    for target in ("http://other/", "https://evil.example/a", "https://hf.co.evil.example/a",
+                   "http://us.aws.cdn.hf.co/a"):
+        assert handler.redirect_request(request_, None, 302, "Found", {}, target) is None
     gateway[1].side_effect = HTTPError("http://origin:8000/fixed.txt", 302, "Found", {"Location": "http://other/"}, None)
     status, headers, _ = request(gateway)
     assert status == 502
     assert "Location" not in headers
     gateway[1].assert_called_once()
+
+
+def test_redirect_to_the_hub_cdn_is_followed_with_range():
+    from urllib.request import Request
+
+    handler = HubRedirect()
+    original = Request("https://huggingface.co/datasets/x/resolve/abc/a.parquet", headers={"Range": "bytes=0-4"})
+    for target in ("https://us.aws.cdn.hf.co/xet-bridge-us/abc?Signature=1",
+                   "https://cdn-lfs.huggingface.co/repos/abc"):
+        followed = handler.redirect_request(original, None, 302, "Found", {}, target)
+        assert followed.full_url == target
+        assert followed.get_header("Range") == "bytes=0-4"
+
+
+def test_redirect_from_a_non_hub_origin_is_not_followed():
+    handler = HubRedirect()
+    request_ = MagicMock(full_url="https://origin.example/a")
+    assert handler.redirect_request(request_, None, 302, "Found", {}, "https://us.aws.cdn.hf.co/a") is None
 
 
 def test_gateway_prefers_registered_data_url_over_card_url(gateway):

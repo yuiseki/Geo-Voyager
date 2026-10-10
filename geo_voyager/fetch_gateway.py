@@ -11,6 +11,24 @@ class NoRedirect(HTTPRedirectHandler):
         return None
 
 
+HUB_HOSTS = ("huggingface.co", "hf.co")
+
+
+def _on_the_hub(url: str) -> bool:
+    parts = urlsplit(url)
+    host = parts.hostname or ""
+    return parts.scheme == "https" and any(host == hub or host.endswith("." + hub) for hub in HUB_HOSTS)
+
+
+class HubRedirect(HTTPRedirectHandler):
+    """Follow only the Hub's own redirects (resolve/ to its CDN); refuse every other one."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if not (_on_the_hub(req.full_url) and _on_the_hub(newurl)):
+            return None
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
 def make_handler(graph: DatasetGraph):
     class DatasetHandler(BaseHTTPRequestHandler):
         def do_GET(self):
@@ -42,7 +60,7 @@ def make_handler(graph: DatasetGraph):
             if method == "GET" and "Range" in self.headers:
                 headers["Range"] = self.headers["Range"]
             request = Request(dataset.data_url or dataset.url, headers=headers, method=method)
-            opener = build_opener(ProxyHandler({}), NoRedirect())
+            opener = build_opener(ProxyHandler({}), HubRedirect())
             try:
                 with opener.open(request, timeout=10) as response:
                     body = response.read() if method == "GET" else b""

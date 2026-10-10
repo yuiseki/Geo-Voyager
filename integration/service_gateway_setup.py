@@ -17,7 +17,6 @@ def gateway_code(*, with_datasets=False):
     if with_datasets:
         names.append('datasets.py')
     files = {name: (root / name).read_text() for name in names}
-    resolver = (Path(__file__).resolve().parent / 'admin_download.py').read_text() if with_datasets else ''
     return f'''
 from pathlib import Path
 import sys
@@ -35,17 +34,9 @@ if {with_datasets!r}:
     while not Path('/tmp/start').exists():
         time.sleep(0.05)
     from geo_voyager.datasets import load_dataset_graph
-    exec({resolver!r})
+    # The gateway follows the Hub's resolve/ redirect on every request: a signed CDN URL
+    # fixed at start expires after an hour, which a slow round outlives.
     datasets = load_dataset_graph()
-    for attempt in range(5):  # the route to the external network can lag behind the attach
-        try:
-            register_admin_download(datasets)
-            register_station_download(datasets)
-            break
-        except OSError:
-            if attempt == 4:
-                raise
-            time.sleep(2)
 class LoggedHandler(make_handler(load_service_graph(), datasets)):
     def send_response(self, code, message=None):
         print(self.command, self.path, code, flush=True)
