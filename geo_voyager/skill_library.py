@@ -50,6 +50,10 @@ class SkillLibrary:
         versions = self.versions(skill.name)
         if versions and self.get(skill.name).code == skill.code:
             return versions[-1]
+        if versions and (self.root / skill.name / 'seed').exists():
+            # A Seed is a part given by hand (as Voyager's control primitives). A model wrote count_tag_in_area again
+            # with its own defaults and a narrower body, and later Intents were shown that version instead.
+            raise ValueError(f'{skill.name} is a Seed Skill and keeps its version; write a function of another name that calls it')
         version = (versions[-1] if versions else 0) + 1
         directory = self.root / skill.name / f'v{version}'
         directory.mkdir(parents=True)

@@ -350,13 +350,21 @@ class SkillCandidateGenerator:
         a condition written into it."""
         candidate = self._keep_the_contract(intent, generate_once, shown)
         again = rewritten_skills(candidate.code, skills)
-        if not again:
+        name = main_function_name(candidate.code)
+        same_name = [skill for skill in skills if skill.name == name and skill.code.strip() != candidate.code.strip()]
+        if not again and not same_name:
             return candidate
-        names = ', '.join(skill.name for skill in again)
-        calls = ', '.join(sorted(f'{service} {path}' for skill in again for service, path in service_calls(skill.code)))
-        note = (f'\n\n前回のコードは、保存済みの Skill {names} と同じサービス呼び出し（{calls}）を自分で書き直していた。'
-                '車輪の再発明はしない。その Skill を名前で呼び、必要なら引数に今回の値を渡して使う。'
-                'その Skill では条件が中に書き込まれていて今回に合わないときだけ、条件を引数にした汎用の関数を新しく書く。')
+        note = ''
+        if again:
+            names = ', '.join(skill.name for skill in again)
+            calls = ', '.join(sorted(f'{service} {path}' for skill in again for service, path in service_calls(skill.code)))
+            note += (f'\n\n前回のコードは、保存済みの Skill {names} と同じサービス呼び出し（{calls}）を自分で書き直していた。'
+                     '車輪の再発明はしない。その Skill を名前で呼び、必要なら引数に今回の値を渡して使う。'
+                     'その Skill では条件が中に書き込まれていて今回に合わないときだけ、条件を引数にした汎用の関数を新しく書く。')
+        if same_name:
+            note += (f'\n\n前回のコードは、保存済みの Skill {name} と同じ名前の関数を、別の中身で書き直していた。'
+                     f'保存済みの {name} は書き直さない。別の名前の関数を書き、その中から {name} を呼ぶ'
+                     '（今回の条件は、その関数の引数の既定値に書いて渡す）。')
         try:
             return self._keep_the_contract(intent, lambda extra='': generate_once(note + extra), shown)
         except ValueError:

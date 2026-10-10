@@ -112,3 +112,12 @@ def test_a_skill_that_calls_itself_is_not_a_cycle(library):
     namespace = {}
     exec(link('result = fact(5)', library), namespace)
     assert namespace['result'] == 120
+
+
+def test_a_seed_skill_keeps_its_one_version(library):
+    library.add(COUNT)
+    (library.root / 'count_tag_in_area' / 'seed').touch()
+    with pytest.raises(ValueError, match='Seed'):
+        library.add(COUNT.replace('return area', 'return area + 1'))
+    assert library.versions('count_tag_in_area') == [1]
+    assert library.add(COUNT) == 1                       # the same code is not a new version, and is fine

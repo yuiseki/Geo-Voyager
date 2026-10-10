@@ -520,3 +520,14 @@ def test_code_that_uses_other_services_than_the_shown_skill_is_not_pointed_out()
     client = Mock(); client.generate.return_value = _reply(other)
     SkillCandidateGenerator(client).generate(NAME_ONLY, [parse_skill(LOOKUP_SKILL)])
     assert client.generate.call_count == 1
+
+
+def test_a_function_with_the_name_of_a_shown_skill_but_another_body_is_asked_to_take_another_name():
+    from geo_voyager.skill_function import parse_skill
+    seed = parse_skill('def count_tag_in_area(intent_target, key, value):\n    """Count."""\n    return 1')
+    redefined = 'def count_tag_in_area(intent_target, key="amenity", value="cafe"):\n    """Count cafes."""\n    return 2'
+    wrapper = ('def count_cafes(intent_target, key="amenity", value="cafe"):\n    """Count cafes."""\n'
+               '    return count_tag_in_area(intent_target, key, value)')
+    client = Mock(); client.generate.side_effect = [_reply(redefined), _reply(wrapper)]
+    assert SkillCandidateGenerator(client).generate(RESOLVED, [seed]).code == wrapper
+    assert '別の名前' in client.generate.call_args_list[1].args[0]
