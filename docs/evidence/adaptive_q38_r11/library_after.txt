@@ -1,0 +1,517 @@
+## compare_sushi_with_previous_ramen@v1
+import json
+
+
+def compare_sushi_with_previous_ramen(previous_observations, intent_text=None, key="cuisine", value="sushi", previous_tag="cuisine=ramen"):
+    """taginfo のタグ使用数検索で key=cuisine、value=sushi の全体使用数を取得し、前段の cuisine=ramen の count と比較して、両方の count とどちらが多いかを示す JSON を出力する。"""
+    sushi = get_tag_usage_count(key=key, value=value)
+    decoded = [json.loads(text) for text in previous_observations]
+    candidates = []
+    for value in decoded:
+        candidates += value if isinstance(value, list) else [value]
+    matches = [t for t in candidates if isinstance(t, dict) and t.get("tag") == previous_tag]
+    assert matches
+    ramen = matches[0]
+    count_sushi = int(sushi["count"])
+    count_ramen = int(ramen["count"])
+    winner = sushi["tag"] if count_sushi > count_ramen else ramen["tag"]
+    return {
+        "counts": [
+            {"tag": ramen["tag"], "count": count_ramen},
+            {"tag": sushi["tag"], "count": count_sushi}
+        ],
+        "winner": winner
+    }
+
+## compare_two_tag_counts@v1
+import json
+
+
+def compare_two_tag_counts(intent_target, previous_observations, intent_text=None, tag_a="amenity=cafe", tag_b="amenity=restaurant"):
+    """実行時に指定された対象の前段観測から2つのタグの件数を比較し、winnerを含む結果を返す。"""
+    decoded = [json.loads(text) for text in previous_observations]
+    candidates = []
+    for value in decoded:
+        candidates += value if isinstance(value, list) else [value]
+    matches = [t for t in candidates if isinstance(t, dict) and str(t.get(intent_target["id_type"])) == intent_target["id_value"]]
+    assert matches
+    target = matches[0]
+    records = [o for o in candidates if isinstance(o, dict) and str(o.get(intent_target["id_type"])) == intent_target["id_value"] and "count" in o]
+    rec_a = [o for o in records if o.get("tag") == tag_a]
+    rec_b = [o for o in records if o.get("tag") == tag_b]
+    assert rec_a and rec_b
+    count_a = int(rec_a[0]["count"])
+    count_b = int(rec_b[0]["count"])
+    winner = tag_a if count_a > count_b else tag_b
+    return {
+        "name": target["name"],
+        "relation_id": target["relation_id"],
+        "counts": [
+            {"tag": tag_a, "count": count_a},
+            {"tag": tag_b, "count": count_b}
+        ],
+        "winner": winner
+    }
+
+## compare_two_target_counts@v1
+import json
+
+
+def compare_two_target_counts(intent_target, previous_observations, intent_text=None, tag="amenity=cafe"):
+    """実行時に指定された2つの対象の前段観測から件数を比較し、winner と counts を返す。"""
+    decoded = [json.loads(text) for text in previous_observations]
+    targets = [o for o in decoded if isinstance(o, dict) and "name" in o and "relation_id" in o and "count" not in o]
+    assert len(targets) == 2
+    records = [o for o in decoded if isinstance(o, dict) and "name" in o and "relation_id" in o and "tag" in o and "count" in o]
+    assert len(records) == 2
+    counts = []
+    for target in targets:
+        matches = [r for r in records if r.get("name") == target["name"] and str(r.get("relation_id")) == str(target["relation_id"]) and r.get("tag") == tag]
+        assert len(matches) == 1
+        counts.append({"name": target["name"], "count": int(matches[0]["count"])})
+    winner = counts[0]["name"] if counts[0]["count"] > counts[1]["count"] else counts[1]["name"]
+    return {"winner": winner, "counts": counts}
+
+## count_area_tag@v1
+import json
+from geo_voyager.control_primitives import call_service
+
+
+def count_area_tag(intent_target, previous_observations=None, intent_text=None, key="amenity", value="cafe"):
+    """実行時に指定された対象のOSM area内で指定タグに一致する地物件数を取得する。"""
+    relation = get_relation_id(intent_target)
+    area_id = int(relation["relation_id"]) + 3600000000
+    check = json.loads(call_service("overpass", path="/api/interpreter", body=f"[out:json][timeout:12];area({area_id});out ids;", content_type="text/plain"))
+    if not check.get("elements"):
+        raise ValueError(f"Overpass area {area_id} not found")
+    result = count_tag_in_area(intent_target, key=key, value=value)
+    return {"name": result["name"], "relation_id": result["relation_id"], "tag": result["tag"], "count": result["count"]}
+
+## count_gs_ward_instances@v1
+import json
+from geo_voyager.control_primitives import call_service
+
+
+def count_gs_ward_instances():
+    """YuisekinGeoSPARQL の gs:Ward 型個体の件数を count として返す。"""
+    query = (
+        "PREFIX gs: <https://yuiseki.net/geosparql/schema#> "
+        "SELECT (COUNT(?ward) AS ?count) WHERE { ?ward a gs:Ward . }"
+    )
+    response = call_service("yuisekin-geosparql", path="/geo/sparql", body=query, content_type="application/sparql-query")
+    payload = json.loads(response)
+    rows = payload["results"]["bindings"]
+    assert len(rows) == 1
+    count = int(rows[0]["count"]["value"])
+    assert count >= 0
+    return {"count": count}
+
+## count_station_records@v1 (seed)
+from geo_voyager.control_primitives import connect_duckdb, load_stations
+
+
+def count_station_records(dataset_id):
+    """Count every record of the station dataset, with no filtering by operating state and no merging of the same station."""
+    with connect_duckdb() as connection:
+        return load_stations(dataset_id, connection).aggregate("count(*) AS station_count").fetchone()[0]
+
+## count_station_records_with_metadata@v1
+from geo_voyager.control_primitives import connect_duckdb, load_stations
+
+
+def count_station_records_with_metadata(dataset_id, dataset_name="yuiseki/ekidata-jp"):
+    """駅データセットの全レコード数を数え、対象データセット名と集計方法を説明するJSONを返す。"""
+    with connect_duckdb() as connection:
+        count = load_stations(dataset_id, connection).aggregate("count(*) AS station_count").fetchone()[0]
+    return {
+        "dataset_id": dataset_id,
+        "dataset_name": dataset_name,
+        "count": count,
+        "method": "count of all rows without filtering or deduplication"
+    }
+
+## count_tag_in_area@v1 (seed)
+import json
+
+from geo_voyager.control_primitives import call_service
+
+
+def count_tag_in_area(intent_target, key, value):
+    """Count the OSM features (nodes, ways and relations) with the tag key=value inside the area of the target's OSM relation, with Overpass. Returns the target's name and relation_id, the tag and the count."""
+    relation = get_relation_id(intent_target)
+    area = int(relation["relation_id"]) + 3600000000
+    query = f'[out:json][timeout:25];nwr["{key}"="{value}"](area:{area});out count;'
+    payload = json.loads(call_service("overpass", path="/api/interpreter", body=query, content_type="text/plain"))
+    return {"name": relation["name"], "relation_id": relation["relation_id"], "tag": f"{key}={value}",
+            "count": int(payload["elements"][0]["tags"]["total"])}
+
+## find_northernmost_stations@v1
+from geo_voyager.control_primitives import connect_duckdb, load_stations
+
+
+def find_northernmost_stations(dataset_id):
+    """駅データセットから緯度が最大の駅を特定し、駅名と緯度を返す。同緯度の駅が複数ある場合はすべて返す。"""
+    with connect_duckdb() as connection:
+        stations = load_stations(dataset_id, connection)
+        
+        max_lat_row = stations.aggregate("max(latitude)").fetchone()
+        if not max_lat_row or max_lat_row[0] is None:
+            return {"stations": []}
+        
+        max_lat = max_lat_row[0]
+        
+        sorted_stations = stations.order("latitude DESC")
+        
+        results = []
+        for row in sorted_stations.fetchall():
+            if row[1] == max_lat:
+                results.append({
+                    "name": row[0],
+                    "latitude": row[1]
+                })
+            else:
+                break
+        
+        return {"stations": results, "max_latitude": max_lat}
+
+## get_auto_route_distance_km@v1
+def get_auto_route_distance_km(origin_lat=35.6580, origin_lon=139.7016, destination_lat=35.6896, destination_lon=139.7006, costing="auto"):
+    """指定した出発点と到着点の緯度・経度に対して Valhalla の /route を auto costing で呼び、経路の距離をキロメートル単位で取得して返す。"""
+    result = route_summary(origin_lat=origin_lat, origin_lon=origin_lon, destination_lat=destination_lat, destination_lon=destination_lon, costing=costing)
+    assert result.get("length_km") is not None
+    return {"distance_km": result["length_km"]}
+
+## get_pedestrian_route_distance_and_time@v1
+def get_pedestrian_route_distance_and_time(origin_lat=35.6580, origin_lon=139.7016, destination_lat=35.6896, destination_lon=139.7006):
+    """指定した出発点と到着点の緯度・経度に対して Valhalla の /route を pedestrian costing で呼び、経路の距離（キロメートル）と所要時間（秒）を取得して、所要時間を分に変換した値を出力する。"""
+    result = route_summary(origin_lat=origin_lat, origin_lon=origin_lon, destination_lat=destination_lat, destination_lon=destination_lon, costing="pedestrian")
+    assert result.get("length_km") is not None and result.get("time_s") is not None
+    return {"distance_km": result["length_km"], "time_s": result["time_s"], "time_min": result["time_min"]}
+
+## get_relation_id@v1 (seed)
+import json
+
+from geo_voyager.control_primitives import call_service
+
+
+def get_relation_id(intent_target):
+    """Find the OSM relation of a named place (for example a ward) with Nominatim and return its name and relation_id. When the target already carries a relation_id, that id is returned without a search."""
+    if intent_target.get("id_type") == "relation_id" and intent_target.get("id_value"):
+        return {"name": intent_target["name"], "relation_id": str(intent_target["id_value"])}
+    results = json.loads(call_service("nominatim", path="/search",
+                                      params={"q": intent_target["name"], "format": "jsonv2", "limit": "10"}))
+    relations = [item for item in results if item.get("osm_type") == "relation"]
+    if not relations:
+        raise ValueError(f"No OSM relation found for {intent_target['name']}")
+    return {"name": intent_target["name"], "relation_id": str(relations[0]["osm_id"])}
+
+## get_tag_usage_count@v1
+def get_tag_usage_count(key="cuisine", value="ramen"):
+    """taginfoのタグ使用数検索で、指定したkeyとvalueの全体使用数を取得し、tagとcountをJSONで返す。"""
+    result = tag_usage_count(key=key, value=value)
+    return {"tag": f"{result['key']}={result['value']}", "count": result["count"]}
+
+## get_target_osm_relation_id@v1
+def get_target_osm_relation_id(intent_target):
+    """実行時に指定された対象について、Nominatim の /search を用いて osm_type が relation の OSM relation を取得し、name と relation_id を持つ JSON object を返す。"""
+    result = get_relation_id(intent_target)
+    assert result["name"] and str(result["relation_id"]).isdigit()
+    return {"name": result["name"], "relation_id": result["relation_id"]}
+
+## get_target_osm_relation_lat_lon@v1
+import json
+from geo_voyager.control_primitives import call_service
+
+
+def get_target_osm_relation_lat_lon(intent_target):
+    """実行時に指定された対象の OSM relation の緯度と経度を Nominatim の lookup で取得し、name、lat、lon を持つ JSON object を返す。"""
+    response = call_service("nominatim", path="/lookup", params={"osm_ids": "R4247312", "format": "jsonv2"})
+    results = json.loads(response)
+    assert isinstance(results, list) and len(results) == 1
+    result = results[0]
+    assert result.get("lat") is not None and result.get("lon") is not None
+    return {"name": result["name"], "lat": float(result["lat"]), "lon": float(result["lon"])}
+
+## get_target_osm_search_result@v1
+import json
+from geo_voyager.control_primitives import call_service
+
+
+def get_target_osm_search_result(intent_target):
+    """実行時に指定された対象について、Nominatim の /search を用いて OSM 地物名・osm_type・osm_id・boundingbox の最南端緯度（south）を取得し、JSON object で返す。"""
+    target = get_relation_id(intent_target)
+    results = json.loads(call_service("nominatim", path="/search", params={"q": target["name"], "format": "jsonv2", "limit": "10"}))
+    matches = [item for item in results if item.get("osm_type") and item.get("osm_id") and item.get("boundingbox")]
+    if not matches:
+        raise ValueError(f"No OSM search result found for {target['name']}")
+    item = matches[0]
+    return {"name": item["name"], "osm_type": item["osm_type"], "osm_id": str(item["osm_id"]), "south": item["boundingbox"][0]}
+
+## get_target_ward_label_and_relation@v1
+def get_target_ward_label_and_relation(intent_target=None):
+    """実行時に指定された対象の gs:Ward 個体の日本語 rdfs:label と gs:osmRelation を取得し、name と relation_id を返す。"""
+    if intent_target is None:
+        intent_target = {"name": "港区"}
+    result = get_ward_label_and_relation(intent_target)
+    assert result["name"] and str(result["relation_id"]).isdigit()
+    return {"name": result["name"], "relation_id": result["relation_id"]}
+
+## get_target_ward_label_and_relation_id@v1
+def get_target_ward_label_and_relation_id(intent_target, previous_observations=None, intent_text=None):
+    """実行時に指定された対象の gs:Ward 個体の日本語 rdfs:label と gs:osmRelation の末尾数値 relation_id を取得し、name と relation_id を持つ JSON object を1件返す。"""
+    result = get_target_ward_relation_id(intent_target)
+    assert result["name"] and str(result["relation_id"]).isdigit()
+    return {"name": result["name"], "relation_id": result["relation_id"]}
+
+## get_target_ward_name_and_relation_id@v1
+def get_target_ward_name_and_relation_id(intent_target):
+    """実行時に指定された対象の日本語名称と gs:osmRelation 由来の OSM relation ID を取得し、name と relation_id を返す。"""
+    result = get_target_ward_label_and_relation(intent_target)
+    assert result["name"] and str(result["relation_id"]).isdigit()
+    return {"name": result["name"], "relation_id": result["relation_id"]}
+
+## get_target_ward_relation_id@v1
+def get_target_ward_relation_id(intent_target):
+    """実行時に指定された対象の gs:Ward 個体の日本語 rdfs:label と gs:osmRelation を取得し、name と末尾の relation_id を返す。"""
+    result = get_target_ward_label_and_relation(intent_target)
+    assert result["name"] and str(result["relation_id"]).isdigit()
+    return {"name": result["name"], "relation_id": result["relation_id"]}
+
+## get_target_ward_relation_id_json@v1
+def get_target_ward_relation_id_json(intent_target):
+    """実行時に指定された対象の日本語ラベルと gs:osmRelation から末尾の数字 relation_id を取得し、name と relation_id を持つ JSON object を返す。"""
+    result = get_target_ward_relation_id(intent_target)
+    assert result["name"] and str(result["relation_id"]).isdigit()
+    return {"name": result["name"], "relation_id": result["relation_id"]}
+
+## get_top_cuisine_values@v1
+from geo_voyager.control_primitives import call_service
+
+
+def get_top_cuisine_values(key="cuisine", limit=3):
+    """cuisineキーの値の使用数を取得し、使用数の多い順に並べた上位3件の値と使用数を返す。"""
+    response = call_service("taginfo", path="/api/4/key/values", params={"key": key, "page": "1", "rp": str(limit), "sortname": "count", "sortorder": "desc"})
+    import json
+    payload = json.loads(response)
+    data = payload.get("data", [])
+    assert data, "No data found for key"
+    results = []
+    for item in data[:limit]:
+        results.append({"value": item["value"], "count": item["count"]})
+    return results
+
+## get_ward_label_and_relation@v1
+import json
+from geo_voyager.control_primitives import call_service
+
+
+def get_ward_label_and_relation(intent_target):
+    """実行時に指定された対象の gs:Ward 個体の日本語 rdfs:label と gs:osmRelation を取得し、name と relation_id を返す。"""
+    query = (
+        "PREFIX gs: <https://yuiseki.net/geosparql/schema#> "
+        "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#> "
+        "SELECT ?label ?relation WHERE { "
+        "?ward a gs:Ward ; rdfs:label ?label ; gs:osmRelation ?relation . "
+        'FILTER(LANG(?label) = "ja") '
+        f'FILTER(STR(?label) = "{intent_target["name"]}") '
+        "} ORDER BY ?label"
+    )
+    response = call_service("yuisekin-geosparql", path="/geo/sparql", body=query, content_type="application/sparql-query")
+    payload = json.loads(response)
+    rows = payload["results"]["bindings"]
+    if len(rows) != 1:
+        raise ValueError(f"Expected exactly one gs:Ward for {intent_target['name']}, got {len(rows)}")
+    row = rows[0]
+    name = row["label"]["value"]
+    relation_uri = row["relation"]["value"]
+    relation_id = relation_uri.rsplit("/", 1)[-1]
+    assert str(relation_id).isdigit()
+    return {"name": name, "relation_id": relation_id}
+
+## least_populous_area@v1 (seed)
+from geo_voyager.control_primitives import connect_duckdb, load_admin_units
+
+
+def least_populous_area(dataset_id, area=None):
+    """Find the administrative area with the smallest population, in all areas or in one named set (for example 東京都23区). Returns its 5-digit code, name and population."""
+    with connect_duckdb() as connection:
+        row = load_admin_units(dataset_id, connection, area=area).order("population ASC, code5 ASC").limit(1).fetchone()
+    if row is None:
+        raise ValueError("No administrative area found")
+    code5, name, population = row
+    if type(population) is not int:
+        raise TypeError("population must be an integer")
+    return {"code5": code5, "name": name, "population": population}
+
+## list_all_ward_labels_and_relation_ids@v1
+import json
+from geo_voyager.control_primitives import call_service
+
+
+def list_all_ward_labels_and_relation_ids(expected_count=23):
+    """YuisekinGeoSPARQL の全 gs:Ward 個体の日本語 rdfs:label と gs:osmRelation の末尾数値 relation_id を取得し、name と relation_id を持つ JSON object の配列を返す。"""
+    query = (
+        "PREFIX gs: <https://yuiseki.net/geosparql/schema#> "
+        "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#> "
+        "SELECT ?label ?relation WHERE { "
+        "?ward a gs:Ward ; rdfs:label ?label ; gs:osmRelation ?relation . "
+        'FILTER(LANG(?label) = "ja") '
+        "} ORDER BY ?label"
+    )
+    response = call_service("yuisekin-geosparql", path="/geo/sparql", body=query, content_type="application/sparql-query")
+    payload = json.loads(response)
+    rows = payload["results"]["bindings"]
+    assert len(rows) == expected_count
+    result = []
+    for row in rows:
+        name = row["label"]["value"]
+        relation_id = row["relation"]["value"].rsplit("/", 1)[-1]
+        assert str(relation_id).isdigit()
+        result.append({"name": name, "relation_id": relation_id})
+    return result
+
+## list_tokyo_23_ward_labels_and_relation_ids@v1
+def list_tokyo_23_ward_labels_and_relation_ids(expected_count=23):
+    """YuisekinGeoSPARQLで東京23区の全23個体を日本語ラベルで取得し、nameとgs:osmRelation末尾の数字relation_idを持つJSON objectの一覧を返す。"""
+    result = list_all_ward_labels_and_relation_ids(expected_count=expected_count)
+    assert isinstance(result, list) and len(result) == expected_count
+    for item in result:
+        assert isinstance(item, dict) and item.get("name") and str(item.get("relation_id", "")).isdigit()
+    return result
+
+## list_tokyo_23_wards_population@v1
+from geo_voyager.control_primitives import connect_duckdb, load_admin_units
+
+
+def list_tokyo_23_wards_population(dataset_id, previous_observations=None, intent_text=None, area="東京都23区"):
+    """東京23区の各区の人口を name と population を持つ JSON object の配列として返す。"""
+    with connect_duckdb() as connection:
+        rows = load_admin_units(dataset_id, connection, area=area).fetchall()
+    if len(rows) != 23:
+        raise ValueError(f"Expected 23 wards, found {len(rows)}")
+    return [{"name": name, "population": population} for code5, name, population in rows]
+
+## list_ward_labels_containing_ku_with_length_4@v1
+def list_ward_labels_containing_ku_with_length_4():
+    """YuisekinGeoSPARQL の gs:Ward 型個体の日本語 rdfs:label を取得し、ラベルに「区」が含まれ、文字数が4の個体を name と relation_id を持つ JSON object の一覧として返し、その件数を count として返す。"""
+    wards = list_all_ward_labels_and_relation_ids()
+    result = [w for w in wards if "区" in w["name"] and len(w["name"]) == 4]
+    for w in result:
+        assert str(w["relation_id"]).isdigit()
+    return {"list": result, "count": len(result)}
+
+## max_population_ward_from_observations@v1
+import json
+
+
+def max_population_ward_from_observations(previous_observations, intent_text=None):
+    """前段の東京23区人口一覧から人口が最大となる区を1件選択し、name と population を返す。"""
+    decoded = [json.loads(text) for text in previous_observations]
+    records = []
+    for item in decoded:
+        if isinstance(item, list):
+            records.extend(
+                record
+                for record in item
+                if isinstance(record, dict) and "name" in record and "population" in record
+            )
+    assert len(records) == 23, f"Expected 23 population records, found {len(records)}"
+    assert all(type(record["population"]) is int for record in records), "population must be an integer"
+    best = max(records, key=lambda record: record["population"])
+    return {"name": best["name"], "population": best["population"]}
+
+## min_relation_id_from_ward_list@v1
+import json
+
+
+def min_relation_id_from_ward_list(previous_observations, intent_text=None):
+    """前段の東京23区一覧から relation_id が最小の1件を返す。"""
+    wards = json.loads(previous_observations[0])
+    assert isinstance(wards, list) and len(wards) == 23
+    for ward in wards:
+        assert isinstance(ward, dict) and ward.get("name") and str(ward.get("relation_id", "")).isdigit()
+    best = min(wards, key=lambda w: int(w["relation_id"]))
+    return {"name": best["name"], "relation_id": best["relation_id"]}
+
+## most_populous_area@v1 (seed)
+from geo_voyager.control_primitives import connect_duckdb, load_admin_units
+
+
+def most_populous_area(dataset_id, area=None):
+    """Find the administrative area with the largest population, in all areas or in one named set (for example 東京都23区). Returns its 5-digit code, name and population."""
+    with connect_duckdb() as connection:
+        row = load_admin_units(dataset_id, connection, area=area).order("population DESC, code5 ASC").limit(1).fetchone()
+    if row is None:
+        raise ValueError("No administrative area found")
+    code5, name, population = row
+    if type(population) is not int:
+        raise TypeError("population must be an integer")
+    return {"code5": code5, "name": name, "population": population}
+
+## northernmost_station@v1 (seed)
+from geo_voyager.control_primitives import connect_duckdb, load_stations
+
+
+def northernmost_station(dataset_id):
+    """Find the station with the largest latitude in the station dataset, with no filtering by operating state. Returns its name, latitude and longitude."""
+    with connect_duckdb() as connection:
+        row = load_stations(dataset_id, connection).order("latitude DESC, name ASC").limit(1).fetchone()
+    if row is None:
+        raise ValueError("No station found")
+    name, latitude, longitude = row
+    return {"name": name, "latitude": latitude, "longitude": longitude}
+
+## route_summary@v1 (seed)
+import json
+
+from geo_voyager.control_primitives import call_service
+
+
+def route_summary(origin_lat, origin_lon, destination_lat, destination_lon, costing="auto"):
+    """Route between two points with Valhalla and return the length in kilometres and the time in seconds and minutes. costing is auto, pedestrian or bicycle."""
+    request = {"locations": [{"lat": origin_lat, "lon": origin_lon}, {"lat": destination_lat, "lon": destination_lon}],
+               "costing": costing, "units": "kilometers"}
+    summary = json.loads(call_service("valhalla", path="/route", body=json.dumps(request),
+                                      content_type="application/json"))["trip"]["summary"]
+    return {"costing": costing, "length_km": summary["length"], "time_s": summary["time"], "time_min": summary["time"] / 60}
+
+## tag_usage_count@v1 (seed)
+import json
+
+from geo_voyager.control_primitives import call_service
+
+
+def tag_usage_count(key, value):
+    """Count how many times the OSM tag key=value is used in the whole OSM database, with Taginfo's tag statistics. Returns the tag and the count."""
+    payload = json.loads(call_service("taginfo", path="/api/4/tag/stats", params={"key": key, "value": value}))
+    total = [item["count"] for item in payload["data"] if item["type"] == "all"]
+    if len(total) != 1:
+        raise ValueError(f"Taginfo returned no total for {key}={value}")
+    return {"key": key, "value": value, "count": total[0]}
+
+## top_areas_by_population@v1 (seed)
+from geo_voyager.control_primitives import connect_duckdb, load_admin_units
+
+
+def top_areas_by_population(dataset_id, count, area=None):
+    """List the given number of administrative areas with the largest populations, largest first, in all areas or in one named set (for example 東京都23区). Each item has its 5-digit code, name and population."""
+    with connect_duckdb() as connection:
+        rows = load_admin_units(dataset_id, connection, area=area).order("population DESC, code5 ASC").limit(count).fetchall()
+    if len(rows) != count:
+        raise ValueError(f"{count} areas are required, {len(rows)} found")
+    if any(type(population) is not int for _, _, population in rows):
+        raise TypeError("population must be an integer")
+    return [{"code5": code5, "name": name, "population": population} for code5, name, population in rows]
+
+## total_population@v1 (seed)
+from geo_voyager.control_primitives import connect_duckdb, load_admin_units
+
+
+def total_population(dataset_id, area=None):
+    """Sum the population of the administrative areas, all of them or one named set (for example 東京都23区)."""
+    with connect_duckdb() as connection:
+        total = load_admin_units(dataset_id, connection, area=area).aggregate("sum(population) AS population_total").fetchone()[0]
+    if type(total) is not int:
+        raise TypeError("The population total must be an integer")
+    return total
+
