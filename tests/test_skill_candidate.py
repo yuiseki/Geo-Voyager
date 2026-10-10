@@ -142,3 +142,24 @@ def test_the_service_calls_of_code_are_found():
             '    s = call_service(service_id="overpass", path="/api/interpreter", body="q")\n    return r, s')
     assert service_calls(code) == {('nominatim', '/search'), ('overpass', '/api/interpreter')}
     assert service_calls('def a():\n    """A."""\n    return 1') == set()
+
+
+def test_a_runtime_value_this_intent_does_not_pass_is_found_when_the_function_reads_it():
+    from geo_voyager.skill_candidate import unpassed_runtime_reads
+
+    code = ('import json\n\n'
+            'def compare_counts(intent_target, previous_observations, intent_text, tag="amenity=cafe"):\n'
+            '    """比べる。"""\n'
+            '    rows = [json.loads(text) for text in previous_observations]\n'
+            '    return [r for r in rows if r.get(intent_target["id_type"])]\n')
+    assert unpassed_runtime_reads(code, ('previous_observations', 'intent_text')) == ['intent_target']
+    assert unpassed_runtime_reads(code, ('intent_target', 'previous_observations', 'intent_text')) == []
+
+
+def test_an_unread_or_defaulted_runtime_parameter_is_not_a_problem():
+    from geo_voyager.skill_candidate import unpassed_runtime_reads
+
+    unread = 'def f(intent_target, previous_observations):\n    """f"""\n    return len(previous_observations)\n'
+    defaulted = 'def f(previous_observations, intent_target=None):\n    """f"""\n    return intent_target or len(previous_observations)\n'
+    assert unpassed_runtime_reads(unread, ('previous_observations',)) == []
+    assert unpassed_runtime_reads(defaulted, ('previous_observations',)) == []

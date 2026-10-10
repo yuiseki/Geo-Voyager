@@ -430,7 +430,8 @@ def test_local_aggregation_code_that_keeps_breaking_the_contract_is_refused():
 
 def test_a_step_that_is_not_a_local_aggregation_is_not_checked_for_it():
     client = Mock(); client.generate.return_value = _reply(DEFAULTED)
-    SkillCandidateGenerator(client).generate(Intent('件数を求める', service_ids=('overpass',)))
+    SkillCandidateGenerator(client).generate(Intent('件数を求める', service_ids=('overpass',),
+                                                    previous_observations=(Observation('{"count": 459}'),)))
     assert client.generate.call_count == 1
 
 
@@ -531,3 +532,17 @@ def test_a_function_with_the_name_of_a_shown_skill_but_another_body_is_asked_to_
     client = Mock(); client.generate.side_effect = [_reply(redefined), _reply(wrapper)]
     assert SkillCandidateGenerator(client).generate(RESOLVED, [seed]).code == wrapper
     assert '別の名前' in client.generate.call_args_list[1].args[0]
+
+
+def test_contract_refuses_a_local_function_that_reads_the_target_it_is_not_given():
+    from geo_voyager.skill_candidate_generator import contract_problems
+
+    observation = Observation('{"name": "渋谷区", "relation_id": "1759477", "count": 459}')
+    intent = Intent('前段の件数を比べて多い区を返す', previous_observations=(observation,), requires_context=True)
+    code = ('import json\n\n'
+            'def compare_counts(intent_target, previous_observations, intent_text):\n'
+            '    """比べる。"""\n'
+            '    rows = [json.loads(text) for text in previous_observations]\n'
+            '    return [r for r in rows if r.get(intent_target["id_type"])]\n')
+    problems = contract_problems(intent, code)
+    assert any('intent_target' in found and 'None' in note for found, note in problems)

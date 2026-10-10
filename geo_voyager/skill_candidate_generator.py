@@ -2,7 +2,7 @@
 from .id_type_literals import id_type_comparisons
 from .intent import Intent
 from .local_aggregation_contract import local_aggregation_violations
-from .skill_candidate import entry_problems, main_function_name, rewritten_skills, service_calls, skill_shape_problems
+from .skill_candidate import entry_problems, main_function_name, rewritten_skills, service_calls, skill_shape_problems, unpassed_runtime_reads
 from .place_names import place_words_in
 from .skill_function import SkillFunction
 from .llama_client import LlamaClient
@@ -71,12 +71,17 @@ def skills_section(skills: list[SkillFunction] | tuple = ()) -> str:
             '名前で呼べます。\n```python\n' + listed + '\n```\n\n')
 
 
+def passed_runtime_values(intent: Intent) -> tuple[str, ...]:
+    """The runtime values the environment passes to the function of this Intent; the others arrive as None."""
+    return (*(['dataset_id'] if intent.dataset_ids else []), *(['intent_target'] if intent.target is not None else []),
+            *(['previous_observations', 'intent_text'] if intent.previous_observations else []))
+
+
 def harness_section(intent: Intent) -> str:
     """What the environment does with the function, shown first. A probe of the local model found that it knew how
     its function is called and that a shown Skill can be called by name, but not that its function is saved and
     called again by later Intents, nor how conditions reach a function (docs/harness_understanding.md)."""
-    runtime = ([*(['dataset_id'] if intent.dataset_ids else []), *(['intent_target'] if intent.target is not None else []),
-                *(['previous_observations', 'intent_text'] if intent.previous_observations else [])])
+    runtime = passed_runtime_values(intent)
     passed = ('実行環境が引数として渡すのは、この Intent では ' + '、'.join(runtime) + ' だけ。それ以外の引数には既定値を付ける。'
               if runtime else '実行環境はこの Intent では値を何も渡さない。引数には全て既定値を付ける。')
     if intent.target is not None:
@@ -127,6 +132,11 @@ def contract_problems(intent: Intent, code: str, shown: tuple[str, ...] = ()) ->
     if places:
         shape = shape + [f'関数名 {name} に場所の名前（{", ".join(places)}）が入っている。関数は後で別の場所にも使われる部品なので、'
                          '何をするかで名付け（例: count_tag_in_area）、場所は intent_target で受け取る']
+    unpassed = unpassed_runtime_reads(code, passed_runtime_values(intent))
+    if unpassed:
+        shape = shape + [f'関数 {name} が {", ".join(unpassed)} を使っているが、この Intent では実行環境はそれを渡さず None になる。'
+                         f'この Intent で渡されるのは {", ".join(passed_runtime_values(intent)) or "何も無い"} だけなので、'
+                         '必要な値はそこから取り出す']
     if shape:
         problems.append(('skill shape: ' + '; '.join(shape), _shape_note(shape)))
     if intent.target is not None and intent.target.resolved:

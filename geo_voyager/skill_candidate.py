@@ -91,6 +91,23 @@ def entry_problems(code: str) -> list[str]:
     return problems
 
 
+def unpassed_runtime_reads(code: str, passed: tuple[str, ...]) -> list[str]:
+    """The runtime values the main function reads that this Intent does not pass: they arrive as None.
+    A parameter with a default is the function's own choice and is not counted."""
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return []
+    main = _main_function(tree)
+    if main is None:
+        return []
+    positional = [*main.args.posonlyargs, *main.args.args]
+    without_default = {a.arg for a in positional[:len(positional) - len(main.args.defaults)]}
+    without_default |= {a.arg for a, d in zip(main.args.kwonlyargs, main.args.kw_defaults) if d is None}
+    read = {node.id for node in ast.walk(main) if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load)}
+    return [name for name in RUNTIME_NAMES if name in without_default and name not in passed and name in read]
+
+
 def _functions(tree: ast.Module) -> list[ast.FunctionDef]:
     return [node for node in tree.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))]
 
