@@ -208,3 +208,36 @@ def only_calls_a_saved_skill(code: str, library) -> str | None:
             and isinstance(body[0].value.func, ast.Name) and body[0].value.func.id in set(library.names()):
         return body[0].value.func.id
     return None
+
+
+def service_calls(code: str) -> set[tuple[str, str]]:
+    """The (service id, path) of every call_service in the code whose service and path are written as strings."""
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return set()
+    calls = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == 'call_service':
+            keywords = {k.arg: k.value for k in node.keywords}
+            service = node.args[0] if node.args else keywords.get('service_id')
+            path = keywords.get('path')
+            if isinstance(service, ast.Constant) and isinstance(path, ast.Constant):
+                calls.add((service.value, path.value))
+    return calls
+
+
+def rewritten_skills(code: str, skills) -> list:
+    """The shown Skills the code does again instead of calling: it makes all of their service calls itself and
+    does not call them. A local model shown get_relation_id wrote get_osm_relation_id_for_target, with the same
+    Nominatim search (docs/adaptive_shared_library.md)."""
+    mine = service_calls(code)
+    if not mine:
+        return []
+    try:
+        called = {n.func.id for n in ast.walk(ast.parse(code)) if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
+    except SyntaxError:
+        return []
+    own = main_function_name(code)
+    return [skill for skill in skills
+            if skill.name not in called and skill.name != own and service_calls(skill.code) and service_calls(skill.code) <= mine]

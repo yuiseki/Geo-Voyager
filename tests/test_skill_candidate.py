@@ -134,3 +134,11 @@ def test_a_copy_that_moved_its_imports_into_the_function_is_still_a_copy(tmp_pat
     library.add('import json\n\n\ndef a(x):\n    """A."""\n    return json.dumps(x)\n')
     copy = 'def a(x):\n    import json\n    return json.dumps(x)\n'
     assert drop_copied_skills(copy, library) == ''
+
+
+def test_the_service_calls_of_code_are_found():
+    from geo_voyager.skill_candidate import service_calls
+    code = ('def a(x):\n    """A."""\n    r = call_service("nominatim", path="/search", params={"q": x})\n'
+            '    s = call_service(service_id="overpass", path="/api/interpreter", body="q")\n    return r, s')
+    assert service_calls(code) == {('nominatim', '/search'), ('overpass', '/api/interpreter')}
+    assert service_calls('def a():\n    """A."""\n    return 1') == set()

@@ -483,3 +483,40 @@ def test_a_function_named_after_the_place_is_generated_again():
     intent = Intent('台東区の tourism=hotel の地物数', service_ids=('overpass',), target=TargetRef('台東区', 'relation_id', '1758888'))
     assert SkillCandidateGenerator(client).generate(intent).code == plain
     assert 'taito' in client.generate.call_args_list[1].args[0]
+
+
+# ---- a shown Skill that does the same service calls is pointed out once (Voyager: do not reinvent it)
+
+LOOKUP_SKILL = ('from geo_voyager.control_primitives import call_service\n\n\n'
+                'def get_relation_id(intent_target):\n    """Look the target up in Nominatim."""\n'
+                '    return call_service("nominatim", path="/search", params={"q": intent_target["name"]})')
+REWRITE = ('from geo_voyager.control_primitives import call_service\n\n\n'
+           'def get_osm_relation_id_for_target(intent_target):\n    """Look the target up."""\n'
+           '    return call_service("nominatim", path="/search", params={"q": intent_target["name"], "limit": "1"})')
+REUSE = 'def lookup_target(intent_target):\n    """Look the target up."""\n    return get_relation_id(intent_target)'
+NAME_ONLY = Intent('渋谷区の relation ID', service_ids=('nominatim',), target=TargetRef('渋谷区'))
+
+
+def test_a_rewrite_of_a_shown_skill_is_pointed_out_and_written_again_once():
+    from geo_voyager.skill_function import parse_skill
+    client = Mock(); client.generate.side_effect = [_reply(REWRITE), _reply(REUSE)]
+    candidate = SkillCandidateGenerator(client).generate(NAME_ONLY, [parse_skill(LOOKUP_SKILL)])
+    assert candidate.code == REUSE and client.generate.call_count == 2
+    note = client.generate.call_args_list[1].args[0]
+    assert 'get_relation_id' in note and 'nominatim /search' in note
+
+
+def test_a_second_rewrite_is_accepted_rather_than_refused():
+    from geo_voyager.skill_function import parse_skill
+    client = Mock(); client.generate.side_effect = [_reply(REWRITE), _reply(REWRITE)]
+    candidate = SkillCandidateGenerator(client).generate(NAME_ONLY, [parse_skill(LOOKUP_SKILL)])
+    assert candidate.code == REWRITE and client.generate.call_count == 2
+
+
+def test_code_that_uses_other_services_than_the_shown_skill_is_not_pointed_out():
+    from geo_voyager.skill_function import parse_skill
+    other = ('def count(intent_target):\n    """Count."""\n'
+             '    return call_service("overpass", path="/api/interpreter", body="x")')
+    client = Mock(); client.generate.return_value = _reply(other)
+    SkillCandidateGenerator(client).generate(NAME_ONLY, [parse_skill(LOOKUP_SKILL)])
+    assert client.generate.call_count == 1

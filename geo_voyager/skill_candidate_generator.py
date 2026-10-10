@@ -2,7 +2,7 @@
 from .id_type_literals import id_type_comparisons
 from .intent import Intent
 from .local_aggregation_contract import local_aggregation_violations
-from .skill_candidate import entry_problems, main_function_name, skill_shape_problems
+from .skill_candidate import entry_problems, main_function_name, rewritten_skills, service_calls, skill_shape_problems
 from .place_names import place_words_in
 from .skill_function import SkillFunction
 from .llama_client import LlamaClient
@@ -340,9 +340,27 @@ class SkillCandidateGenerator:
                     'Exact layout, with every label on a separate line:\n説明:\n<description>\n計画:\n1) ...\n---\nコード:\n```python\n<imports and one function>\n```'
                 ),
             ))
-            return self._keep_the_contract(intent, generate_once, shown)
-        return self._keep_the_contract(
-            intent, lambda extra='': _parse_candidate(self.llm_client.generate(harness_section(intent) + skills_section(skills) + service_contract + prompt + extra)), shown)
+            return self._reuse_once(intent, generate_once, shown, skills)
+        return self._reuse_once(
+            intent, lambda extra='': _parse_candidate(self.llm_client.generate(harness_section(intent) + skills_section(skills) + service_contract + prompt + extra)), shown, skills)
+
+    def _reuse_once(self, intent: Intent, generate_once, shown: tuple[str, ...], skills) -> SkillCandidate:
+        """Point out, once, a shown Skill the code does again instead of calling it (Voyager: reuse, do not reinvent).
+        The second answer is kept even if it still does it again: a shown Skill may not fit, for example when it has
+        a condition written into it."""
+        candidate = self._keep_the_contract(intent, generate_once, shown)
+        again = rewritten_skills(candidate.code, skills)
+        if not again:
+            return candidate
+        names = ', '.join(skill.name for skill in again)
+        calls = ', '.join(sorted(f'{service} {path}' for skill in again for service, path in service_calls(skill.code)))
+        note = (f'\n\n前回のコードは、保存済みの Skill {names} と同じサービス呼び出し（{calls}）を自分で書き直していた。'
+                '車輪の再発明はしない。その Skill を名前で呼び、必要なら引数に今回の値を渡して使う。'
+                'その Skill では条件が中に書き込まれていて今回に合わないときだけ、条件を引数にした汎用の関数を新しく書く。')
+        try:
+            return self._keep_the_contract(intent, lambda extra='': generate_once(note + extra), shown)
+        except ValueError:
+            return candidate
 
     @staticmethod
     def _keep_the_contract(intent: Intent, generate_once, shown: tuple[str, ...] = ()) -> SkillCandidate:
