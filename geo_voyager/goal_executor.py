@@ -46,7 +46,7 @@ def _execution_refusal(intent: Intent) -> str | None:
 
 def _failed_execution(reason: str) -> IntentExecution:
     failure = ExecutionFailure(reason, '', reason, None)
-    return IntentExecution([], (), None, None, Critique(False, reason), None, failure=failure)
+    return IntentExecution([], (), (), None, Critique(False, reason), failure=failure)
 
 
 class GoalExecutor:

@@ -24,11 +24,10 @@ from geo_voyager.intent_executor import IntentExecutor
 from geo_voyager.llama_client import LlamaClient
 from geo_voyager.planner import Planner
 from geo_voyager.repair_stats import intent_record
-from geo_voyager.skill import SkillLibrary
+from geo_voyager.skill_library import SkillLibrary
 from geo_voyager.skill_candidate_generator import SkillCandidateGenerator
 from geo_voyager.skill_candidate_repairer import SkillCandidateRepairer
 from geo_voyager.skill_retriever import SkillRetriever
-from geo_voyager.skill_selector import SkillSelector
 from geo_voyager.worker import Worker
 from bench.infra import WORKER_IMAGE, benchmark_environment
 
@@ -82,7 +81,7 @@ def run_goal(goal, names, directory: Path, embedding: EmbeddingClient, *, critic
     library = SkillLibrary(library_path)
     llm = logged_llm(directory)
     critic = Critic(llm, thinking=critic_thinking)
-    executor = IntentExecutor(SkillRetriever(library, embedding), SkillSelector(llm),
+    executor = IntentExecutor(SkillRetriever(library, embedding),
                               Worker(names['internal']), SkillCandidateGenerator(llm),
                               critic, library, SkillCandidateRepairer(llm))
     started = time.time()

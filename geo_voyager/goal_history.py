@@ -6,7 +6,6 @@ the targets (a name with a stable id) that the step made known for the first tim
 """
 from dataclasses import dataclass
 from typing import Iterator
-from uuid import UUID
 
 from .critique import Critique
 from .execution_failure import ExecutionFailure
@@ -51,8 +50,8 @@ class HistoryEntry:
     observations: tuple[Observation, ...]
     critique: Critique | None
     failure: ExecutionFailure | None
-    reused_skill_id: UUID | None
-    learned_skill_id: UUID | None
+    called_skills: tuple[str, ...]      # saved Skills the step's code called ('name@vN')
+    learned_skill: str | None           # the Skill saved from the step ('name@vN')
     # Targets this step made known for the first time, each with its stable id. Empty for a step that did not succeed.
     targets: tuple[TargetRef, ...]
 
@@ -65,9 +64,8 @@ class HistoryEntry:
         succeeded = execution.failure is None and execution.critique.success
         known = {target.key for target in history.targets()}
         new = tuple(target for target in discover_targets(tuple(execution.observations)) if target.key not in known) if succeeded else ()
-        skill_ok = execution.selected_skill_critique is not None and execution.selected_skill_critique.success
         return cls(step, intent, tuple(execution.observations), execution.critique, execution.failure,
-                   execution.selected_skill_id if skill_ok else None, execution.learned_skill_id, new)
+                   tuple(execution.called_skills), execution.learned_skill, new)
 
 
 class GoalHistory:
@@ -164,10 +162,10 @@ def render_history(history: GoalHistory) -> str:
         if entry.critique is not None:
             lines.append(f'  Critic: {"成功" if entry.critique.success else "失敗"}: {entry.critique.reason}')
         lines += [f'  Observation: {_bounded(observation.text)}' for observation in entry.observations[:OBSERVATIONS_SHOWN]]
-        if entry.reused_skill_id is not None:
-            lines.append(f'  再利用した Skill: {str(entry.reused_skill_id)[:8]}')
-        if entry.learned_skill_id is not None:
-            lines.append(f'  学習した Skill: {str(entry.learned_skill_id)[:8]}')
+        if entry.called_skills:
+            lines.append(f'  呼んだ Skill: {", ".join(entry.called_skills)}')
+        if entry.learned_skill is not None:
+            lines.append(f'  学習した Skill: {entry.learned_skill}')
         parts.append('\n'.join(lines))
     targets = history.targets()
     if targets:

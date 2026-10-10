@@ -1,7 +1,7 @@
 # Geo-Voyager v0.1.0
 
 Python 3.12 以降を使用します。Skill 検索の実行時依存は DuckDB 1.5.6 です。
-テストには pytest と、明示セットアップ済みの DuckDB vss extension が必要です（下記参照）。
+テストには pytest が必要です。
 
 `Question(text)`、`Hypothesis(text)`、`Observation(text)`、`Verdict(text)` は空文字列を拒否します。
 `Intent(text, dataset_ids)` は空の text と空の dataset_ids を拒否します。
@@ -38,11 +38,10 @@ YAML ライブラリや汎用 YAML parser、schema 制約は使用しません�
 返された各 id は必ず `DatasetGraph.get()` で確認し、1件でも未登録なら `KeyError` になります。
 この確認は Dataset の存在だけを保証し、調査内容とデータの意味的な整合性は検証しません。
 全ブロックが空なら拒否します。Intent の実行可能性は検証しません。
-`Worker(network=internal_network).execute_skill(intent, skill)` は渡された Skill を
-既存 Docker sandbox で実行します。dataset_ids は1件だけを許可し、`dataset_id` として
-コードに注入します。0件・複数件は実行前に拒否します。行政区域・駅とも同じ Worker を使います。
-stdout を `strip()` して Observation 1件を返し、既存 Skill の実行では昇格・保存しません。
-`IntentExecutor` が検索・選択・既存 Skill 再利用と、該当なしの場合の生成・学習をつなぎます。
+`Worker(network=internal_network).execute_candidate(intent, candidate, library)` は、コードが呼ぶ Skill をリンクして
+Docker sandbox で実行します。dataset_ids は1件だけを許可し、`dataset_id` としてコードに注入します。
+stdout を `strip()` して Observation 1件を返します。保存はしません。
+`IntentExecutor` が Skill の検索、生成、実行、repair、判定、保存をつなぎます。
 `Planner().judge(hypothesis, observations)` は、入力によらず
 「仮説はまだ十分に検証されていない」という Verdict 1件を返します。
 
@@ -211,43 +210,6 @@ Worker から Internet への直接接続の失敗を確認しています。
 終了後には実験用の container / network を削除します。
 
 
-## Worker.execute_skill による人口最大区分析例
-
-事前 build 済みの `geo-voyager-worker:duckdb-1.5.6` と、internal network 上で
-`gateway:8000` として到達できる登録済み行政区 Dataset の Gateway を使用します。
-`DockerSandbox` の network は既定で `none` です。指定した network は Docker inspect で
-internal であることを確認し、通常の external bridge を指定すると失敗します。
-network 以外の sandbox 制約は同じです。
-
-```python
-from geo_voyager.intent import Intent
-from geo_voyager.worker import Worker
-from geo_voyager.skill import SkillLibrary
-
-intent = Intent(
-    text="東京都23区で人口が最も多い区と人口を求める",
-    dataset_ids=("yuiseki/jp-admin-2026-09",),
-)
-skill = SkillLibrary().get("72c549dd-e449-4bef-97f1-e3a2eab27d64")
-observations = Worker(network="既存のinternal network名").execute_skill(intent, skill)
-print(observations[0].text)
-```
-
-`skill_library/72c549dd-e449-4bef-97f1-e3a2eab27d64/code.py` の Skill は Control Primitives から行政区域 relation を取得し、
-`area="東京都23区"` で取得した行を population 降順・LIMIT 1で選択します。
-Intent の1件の dataset_id をコードへ注入し、Primitive が Gateway URL に解決します。
-
-```bash
-PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest integration/test_worker_image.py integration/test_worker_population.py -q -s -W error
-```
-
-integration test は実験用の Gateway / internal network を作り、実際の
-`Worker.execute_skill(intent, skill)` を呼び出します。実データで得た Observation は
-「東京都23区で人口が最も多い区は世田谷区で、人口は943664人である」でした。
-これは登録済み行政区 Dataset に収録された2020年国勢調査人口です。
-終了時には実験用 container / network を削除します。
-
-
 ## Control Primitives と Skill Library
 
 `geo_voyager/control_primitives/` は検証済みの4つの基礎操作を提供します。
@@ -266,53 +228,7 @@ DuckDB 接続を引数で渡すことで、Skill が接続の終了まで管理�
 Control Primitives は各機能を `connect_duckdb.py`、`dataset_url.py`、
 `load_admin_units.py`、`load_stations.py` に分割し、`__init__.py` から再公開しています。
 
-`Skill(id, description, code)` の id は `uuid.UUID` です。Skill 名はありません。
-`SkillLibrary(root=None)` は既定でリポジトリ直下の `skill_library/` を使用し、
-`get(skill_id)` は UUID またはその文字列表現を受け取ります。
-`all()` は直下の UUID ディレクトリだけを列挙し、`code.py` と
-`description.txt` が両方あるものを UTF-8 で読み込みます。
-`vectordb/`、不正な UUID、必須ファイルが欠けたディレクトリは一覧から除外します。
-存在しない・不完全な Skill の `get()` は `KeyError`、不正な id は `ValueError` です。
-`add(skill)` は Skill の id を使い、新しい UUID ディレクトリに code と description を
-UTF-8 で保存します。新規 Skill は `Skill(id=uuid4(), description=..., code=...)` として
-呼び出し側で UUID を指定します。既存 UUID は `FileExistsError` で拒否し、上書きしません。
-Library 自体は実行を判定しません。Candidate の Critic 成功後だけ Worker が add を呼びます。
-
-```text
-skill_library/
-  vectordb/
-    .gitkeep
-  72c549dd-e449-4bef-97f1-e3a2eab27d64/
-    code.py
-    description.txt
-  e722f367-1ff1-4796-89a3-48cfd1dfcb68/
-    code.py
-    description.txt
-  befbc141-baad-41bc-abdf-dc34311c3111/
-    code.py
-    description.txt
-  f2d4785a-779a-4927-b75d-65d1e4852ab2/
-    code.py
-    description.txt
-  ccd6a22b-d795-4359-a06a-f2ac214e6a28/
-    code.py
-    description.txt
-  fb0fb79f-10b3-424f-ae27-4d6292f474c4/
-    code.py
-    description.txt
-```
-
-`vectordb/` の Git 管理対象は `.gitkeep` のみです。実行時の `skills.duckdb` は再生成可能な派生物として Git 管理対象外です。
-最初の Skill の description は「行政区域の集合から人口が最も多い区域と人口を求める」です。
-code は AOI指定済みの relation から人口降順で1件を選択し、stdout を生成します。
-区名・人口の答えは埋め込まず、取得した行から生成します。
-
-Worker は呼び出し側から渡された Skill を使い、Intent の1件の Dataset id と
-Skill.code を sandbox の stdin に送ります。固定 Skill の選択や Dataset id の固定チェックはありません。
-image には Control Primitives を配置しており、Skill は host 側の filesystem から
-読み込みます。host filesystem はコンテナに mount しません。
-23行・人口合計を確認する既存実験スクリプトも接続 Primitive を再利用します。
-検索・選択と Worker の接続は IntentExecutor が担当します。検索 index は DuckDB vss です。
+Skill と Skill Library は [下の節](#skill-library名前付き関数voyager-型) にあります。
 
 ## Critic
 
@@ -324,7 +240,7 @@ Observation が0件、または本文を strip するとすべて空の場合は
 それ以外は既存の `LlamaClient` に Intent.text と Observation.text の一覧だけを渡します。
 自由文の2行「判定: 成功/失敗」「理由: ...」を読み、行数・ラベル・判定値・非空理由を確認します。
 不正な形式は `ValueError` になります。structured output は使用しません。
-IntentExecutor が既存 Skill・Candidate の両経路で Critic を呼びます。既存 Skill の失敗判定時だけ Candidate 生成へ1回 fallback し、Candidate 成功時だけ保存します。
+IntentExecutor が実行の後に Critic を呼び、成功のときだけ新しい関数を Skill として保存します。
 
 ```python
 from geo_voyager.critic import Critic
@@ -345,29 +261,6 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest integration/test_critic_llm.py
 実モデルでは「世田谷区、943664人」は成功、
 「23区の人口データを取得した」は区名・人口の回答がないため失敗になりました。
 
-## SkillCandidate と成功時の保存
-
-`SkillCandidate(code, description)` は frozen dataclass で、UUID を持ちません。
-`promote(candidate)` は呼び出された時点で uuid4 を生成し、code と description を
-そのまま持つ `Skill` を返します。
-
-`Worker.execute_candidate(intent, candidate) -> list[Observation]` は、
-コードを既存の Docker sandbox 内で実行し、stdout から Observation を生成します。
-Worker は Critic・昇格・保存を扱いません。IntentExecutor が結果を検証し、
-成功時だけ `promote(candidate)` と `skill_library.add(skill)` を実行します。
-失敗判定の場合は UUID を生成せず、保存しません。例外は呼び出し側へ伝播します。
-
-```python
-from geo_voyager.skill_candidate import SkillCandidate
-
-candidate = SkillCandidate(code=fixed_python_code, description="調査内容の説明")
-observations = worker.execute_candidate(intent, candidate)
-```
-
-code と description は呼び出し側が与えるか SkillCandidateGenerator で生成します。
-既存 Skill を使う `Worker.execute_skill(intent, skill)` は昇格・保存を行いません。
-両経路とも Dataset は1件だけを許可し、既存 sandbox 制約を維持します。検索用 DuckDB vss index を追加しています。
-
 ## SkillCandidateGenerator
 
 `SkillCandidateGenerator.generate(intent) -> SkillCandidate` は既存のローカル
@@ -384,29 +277,16 @@ Dataset の読み込みは Primitive のみに限定するよう指示し、外�
 自由文出力は「説明:」「---」「コード:」と Python code fence の単純形式です。
 section 間の空行を許容し、description と code を取り出します。
 必須ラベル・区切り・code fence が不正、または本文が空なら `ValueError` です。
-Generator はコードを実行・保存せず、UUID も生成しません。
+Generator はコードを実行・保存しません。`generate(intent, skills)` に検索した Skill を渡すと、それを呼んでよいことをプロンプトに書きます。
 
 ```python
 from geo_voyager.skill_candidate_generator import SkillCandidateGenerator
 
-candidate = SkillCandidateGenerator().generate(intent)
-observations = worker.execute_candidate(intent, candidate)
+candidate = SkillCandidateGenerator().generate(intent, skills)
+observations = worker.execute_candidate(intent, candidate, library)
 ```
 
-実 LLM・Docker・Gateway・Dataset・Critic・保存の確認は明示実行します。
-通常の unit test では LLM を mock にします。
-
-```bash
-PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest integration/test_generated_population_skill.py -q -s -W error
-```
-
-この integration は一時 Library に保存しており、実 Library には自動追記しません。
-開発時の失敗は保存されず、prompt の契約と空行 parser を修正した後の実験で、
-東京23区の人口最小として千代田区・66,680人を取得し Critic が成功と判定しました。
-承認済み Skill は同じ UUID `e722f367-1ff1-4796-89a3-48cfd1dfcb68` のまま
-リポジトリの Library にも保存しています。これは登録 Dataset の2020年国勢調査人口です。
-自動 retry、self-repair、複数 Candidate の生成、Planner 全体との E2E 接続は実装していません。
-既存 Skill が適合しない場合の生成・実行・成功時保存は IntentExecutor が接続します。
+通常の unit test では LLM を mock にします。（2026-10-08 に行った、生成した Skill を UUID で保存する実験の記録は、Skill の作り直しの前のもので、その integration テストは削除した。）
 
 AOI対応後の実データ確認では、`area=None` は1,918行政区域、
 `area="東京都23区"` は23区域を返しました。
@@ -425,7 +305,7 @@ constructor に server root または `/v1` までの base URL と model name �
 空の texts、data 件数の不一致、不正・重複・欠落 index、空 embedding、
 非数値・非有限値、次元数の不一致は `ValueError` です。
 HTTP error と不正 JSON の例外はそのまま呼び出し元へ伝えます。
-EmbeddingClient は Skill の派生 cache と query embedding に利用します。検索 index は DuckDB vss です。
+EmbeddingClient は Skill の説明と Intent の文の embedding に使います（`SkillRetriever`）。
 
 ```python
 from geo_voyager.embedding_client import EmbeddingClient
@@ -452,201 +332,16 @@ GEO_VOYAGER_EMBEDDING_MODEL=granite-embedding \
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest integration/test_embedding_llama.py -q -s -W error
 ```
 
-### Skill 検索の3層構成
+## Skill Library（名前付き関数、Voyager 型）
 
-```text
-skill_library/
-  {uuid}/
-    code.py                       # source of truth
-    description.txt               # source of truth
-    description_embedding.json    # derived cache / gitignore
-  vectordb/
-    .gitkeep
-    skills.duckdb                 # derived index / gitignore
-```
+2026-10-10 に、MineDojo/Voyager の Skill library に合わせて作り直した。それまでの UUID ごとのトップレベルのスクリプト、DuckDB vss の index、Skill を 1 件選んで丸ごと再実行する Selector は廃止した。設計と経緯は [docs/skill_library.md](docs/skill_library.md)。
 
-`SkillEmbeddingCache(embedding_client, root=library.root).get(skill)` は
-実際に embedding へ渡す description の UTF-8 SHA-256、model、format_version=1、
-dimensions=384 と非空・有限・非ゼロのベクトルを検証します。正常な cache は API を呼ばず返し、
-欠損・不正 JSON・不一致は再生成します。書き込みは同一ディレクトリの一時ファイルから atomic replace します。
-code と description の原本を変更しません。
-
-`SkillVectorStore(path=None)` の既定パスは `skill_library/vectordb/skills.duckdb` です。
-`sync(library, cache)` は起動時の full sync として UUID / description SHA / model の差分だけ INSERT / UPDATE し、
-Library にない UUID は DELETE します。初回は全行投入後に HNSW index を作ります。
-新 UUID の `upsert(skill, embedding, model)` は1件だけ INSERT します。既存 UUID の更新は1件だけ UPDATE しますが、
-永続 HNSW の古い行が検索候補に残るケースを実テストで確認したため、更新・削除時だけ index を再作成します。
-通常の新規学習は incremental INSERT で、全件 embedding や index 再作成は行いません。
-
-```sql
-CREATE TABLE skill_embeddings (
-    skill_id UUID PRIMARY KEY,
-    description_sha256 VARCHAR NOT NULL,
-    model VARCHAR NOT NULL,
-    embedding FLOAT[384] NOT NULL
-);
-CREATE INDEX skill_embedding_hnsw ON skill_embeddings
-USING HNSW (embedding) WITH (metric = 'cosine');
-```
-
-`search(query_embedding, k)` は `ORDER BY array_cosine_distance(embedding, ?::FLOAT[384]) LIMIT ?`
-で近い順の UUID を返します。k<1、次元不一致、非有限値、ゼロベクトルを拒否します。
-HNSW の同点順位は保証しません。
-
-`SkillRetriever(library, embedding_client).retrieve(intent, k=1)` は API を維持し、
-constructor で1回 full sync し、起動後は Intent.text を1回だけ embedding して、store.search → library.get で Skill を返します。
-retrieve() は Library 全件列挙・sync・description cache 取得・schema 作成を行いません。
-空の index でも query を1回 embedding し、検索結果は空リストになります。
-
-学習成功時は IntentExecutor が `SkillLibrary.add(learned)` の後に `retriever.upsert(learned)` を呼びます。
-upsert はその Skill の cache を取得・生成し、`store.upsert(skill, embedding, model)` に渡します。
-学習した Skill は次の検索で即座に対象になり、正常再利用・Critic 失敗時には upsert を呼びません。
-Selector / Critic / 1回だけの fallback と判定 provenance は維持しています。
-
-原本の手動変更・削除は次の起動時 full sync か明示的な `store.sync(library, cache)` で反映します。
-起動後の外部ファイル変更を各 query で検出する仕組みはありません。
-
-#### 明示セットアップ
-
-```bash
-python3 -m venv .venv
-.venv/bin/python -m pip install 'duckdb==1.5.6' 'pytest>=8'
-.venv/bin/python - <<'PYTHON'
-import duckdb
-with duckdb.connect() as connection:
-    connection.execute("SET custom_extension_repository='https://extensions.duckdb.org'")
-    connection.execute("INSTALL vss")
-    connection.execute("LOAD vss")
-PYTHON
-PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 .venv/bin/python -m pytest -q -W error \
-  --basetemp=/tmp/geo-voyager-unit-$(cat /proc/sys/kernel/random/uuid)
-```
-
-実行コードは extension の autoinstall / autoload を無効化し、`LOAD vss` だけを実行します。
-永続 DB を ATTACH する前に vss を LOAD し、`hnsw_enable_experimental_persistence=true` を設定します。
-この設定と検索形式は [DuckDB vss の公式文書](https://duckdb.org/docs/current/core_extensions/vss) に従います。
-DB は原本ではなく派生 index です。失った場合は sync で cache から再構築できます。
-同時書き込み・モデル移行・HNSW tuning は今回扱いません。
-
-実 embedding と EXPLAIN / 再構築・6 Intent 評価・学習後の再利用は明示実行します。
-
-```bash
-GEO_VOYAGER_EMBEDDING_BASE_URL=http://10.105.167.163:8080 \
-GEO_VOYAGER_EMBEDDING_MODEL=granite-embedding \
-PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 .venv/bin/python -m pytest -q -s -W error \
-  --import-mode=importlib integration \
-  --basetemp=/tmp/geo-voyager-integration-$(cat /proc/sys/kernel/random/uuid)
-```
-
-### Skill の適合性による選択
-
-`SkillSelector(llm_client=None).select(intent, skills) -> Skill | None` は既存の
-ローカル LLM に Intent.text と候補の UUID / description だけを渡します。
-code・Dataset ID は渡しません。類似度順位で自動決定せず、最大/最小・対象・
-集計方法・出力内容が Intent に適合するか判断させます。候補1件でも判定し、
-候補0件は LLM を呼ばず `None` を返します。
-
-LLM の返答は `選択: UUIDまたはなし` と `理由: ...` の2行に限定し、
-不正形式・不正 UUID・候補外 UUID は `ValueError` にします。
-IntentExecutor が選択結果を Worker に渡し、None または既存 Skill の Critic 失敗の場合に SkillCandidateGenerator を呼びます。
-
-通常の unit test は LLM を mock しています。実モデル確認は別途実行します。
-
-```bash
-PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest integration/test_skill_selector_llama.py -q -s -W error
-```
-
-既存2件の Skill を最小人口 Skill が先頭になるよう並べた実モデル確認で、
-人口最大は最大人口 Skill、人口最小は最小人口 Skill、鉄道駅数は `None` を返しました。
-
-### 駅 Primitive と6件の初期 Skill
-
-`load_stations(dataset_id, connection)` は `yuiseki/ekidata-jp` の固定 revision
-`a33321099406b47338be0d03a4887059473fde0c` にある
-`parquet/2026-10-05/station.2026-07-31.parquet` を Gateway 経由で読み、
-`name`（station_name）、`latitude`（lat）、`longitude`（lon）を返します。
-読み込み・列の正規化だけを行い、集計・最北端判定は Skill に置きます。
-DatasetGraph の既存 `data_url` に固定実ファイル URL を追加しました。
-
-file-based Library に人口合計・人口上位5区・全国駅数・最北端駅の4 Skill を追加し、
-合計6件にしました。各 Skill は実 DockerSandbox → Gateway → Dataset で実行し、
-Critic の成功を確認しています。駅数は収録全レコード数であり、営業状態で絞ったり
-同一駅の重複を除いたりしません。Worker は execute_skill に渡された Skill を実行します。
-
-6 Intent の評価は recall@4 が6/6、Selector の正解が6/6でした。
-人口最大は Retriever の4位から Selector が選びました。
-[UUID・description・実行結果・全順位と cosine 値・再実行コマンド](docs/skill_evaluation.md)
-を記録しています。その評価後に、IntentExecutor で既存 Skill の再利用と該当なしの場合の学習を接続しました。検索用 DuckDB vss index を追加しています。
-
-## IntentExecutor: 既知なら再利用、未知なら学習
-
-`IntentExecutor(retriever, selector, worker, generator, critic, skill_library)` に
-同じ filesystem Library を検索・保存先として渡します。派生 cache / index は Retriever の起動時 sync と学習時 upsert で反映します。
-`execute(intent, k=4) -> IntentExecution` は次の順で処理します。
-
-1. Retriever の top-k Skill を取得し、UUID の順序を保持する。
-2. Selector が Intent を完遂できる Skill または None を返す。
-3. Skill があれば Worker.execute_skill → Critic と進み、成功なら生成・昇格・保存せず結果を採用する。
-4. Skill が None、または既存 Skill の Critic が失敗なら、Generator → Worker.execute_candidate → Critic と進む。Candidate 成功後だけ新 UUID Skill を保存し、cache 生成・単一 Skill upsert へ進む。fallback は1回だけ。
-
-`IntentExecution` は frozen dataclass で、次を保持します。
-
-- observations: list[Observation]
-- retrieved_skill_ids: tuple[UUID, ...]（検索順位の順）
-- selected_skill_id: UUID | None（最初に選んだ既存 Skill。fallback 後も保持）
-- learned_skill_id: UUID | None（Candidate の Critic 成功後だけ）
-- selected_skill_critique: Critique | None（最初に選択した既存 Skill の判定。候補なしなら None）
-- critique: Critique（採用または最終実行結果の成功・失敗理由）
-
-正常再利用では両判定は同じです。fallback 時は selected_skill_critique に既存 Skill の失敗を保持し、critique に最終 Candidate の判定を保持します。
-
-Worker と Executor は Dataset ID が1件だけの Intent を扱います。
-Candidate の Critic 失敗なら Observation と失敗理由を返し、保存・UUID 生成は行いません。
-実行・生成・判定・保存の例外は伝播し、例外時は fallback しません。retry、self-repair、
-similarity threshold、複数 Dataset、Planner 接続は追加していません。
-
-```python
-from geo_voyager.critic import Critic
-from geo_voyager.embedding_client import EmbeddingClient
-from geo_voyager.intent_executor import IntentExecutor
-from geo_voyager.skill import SkillLibrary
-from geo_voyager.skill_candidate_generator import SkillCandidateGenerator
-from geo_voyager.skill_retriever import SkillRetriever
-from geo_voyager.skill_selector import SkillSelector
-from geo_voyager.worker import Worker
-
-library = SkillLibrary()
-executor = IntentExecutor(
-    SkillRetriever(library, EmbeddingClient(embedding_base_url, embedding_model)),
-    SkillSelector(), Worker(internal_network), SkillCandidateGenerator(), Critic(), library,
-)
-result = executor.execute(intent, k=4)
-```
-
-実 integration は初期6 Skill を一時 Library にコピーし、人口最大・最北端駅の再利用と
-平均人口の新規学習を確認します。リポジトリの初期 Library は変更しません。
-
-```bash
-GEO_VOYAGER_EMBEDDING_BASE_URL=http://10.105.167.163:8080 \
-GEO_VOYAGER_EMBEDDING_MODEL=granite-embedding \
-PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest integration/test_intent_executor.py -q -s -W error
-```
-
-[3経路の実 retrieved / selected / learned、Observation・Critic・保存Skillの記録](docs/intent_execution.md)
-を保存しています。平均人口は423185.9130434783で、Critic success後に一時 Library が6→7件になりました。
-初期 Library は6件のままです。既存 Skill の通常実行では保存されません。
-
-### 学習直後の同一 Intent・言い換え再利用
-
-`integration/test_intent_executor.py` は同じ一時 Library を使い、平均人口を学習した後、
-同じ Intent と「東京都23区について、1区あたりの平均人口を計算して」を連続実行します。
-両方で学習 UUID の top-4 入り・Selector 選択、learned=None、生成・保存回数が増えないこと、
-Observation の一致を確認します。Library は6→7→7→7でした。
-[全 UUID と結果・専用一時ディレクトリでの再実行方法](docs/skill_growth.md)を記録しています。
-
-現在の integration では再利用のたびに Critic を呼び、意図的な誤選択からの1回の fallback も確認します。過去の検証記録の critique=None は変更前の動作です。最新の結果は [Critic 検証と fallback](docs/critic_fallback.md) に記録します。
-
-[派生 cache / HNSW index の実検証結果・6 Intent 評価・学習後の再利用](docs/vector_retrieval.md)を記録しています。
+- Skill は、import とトップレベルの関数 1 つ（docstring つき）だけのコード（`geo_voyager/skill_function.py` の `parse_skill`）。関数名で呼ばれ、docstring が説明になる。
+- `SkillLibrary(root)`（`geo_voyager/skill_library.py`）は Skill を名前で保存し、同じ名前を保存し直すと前の版を残す（`<名前>/v1/code.py`、`v2/` ...）。保存されていない Skill を呼ぶ Skill は拒否する。
+- `link(program, library)` は、プログラムが呼ぶ Skill を呼び先までたどり、呼ばれる側を先にプログラムの前に並べる。Worker は実行の前にこれを行い、失敗の行番号はプログラムの行で返す。
+- `SkillRetriever(library, embedding_client)` は、Skill の説明の embedding（版ごとに保存）と Intent の文の cosine で上位 k 件を返す。
+- `IntentExecutor(retriever, worker, generator, critic, skill_library, repairer=None, semantic_repairer=None)` は、上位の Skill を Generator に見せ、生成コード（Skill を呼んでよい。新しい関数は 1 つまで）を Skill をリンクして実行し、失敗なら最大 2 回 repair し、Critic が成功としたら新しい関数を Skill として保存する。結果の `IntentExecution` は、見せた Skill（`retrieved_skills`）、呼んだ Skill（`called_skills`）、保存した Skill（`learned_skill`、`名前@v版`）を持つ。
+- リポジトリの `skill_library/` には、v0.1.0 の最初の 6 Skill と同じ目的の関数（`most_populous_area`、`least_populous_area`、`top_areas_by_population`、`total_population`、`count_station_records`、`northernmost_station`）を置いた。
 
 ## Registered geographical services
 
@@ -694,10 +389,9 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 .venv/bin/python -m pytest \
   --basetemp=/tmp/geo-service-learning-$(cat /proc/sys/kernel/random/uuid)
 ```
 
-Each scenario uses its own empty temporary file-based Library. After Critic
-success the UUID Skill is saved and indexed, then the same Intent is retrieved,
-selected, executed and checked again without generation or another save.
-The six initial repository Skills remain unchanged. Critic still checks only Intent
+Each scenario uses its own empty temporary Library. After Critic success the new function is saved as a
+named Skill; the same Intent is then retrieved again, and the generated code is expected to call the saved
+Skill instead of rewriting it (rewritten for the named-function Skills on 2026-10-10, not yet run since). Critic still checks only Intent
 completion; its prompt explicitly forbids inventing missing answers from external
 knowledge, and its control flow and success-only promotion remain unchanged. Generated requests use
 registered services only; no tag answer or country object ID is supplied in the
@@ -705,8 +399,7 @@ prompt. Registry descriptions contain API/schema metadata and abstract protocol
 syntax, rather than concrete geographic queries. Those queries remain model
 output. Service-only generation explicitly sets `temperature=0.2` and
 `chat_template_kwargs.enable_thinking=true`, `reasoning_budget_tokens=1024` and
-`max_tokens=3072` per request. Dataset generation retains its existing defaults; Critic and Selector
-use temperature zero. An explicit system message requests the strict description/code
+`max_tokens=3072` per request. Dataset generation retains its existing defaults; the Critic uses temperature zero. An explicit system message requests the strict description/code
 layout and only the first description label is assistant-prefilled; malformed response formats are rejected. Generated-code execution failures use the bounded repair loop described below. These settings do not
 guarantee that generated code succeeds. No model or Kubernetes configuration is changed.
 

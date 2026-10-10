@@ -54,14 +54,13 @@ def intent_record(intent_text: str, execution: IntentExecution) -> dict:
     """One JSON-serialisable row. It holds code hashes and stderr tails, not code."""
     attempts = [attempt for attempt in execution.attempts if attempt.route == 'runtime']
     semantic = [attempt for attempt in execution.attempts if attempt.route == 'semantic']
-    reused = execution.selected_skill_id is not None
-    candidates = attempts[1:] if reused else attempts
+    candidates = attempts
     outcome_at = next((i for i, attempt in enumerate(candidates) if attempt.failure is None), None)
     hashes = [sha256(attempt.code.encode()).hexdigest() for attempt in candidates]
     return {
         'intent': intent_text,
-        'reused_skill_failed': reused and attempts[0].failure is not None,
-        'reused_skill_succeeded': reused and len(attempts) == 1 and attempts[0].failure is None,
+        'called_skills': list(execution.called_skills),
+        'learned_skill': execution.learned_skill,
         'candidate_attempts': len(candidates),
         'outcome_at': outcome_at,
         'failure_types': [classify_failure(attempt.failure) for attempt in candidates if attempt.failure],

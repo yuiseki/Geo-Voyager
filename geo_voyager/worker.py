@@ -5,8 +5,8 @@ from .docker_sandbox import DockerSandbox
 from .execution_failure import ExecutionFailure, GENERATED_ERROR_EXIT, candidate_lines, sandbox_program
 from .intent import Intent
 from .observation import Observation
-from .skill import Skill
 from .skill_candidate import SkillCandidate
+from .skill_library import SkillLibrary, link
 from .services import load_service_graph
 
 
@@ -26,12 +26,15 @@ class Worker:
     def __init__(self, network: str) -> None:
         self.network = network
 
-    def _execute_code(self, intent: Intent, code: str) -> list[Observation] | ExecutionFailure:
+    def _execute_code(self, intent: Intent, code: str, library: SkillLibrary | None = None) -> list[Observation] | ExecutionFailure:
         if len(intent.dataset_ids) > 1 or (not intent.dataset_ids and not intent.service_ids and not (intent.requires_context and intent.previous_observations)):
             raise ValueError("At most one dataset_id or registered service_ids are required")
         for service_id in intent.service_ids:
             load_service_graph().get(service_id)
-        prefix = injected_lines(intent)
+        # The Skills the code calls are defined in front of it (geo_voyager.skill_library.link). Like the runtime
+        # variables, they shift the line numbers, so the failure is numbered by the code as it was written.
+        linked = link(code, library) if library is not None else code
+        prefix = injected_lines(intent) + linked[:len(linked) - len(code)]
         code = prefix + code
         try:
             stdout = DockerSandbox(
@@ -49,8 +52,6 @@ class Worker:
             return replace(failure, stderr=candidate_lines(failure.stderr, prefix.count('\n')))
         return [Observation(stdout.strip())] if stdout.strip() else []
 
-    def execute_skill(self, intent: Intent, skill: Skill) -> list[Observation] | ExecutionFailure:
-        return self._execute_code(intent, skill.code)
-
-    def execute_candidate(self, intent: Intent, candidate: SkillCandidate) -> list[Observation] | ExecutionFailure:
-        return self._execute_code(intent, candidate.code)
+    def execute_candidate(self, intent: Intent, candidate: SkillCandidate,
+                          library: SkillLibrary | None = None) -> list[Observation] | ExecutionFailure:
+        return self._execute_code(intent, candidate.code, library)

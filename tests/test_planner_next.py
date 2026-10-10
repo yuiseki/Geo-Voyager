@@ -1,5 +1,4 @@
 from unittest.mock import Mock
-from uuid import uuid4
 
 import pytest
 
@@ -21,7 +20,7 @@ def planner(reply):
     return Planner(client), client
 
 
-def entry(step, intent, obs='', ok=True, failure=None, critic='ok', reused=None, learned=None, targets=()):
+def entry(step, intent, obs='', ok=True, failure=None, critic='ok', reused=(), learned=None, targets=()):
     return HistoryEntry(step, intent, (Observation(obs),) if obs else (), Critique(ok, critic), failure, reused, learned, targets)
 
 
@@ -68,7 +67,7 @@ def test_a_reply_that_only_mentions_done_is_not_done():
 def test_the_prompt_shows_what_the_history_holds():
     failure = ExecutionFailure('failed', '', 'Traceback\nKeyError: 0', 73)
     second = Intent('港区内の病院数', service_ids=('overpass',), target=TargetRef('港区'))
-    learned, reused = uuid4(), uuid4()
+    learned, reused = 'compare_counts@v1', ('count_tag_in_area@v2',)
     third = Intent('新宿区内の病院数', service_ids=('overpass',), target=TargetRef('新宿区'))
     plan, client = planner(DONE.__repr__())
     plan.next('港区の病院数を求める', history(
@@ -79,7 +78,7 @@ def test_the_prompt_shows_what_the_history_holds():
     for shown in ['港区の relation_id を取得する', '"relation_id": "1761717"',          # intent and observation
                   '港区内の病院数', 'KeyError: 0', 'Generated Python execution failed',  # a failed step and why
                   '件数が答えられている',                                              # the Critic's verdict
-                  str(reused)[:8], str(learned)[:8],                                    # skill reused and learned
+                  'count_tag_in_area@v2', 'compare_counts@v1',                          # skill called and learned
                   '判明した対象', '港区', '1761717']:                                    # the targets made known
         assert shown in prompt, shown
 

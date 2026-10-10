@@ -13,7 +13,7 @@ from geo_voyager.intent import Intent
 from geo_voyager.intent_execution import IntentExecution
 from geo_voyager.observation import Observation
 from geo_voyager.planner import Planner, PlannerRejected
-from geo_voyager.skill import Skill
+from geo_voyager.skill_candidate import SkillCandidate
 from geo_voyager.skill_candidate_generator import SkillCandidateGenerator
 from geo_voyager.target_ref import TargetRef
 from geo_voyager.worker import Worker
@@ -87,7 +87,7 @@ def test_a_name_known_under_two_ids_is_refused_by_the_planner_with_the_ids_liste
 
 def test_the_history_carries_the_ref_a_step_found_and_the_planner_is_shown_its_id():
     history = GoalHistory()
-    execution = IntentExecution([obs({'name': '港区, 東京都, 日本', 'relation_id': 1761717})], (), None, None, Critique(True, 'ok'), None)
+    execution = IntentExecution([obs({'name': '港区, 東京都, 日本', 'relation_id': 1761717})], (), (), None, Critique(True, 'ok'))
     history.append(HistoryEntry.from_execution(1, Intent('港区の ID', service_ids=('nominatim',), target=TargetRef('港区')), execution, history))
     assert history.targets() == (MINATO_LONG,) and history.entries[0].targets == (MINATO_LONG,)
     text = render_history(history)
@@ -97,7 +97,7 @@ def test_the_history_carries_the_ref_a_step_found_and_the_planner_is_shown_its_i
 def test_the_same_id_under_another_display_name_is_not_a_new_target():
     history = GoalHistory()
     for step, name in ((1, '港区, 東京都, 日本'), (2, '港区')):
-        execution = IntentExecution([obs({'name': name, 'relation_id': 1761717})], (), None, None, Critique(True, 'ok'), None)
+        execution = IntentExecution([obs({'name': name, 'relation_id': 1761717})], (), (), None, Critique(True, 'ok'))
         history.append(HistoryEntry.from_execution(step, Intent(f'step {step}', service_ids=('nominatim',)), execution, history))
     assert [t.name for t in history.targets()] == ['港区, 東京都, 日本'] and history.entries[1].targets == ()
 
@@ -118,7 +118,7 @@ def test_the_ref_of_an_intent_is_kept_in_the_record_of_the_run():
 def run_worker(target, previous=()):
     with patch('geo_voyager.worker.DockerSandbox') as sandbox:
         sandbox.return_value.run.return_value = 'ok'
-        Worker('internal').execute_skill(intent(target, previous_observations=previous), Skill(uuid4(), 's', 'print(1)'))
+        Worker('internal').execute_candidate(intent(target, previous_observations=previous), SkillCandidate('print(1)', 's'))
     return sandbox.return_value.run.call_args.args[0]
 
 

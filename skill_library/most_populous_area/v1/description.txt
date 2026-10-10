@@ -1,0 +1,1 @@
+Find the administrative area with the largest population, in all areas or in one named set (for example 東京都23区). Returns its 5-digit code, name and population.

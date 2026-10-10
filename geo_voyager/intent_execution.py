@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from uuid import UUID
 
 from .critique import Critique
 from .execution_failure import ExecutionFailure
@@ -9,11 +8,12 @@ from .observation import Observation
 
 @dataclass(frozen=True)
 class IntentExecution:
+    """What one Intent did. Skills are named 'name@vN' (geo_voyager.skill_library)."""
     observations: list[Observation]
-    retrieved_skill_ids: tuple[UUID, ...]
-    selected_skill_id: UUID | None
-    learned_skill_id: UUID | None
+    retrieved_skills: tuple[str, ...]     # shown to the Generator
+    called_skills: tuple[str, ...]        # saved Skills the final code called (linked in front of it)
+    learned_skill: str | None             # the new Skill saved from the final code, when the Critic accepted it
     critique: Critique
-    selected_skill_critique: Critique | None
     failure: ExecutionFailure | None = None
     attempts: tuple[ExecutionAttempt, ...] = ()
+    note: str | None = None               # for example why the accepted code could not be saved as a Skill

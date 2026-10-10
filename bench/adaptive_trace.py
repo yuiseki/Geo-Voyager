@@ -22,8 +22,8 @@ def trace_steps(result: AdaptiveGoalExecution, injected: set[int] | None = None)
             'failure': (error_line(entry.failure) or entry.failure.message) if entry.failure else '',
             'observation': (entry.observations[0].text[:OBSERVATION_SHOWN] if entry.observations else ''),
             'attempts': len([a for a in execution.attempts if a.route == 'runtime']),
-            'reused_skill': str(entry.reused_skill_id)[:8] if entry.reused_skill_id else None,
-            'learned_skill': str(entry.learned_skill_id)[:8] if entry.learned_skill_id else None,
+            'called_skills': list(entry.called_skills),
+            'learned_skill': entry.learned_skill,
             'new_targets': [target.to_dict() for target in entry.targets], 'injected': entry.step in injected,
         })
         known.extend(target for target in entry.targets if target.key not in {k.key for k in known})
@@ -62,8 +62,8 @@ def _render_step(step: dict) -> list[str]:
         lines.append(f"- Observation: {step['observation']}")
     if step['new_targets']:
         lines.append(f"- この step で初めて判明した対象: {step['new_targets']}")
-    if step['reused_skill']:
-        lines.append(f"- 再利用した Skill: {step['reused_skill']}")
+    if step.get('called_skills'):
+        lines.append(f"- 呼んだ Skill: {', '.join(step['called_skills'])}")
     if step['learned_skill']:
         lines.append(f"- 学習した Skill: {step['learned_skill']}")
     return lines

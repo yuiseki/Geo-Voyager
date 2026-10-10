@@ -19,10 +19,9 @@ from geo_voyager.embedding_client import EmbeddingClient
 from geo_voyager.intent import Intent
 from geo_voyager.intent_executor import IntentExecutor
 from geo_voyager.llama_client import LlamaClient
-from geo_voyager.skill import SkillLibrary
+from geo_voyager.skill_library import SkillLibrary
 from geo_voyager.skill_candidate_generator import SkillCandidateGenerator
 from geo_voyager.skill_retriever import SkillRetriever
-from geo_voyager.skill_selector import SkillSelector
 from geo_voyager.worker import Worker
 from integration.network_topology import network_topology
 from integration.service_gateway_setup import gateway_code, wait_for_gateway
@@ -97,8 +96,8 @@ def test_unknown_service_skill_is_learned_then_reused(tmp_path, case, text, serv
     llm.generate.side_effect = generate_response_logged
     generator = Mock(wraps=SkillCandidateGenerator(llm))
     real_generate = generator.generate._mock_wraps
-    def generate_logged(intent):
-        candidate = real_generate(intent)
+    def generate_logged(intent, skills=()):
+        candidate = real_generate(intent, skills)
         print('DESCRIPTION:', candidate.description, flush=True)
         print('CODE:\n' + candidate.code, flush=True)
         (tmp_path / 'candidate.py').write_text(candidate.code)
@@ -111,27 +110,26 @@ def test_unknown_service_skill_is_learned_then_reused(tmp_path, case, text, serv
         with pinned_geosparql(names) as manifest:
             retriever = SkillRetriever(library, EmbeddingClient(base, model))
             critic = Mock(wraps=Critic())
-            executor = IntentExecutor(retriever, SkillSelector(), Worker(names['internal']),
+            executor = IntentExecutor(retriever, Worker(names['internal']),
                                       generator, critic, library_spy)
             try:
                 first = executor.execute(intent, k=4)
                 print('FIRST:', json.dumps(asdict(first), ensure_ascii=False, default=str), flush=True)
-                assert first.selected_skill_id is None and first.learned_skill_id is not None
-                assert first.critique.success and len(library.all()) == 1
-                skill = library.get(first.learned_skill_id)
+                # Voyager's loop: the first run saves its function as a Skill, the second calls it instead of rewriting it.
+                assert first.critique.success and first.learned_skill is not None and len(library.all()) == 1
+                name = first.learned_skill.split('@')[0]
+                skill = library.get(name)
                 second = executor.execute(intent, k=4)
                 print('SECOND:', json.dumps(asdict(second), ensure_ascii=False, default=str), flush=True)
-                assert first.learned_skill_id in second.retrieved_skill_ids
-                assert second.selected_skill_id == skill.id and second.learned_skill_id is None
-                assert second.critique.success and len(library.all()) == 1
-                generator.generate.assert_called_once_with(intent)
-                library_spy.add.assert_called_once_with(skill)
+                assert first.learned_skill in second.retrieved_skills
+                assert second.critique.success and first.learned_skill in second.called_skills
+                assert generator.generate.call_count == 2
                 assert critic.check.call_count == 2
                 logs = docker('logs', names['gateway'])
                 for service_id in service_ids:
                     assert '/services/' + service_id + '/' in logs
                 report = dict(case=case, intent=asdict(intent), first=asdict(first), second=asdict(second),
-                              skill=asdict(skill), generator_calls=1, save_calls=1,
+                              skill=asdict(skill), generator_calls=2,
                               gateway_logs=logs, pinned_sources=[{key: entry[key] for key in
                                   ('dataset','revision','ttl_file','ttl_sha256')} for entry in manifest['sources']])
                 (tmp_path / 'service_learning_report.json').write_text(

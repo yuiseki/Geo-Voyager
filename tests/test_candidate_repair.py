@@ -30,46 +30,7 @@ def test_repair_prompt_and_strict_candidate_parser():
         SkillCandidateRepairer(llm).repair(intent, original, FAILURE)
 
 
-@pytest.mark.parametrize('failures,success', [(1, True), (2, True), (3, False)])
-def test_bounded_repairs_only_save_success_and_skip_critic_on_execution_failure(failures, success):
-    retriever, selector, worker, generator, critic, library, repairer = [Mock() for _ in range(7)]
-    retriever.retrieve.return_value = []; selector.select.return_value = None
-    original = SkillCandidate('original', '元'); repaired = SkillCandidate('repaired', '修正')
-    generator.generate.return_value = original; repairer.repair.return_value = repaired
-    worker.execute_candidate.side_effect = [FAILURE] * failures + ([[Observation('result')]] if success else [])
-    critic.check.return_value = Critique(True, 'answered')
-    executor = IntentExecutor(retriever, selector, worker, generator, critic, library, repairer=repairer)
-    with patch('geo_voyager.intent_executor.promote') as promote:
-        result = executor.execute(Intent('調査', service_ids=('overpass',)))
-    assert repairer.repair.call_count == min(failures, 2)
-    assert worker.execute_candidate.call_count == min(failures + 1, 3)
-    assert result.critique.success == success
-    assert critic.check.call_count == int(success)
-    assert library.add.call_count == int(success)
-    assert promote.call_count == int(success)
-    if success:
-        promote.assert_called_once_with(repaired)
-    else:
-        assert result.failure == FAILURE and result.learned_skill_id is None
-
-
-def test_only_final_repaired_source_is_saved_to_real_library(tmp_path):
-    from geo_voyager.skill import SkillLibrary
-    retriever, selector, worker, generator, critic, repairer = [Mock() for _ in range(6)]
-    retriever.retrieve.return_value = []; selector.select.return_value = None
-    generator.generate.return_value = SkillCandidate('broken original', '元の説明')
-    fixed = SkillCandidate('print("answer")', '修正された操作')
-    repairer.repair.return_value = fixed
-    worker.execute_candidate.side_effect = [FAILURE, [Observation('answer')]]
-    critic.check.return_value = Critique(True, 'answered')
-    library = SkillLibrary(tmp_path)
-    result = IntentExecutor(retriever, selector, worker, generator, critic, library, repairer).execute(
-        Intent('調査', service_ids=('overpass',)))
-    assert len(library.all()) == 1
-    saved = library.get(result.learned_skill_id)
-    assert saved.code == fixed.code and saved.description == fixed.description
-    assert result.attempts[0].code == 'broken original'
-    assert result.attempts[1].code == fixed.code
+# How many repairs the executor allows, and that only the final code is saved, is in tests/test_intent_executor.py.
 
 
 def test_repair_is_direct_code_correction_with_short_description():
@@ -117,35 +78,17 @@ def test_prompt_with_history_shows_failing_line_and_attempt_history():
 
 
 def test_executor_passes_all_candidate_attempts_so_far_to_the_repairer():
-    retriever, selector, worker, generator, critic, library, repairer = [Mock() for _ in range(7)]
-    retriever.retrieve.return_value = []; selector.select.return_value = None
+    retriever, worker, generator, critic, library, repairer = [Mock() for _ in range(6)]
+    retriever.retrieve.return_value = []; library.names.return_value = []
     generator.generate.return_value = SkillCandidate('c0', '元')
     repairer.repair.side_effect = [SkillCandidate('c1', '修'), SkillCandidate('c2', '修')]
     worker.execute_candidate.side_effect = [FAILURE, FAILURE, [Observation('ok')]]
     critic.check.return_value = Critique(True, 'ok')
-    with patch('geo_voyager.intent_executor.promote'):
-        IntentExecutor(retriever, selector, worker, generator, critic, library, repairer=repairer).execute(
-            Intent('調査', service_ids=('overpass',)))
+    IntentExecutor(retriever, worker, generator, critic, library, repairer=repairer).execute(
+        Intent('調査', service_ids=('overpass',)))
     first, second = repairer.repair.call_args_list
     assert [a.code for a in first.kwargs['history']] == ['c0']
     assert [a.code for a in second.kwargs['history']] == ['c0', 'c1']
-
-
-def test_selected_skill_attempt_is_not_part_of_the_repair_history():
-    from uuid import uuid4
-    from geo_voyager.skill import Skill
-    retriever, selector, worker, generator, critic, library, repairer = [Mock() for _ in range(7)]
-    skill = Skill(uuid4(), '既存', 'existing')
-    retriever.retrieve.return_value = [skill]; selector.select.return_value = skill
-    worker.execute_skill.return_value = FAILURE
-    generator.generate.return_value = SkillCandidate('c0', '元')
-    repairer.repair.return_value = SkillCandidate('c1', '修')
-    worker.execute_candidate.side_effect = [FAILURE, [Observation('ok')]]
-    critic.check.return_value = Critique(True, 'ok')
-    with patch('geo_voyager.intent_executor.promote'):
-        IntentExecutor(retriever, selector, worker, generator, critic, library, repairer=repairer).execute(
-            Intent('調査', service_ids=('overpass',)))
-    assert [a.code for a in repairer.repair.call_args.kwargs['history']] == ['c0']
 
 
 def reply(code: str) -> str:

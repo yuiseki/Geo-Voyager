@@ -6,7 +6,7 @@
 
 地理の質問（Goal）を、実 LLM（自前の llama.cpp、`gvt-llm`）が小さな調査（Intent）に分け、Intent ごとに Python のコード（Skill）を生成して Docker sandbox で実行し、自前の地理サービスと Dataset から答えを得る。うまくいったコードは Skill として保存し、似た Intent で再利用する（Voyager 型の Skill library）。
 
-主な部品と流れ（現在の主経路は、1 step ずつ決める適応ループ）:
+主な部品と流れ（現在の主経路は、1 step ずつ決める適応ループ。Skill library は 2026-10-10 に名前付き関数の形に作り直した。[skill_library.md](skill_library.md)）:
 
 ```
 Goal
@@ -14,11 +14,12 @@ Goal
     ├ Planner.next(goal, history) -> Intent | DONE       geo_voyager/planner.py
     │    履歴（GoalHistory）を読んで次の Intent を 1 件決める。対象は「対象:」の行で書く
     ├ IntentExecutor.execute(intent)                     geo_voyager/intent_executor.py
-    │    ├ SkillRetriever / SkillSelector  既存 Skill の検索と選択（embedding: granite-embedding）
-    │    ├ SkillCandidateGenerator        無ければコードを生成
-    │    ├ Worker -> DockerSandbox        sandbox で実行（Service Gateway 経由でのみ外部へ）
+    │    ├ SkillRetriever                 近い Skill（名前付き関数）を検索（embedding: granite-embedding）
+    │    ├ SkillCandidateGenerator        Skill を呼んでよいコードを生成（新しい関数は 1 つまで）
+    │    ├ Worker -> DockerSandbox        呼ぶ Skill をリンクして sandbox で実行（Service Gateway 経由でのみ外部へ）
     │    ├ Critic.check                   Observation が Intent に答えたか判定
     │    ├ SkillCandidateRepairer         実行が失敗したら traceback を見て直す（最大 2 回）
+    │    ├ （Critic が成功なら）新しい関数を Skill として名前と版で保存
     │    └ SemanticRepairer（既定は無効） 実行は通ったが Critic が棄却したときに 1 回直す
     ├ GoalHistory に step、計画の失敗（PlannerFailure）、最終判定の失敗（FinalCriticFailure）を追記
     └ DONE のとき Critic.check(goal, 全 Observation, final=True)。失敗なら履歴に入れて Planner に戻る
@@ -166,6 +167,7 @@ PYTHONPATH=. .venv/bin/python -m bench.adaptive_summary ~/tmp/geo-voyager-bench/
 
 - 全体と最新: この文書、[adaptive_round_1.md](adaptive_round_1.md)、[adaptive_round_2.md](adaptive_round_2.md)
 - 構想（Dataset Graph、World Graph、Exploration Graph、Skill library。Voyager と ARTEX から得た示唆）: [architecture_vision.md](architecture_vision.md)
+- Skill library（名前付き関数と合成）: [skill_library.md](skill_library.md)
 - 究極のゴールに向けて（study-geoai-algo-py の水準の分析）: [analysis_sandbox_design.md](analysis_sandbox_design.md)、[study_geoai_goals_proposal.md](study_geoai_goals_proposal.md)、[analysis_sandbox.md](analysis_sandbox.md)（実装と G1 の再現）
 - 計画（Planner）: [observation_driven_planning.md](observation_driven_planning.md)、[observation_driven_recovery.md](observation_driven_recovery.md)、[planner_service_contract.md](planner_service_contract.md)
 - 対象: [identity_references.md](identity_references.md)、[target_ref.md](target_ref.md)、[entity_target_e2e.md](entity_target_e2e.md)

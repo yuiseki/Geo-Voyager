@@ -65,6 +65,10 @@ Voyager との最大の差は合成である。study-geoai のような分析で
 - 検索した上位の Skill のコードを Generator のプロンプトに見せ、呼んでよいことにする。実行時には、呼ばれた Skill のコードを一緒に読み込む。
 - 同じ名前の Skill は版で管理する。
 
+#### 実装（2026-10-10）
+
+同じ日に、今の部品を捨てて名前付き関数の形に作り直し、IntentExecutor までつないだ。詳細は [skill_library.md](skill_library.md)。以下は、その前に作った土台の記録。
+
 #### 土台の実装（2026-10-10）
 
 Skill を名前付きの関数にする土台を、今の部品を変えずに横に作った（単体テスト 870 件）。Generator、IntentExecutor、Worker にはまだつないでいない。

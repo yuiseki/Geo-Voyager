@@ -20,11 +20,8 @@ def passed(code: str) -> ExecutionAttempt:
     return ExecutionAttempt(code, [Observation('{"ok": 1}')], None)
 
 
-def execution(attempts, success=True, selected=None) -> IntentExecution:
-    return IntentExecution(
-        attempts[-1].observations, (), selected, None, Critique(success, 'r'), None,
-        failure=attempts[-1].failure, attempts=tuple(attempts),
-    )
+def execution(attempts, success=True, called=(), learned=None) -> IntentExecution:
+    return IntentExecution(attempts[-1].observations, (), called, learned, Critique(success, 'r'), failure=attempts[-1].failure, attempts=tuple(attempts))
 
 
 def test_classify_syntax_error():
@@ -107,19 +104,12 @@ def test_no_oscillation_when_all_codes_differ():
     assert record['oscillation'] is False
 
 
-def test_selected_skill_attempt_is_not_counted_as_a_candidate_attempt():
-    # The first attempt ran a reused skill and failed; the candidate chain starts after it.
-    record = intent_record('i', execution([
-        failed('skill', 'KeyError: 1'), passed('cand')], selected='some-id'))
-    assert record['outcome_at'] == 0
-    assert record['reused_skill_failed'] is True
-
-
-def test_reused_skill_success_has_no_candidate_chain():
-    record = intent_record('i', execution([passed('skill')], selected='some-id'))
-    assert record['outcome_at'] is None
-    assert record['candidate_attempts'] == 0
-    assert record['reused_skill_succeeded'] is True
+def test_every_attempt_is_a_candidate_attempt_and_the_skills_are_recorded():
+    # A reused Skill is called from the generated code, so there is no separate run of a reused Skill.
+    record = intent_record('i', execution([failed('a', 'KeyError: 1'), passed('b')],
+                                          called=('count_tag_in_area@v1',), learned='compare@v1'))
+    assert record['candidate_attempts'] == 2 and record['outcome_at'] == 1
+    assert record['called_skills'] == ['count_tag_in_area@v1'] and record['learned_skill'] == 'compare@v1'
 
 
 def test_output_is_one_json_row_with_code_hashes_not_code():

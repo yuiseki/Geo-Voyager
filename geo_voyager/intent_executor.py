@@ -7,26 +7,27 @@ from .semantic_repairer import SemanticRepairer
 from .skill_candidate_repairer import SkillCandidateRepairer
 from .intent import Intent
 from .intent_execution import IntentExecution
-from .skill import SkillLibrary
-from .skill_candidate import promote
+from .skill_candidate import new_skill_code
 from .skill_candidate_generator import SkillCandidateGenerator
+from .skill_function import parse_skill
+from .skill_library import SkillLibrary, linked_skills
 from .skill_retriever import SkillRetriever
-from .skill_selector import SkillSelector
 from .worker import Worker
 
 
 class IntentExecutor:
+    """One Intent: retrieve the closest Skills, generate code that may call them, run it, repair it, judge it,
+    and save the new function as a Skill when the Critic accepts the run (as MineDojo/Voyager does)."""
+
     def __init__(
-        self, retriever: SkillRetriever, selector: SkillSelector, worker: Worker,
-        generator: SkillCandidateGenerator, critic: Critic, skill_library: SkillLibrary,
-        repairer: SkillCandidateRepairer | None = None,
+        self, retriever: SkillRetriever, worker: Worker, generator: SkillCandidateGenerator, critic: Critic,
+        skill_library: SkillLibrary, repairer: SkillCandidateRepairer | None = None,
         semantic_repairer: SemanticRepairer | None = None,
     ) -> None:
         self.repairer = repairer if repairer is not None else SkillCandidateRepairer()
         # Off unless given: one more model call and one more run for every Critic rejection.
         self.semantic_repairer = semantic_repairer
         self.retriever = retriever
-        self.selector = selector
         self.worker = worker
         self.generator = generator
         self.critic = critic
@@ -35,53 +36,35 @@ class IntentExecutor:
     def execute(self, intent: Intent, k: int = 4) -> IntentExecution:
         if len(intent.dataset_ids) > 1 or (not intent.dataset_ids and not intent.service_ids and not (intent.requires_context and intent.previous_observations)):
             raise ValueError('At most one dataset_id or registered service_ids are required')
-        skills = self.retriever.retrieve(intent, k)
-        retrieved_ids = tuple(skill.id for skill in skills)
-        selected = self.selector.select(intent, skills)
-        selected_skill_critique = None
-        attempts = []
-        if selected is not None:
-            observations = self.worker.execute_skill(intent, selected)
-            attempts.append(self._attempt(selected.code, observations))
-            if not isinstance(observations, ExecutionFailure):
-                selected_skill_critique = self.critic.check(intent, observations)
-            if selected_skill_critique is not None and selected_skill_critique.success:
-                return IntentExecution(
-                    observations, retrieved_ids, selected.id, None,
-                    selected_skill_critique, selected_skill_critique,
-                    attempts=tuple(attempts),
-                )
-        candidate = self.generator.generate(intent)
-        candidate_attempts = []
+        skills = self.retriever.retrieve(intent.text, k)
+        retrieved = tuple(f'{skill.name}@v{self.skill_library.versions(skill.name)[-1]}' for skill in skills)
+        candidate = self.generator.generate(intent, skills)
+        attempts, candidate_attempts = [], []
         for repair_count in range(3):
-            observations = self.worker.execute_candidate(intent, candidate)
+            observations = self.worker.execute_candidate(intent, candidate, self.skill_library)
             attempts.append(self._attempt(candidate.code, observations))
             candidate_attempts.append(attempts[-1])
             if not isinstance(observations, ExecutionFailure):
                 break
             if repair_count == 2:
-                return IntentExecution(
-                    [], retrieved_ids, selected.id if selected else None, None,
-                    Critique(False, observations.message), selected_skill_critique,
-                    failure=observations, attempts=tuple(attempts),
-                )
-            candidate = self.repairer.repair(intent, candidate, observations,
-                                             history=tuple(candidate_attempts))
+                return IntentExecution([], retrieved, tuple(linked_skills(candidate.code, self.skill_library)), None,
+                                       Critique(False, observations.message), failure=observations, attempts=tuple(attempts))
+            candidate = self.repairer.repair(intent, candidate, observations, history=tuple(candidate_attempts))
         critique = self.critic.check(intent, observations)
         attempts[-1] = replace(attempts[-1], critique=critique)
         if not critique.success and self.semantic_repairer is not None:
             candidate, observations, critique = self._semantic_repair(
                 intent, candidate, observations, critique, tuple(candidate_attempts), attempts)
-        learned = None
-        if critique.success:
-            learned = promote(candidate)
-            self.skill_library.add(learned)
-            self.retriever.upsert(learned)
-        return IntentExecution(
-            observations, retrieved_ids, selected.id if selected else None,
-            learned.id if learned else None, critique, selected_skill_critique,
-            attempts=tuple(attempts),
-        )
+        called = tuple(linked_skills(candidate.code, self.skill_library))
+        learned, note = None, None
+        code = new_skill_code(candidate.code) if critique.success else None
+        if code is not None:
+            try:
+                version = self.skill_library.add(code)
+                learned = f'{parse_skill(code).name}@v{version}'
+            except ValueError as problem:
+                note = f'not saved as a Skill: {problem}'
+        return IntentExecution(observations, retrieved, called, learned, critique, attempts=tuple(attempts), note=note)
 
     def _semantic_repair(self, intent, candidate, observations, critique, history, attempts):
         """One repair after the Critic rejected a run that had succeeded. Never more than one.
@@ -95,7 +78,7 @@ class IntentExecutor:
             attempts.append(ExecutionAttempt(proposal.candidate.code if proposal.candidate else candidate.code, [], None,
                                              route='semantic', trigger=critique.reason, executed=False, note=proposal.status))
             return candidate, observations, critique
-        result = self.worker.execute_candidate(intent, proposal.candidate)
+        result = self.worker.execute_candidate(intent, proposal.candidate, self.skill_library)
         if isinstance(result, ExecutionFailure):
             attempts.append(ExecutionAttempt(proposal.candidate.code, [], result, route='semantic',
                                              trigger=critique.reason, note='execution failed'))

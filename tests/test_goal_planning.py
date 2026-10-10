@@ -42,8 +42,8 @@ def test_prior_observations_are_passed_in_order_and_failed_step_stops():
     intents = [Intent('first', service_ids=('overpass',)), Intent('second', service_ids=('overpass',))]
     planner.plan.return_value = intents
     observation = Observation('first answer')
-    first = IntentExecution([observation], (), None, None, Critique(True, 'ok'), None)
-    second = IntentExecution([], (), None, None, Critique(False, 'failed'), None)
+    first = IntentExecution([observation], (), (), None, Critique(True, 'ok'))
+    second = IntentExecution([], (), (), None, Critique(False, 'failed'))
     executor.execute.side_effect = [first, second]
     result = GoalExecutor(planner, executor, critic).execute('goal')
     assert executor.execute.call_args_list[1].args[0].previous_observations == (observation,)
@@ -53,15 +53,15 @@ def test_prior_observations_are_passed_in_order_and_failed_step_stops():
 
 def test_completed_goal_checks_final_output_and_reuses_updated_library():
     planner, executor, critic = Mock(), Mock(), Mock()
-    learned = __import__('uuid').uuid4()
+    learned = 'measure_target@v1'
     intents = [Intent('measure first target', service_ids=('overpass',)), Intent('measure next target', service_ids=('overpass',))]
     planner.plan.return_value = intents
-    first = IntentExecution([Observation('first measurement')], (), None, learned, Critique(True, 'ok'), None)
-    second = IntentExecution([Observation('final answer')], (learned,), learned, None, Critique(True, 'ok'), Critique(True, 'ok'))
+    first = IntentExecution([Observation('first measurement')], (), (), learned, Critique(True, 'ok'))
+    second = IntentExecution([Observation('final answer')], (learned,), (learned,), None, Critique(True, 'ok'))
     executor.execute.side_effect = [first, second]
     critic.check.return_value = Critique(True, 'goal answered')
     result = GoalExecutor(planner, executor, critic).execute('goal')
-    assert result.executions[1].selected_skill_id == result.executions[0].learned_skill_id
+    assert result.executions[0].learned_skill in result.executions[1].called_skills
     assert result.critique.success
     assert critic.check.call_args.args[1] == first.observations + second.observations
 
@@ -102,7 +102,7 @@ def test_final_critic_receives_all_successful_step_observations():
     planner, executor, critic = Mock(), Mock(), Mock()
     planner.plan.return_value = [Intent('一覧', service_ids=('overpass',)), Intent('最大', requires_context=True)]
     observations = [Observation('measurement evidence'), Observation('final answer')]
-    executor.execute.side_effect = [IntentExecution([obs], (), None, None, Critique(True, 'ok'), None) for obs in observations]
+    executor.execute.side_effect = [IntentExecution([obs], (), (), None, Critique(True, 'ok')) for obs in observations]
     critic.check.return_value = Critique(True, 'complete')
     GoalExecutor(planner, executor, critic).execute('goal')
     assert critic.check.call_args.args[1] == observations

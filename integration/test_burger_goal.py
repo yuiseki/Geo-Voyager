@@ -14,11 +14,10 @@ from geo_voyager.goal_executor import GoalExecutor
 from geo_voyager.intent_executor import IntentExecutor
 from geo_voyager.llama_client import LlamaClient
 from geo_voyager.planner import Planner
-from geo_voyager.skill import SkillLibrary
+from geo_voyager.skill_library import SkillLibrary
 from geo_voyager.skill_candidate_generator import SkillCandidateGenerator
 from geo_voyager.skill_candidate_repairer import SkillCandidateRepairer
 from geo_voyager.skill_retriever import SkillRetriever
-from geo_voyager.skill_selector import SkillSelector
 from geo_voyager.worker import Worker
 from integration.network_topology import network_topology
 from integration.service_gateway_setup import gateway_code, wait_for_gateway
@@ -77,7 +76,7 @@ def test_burger_goal_repairs_learns_and_reuses_without_manual_code_edits(tmp_pat
         wait_for_gateway(names['gateway'])
         with pinned_geosparql(names):
             retriever = SkillRetriever(library, EmbeddingClient(base, model))
-            executor = IntentExecutor(retriever, SkillSelector(llm), Worker(names['internal']),
+            executor = IntentExecutor(retriever, Worker(names['internal']),
                                       generator, critic, library, repairer)
             logged = Mock(wraps=executor)
             execute = logged.execute._mock_wraps
@@ -88,12 +87,10 @@ def test_burger_goal_repairs_learns_and_reuses_without_manual_code_edits(tmp_pat
                 generations_before = generator.generate.call_count
                 result = execute(intent)
                 generation_delta = generator.generate.call_count - generations_before
-                if result.selected_skill_critique and result.selected_skill_critique.success:
-                    assert generation_delta == 0
                 step_results.append(result)
                 report = dict(intent=asdict(intent), execution=asdict(result), generator_calls=generation_delta)
                 (tmp_path / f'step_{number}.json').write_text(json.dumps(report, ensure_ascii=False, default=str, indent=2))
-                print(json.dumps(dict(selected=result.selected_skill_id, learned=result.learned_skill_id,
+                print(json.dumps(dict(called=result.called_skills, learned=result.learned_skill,
                                       critique=asdict(result.critique), attempts=len(result.attempts),
                                       observations=[obs.text for obs in result.observations]),ensure_ascii=False,default=str), flush=True)
                 return result

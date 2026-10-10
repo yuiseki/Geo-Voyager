@@ -1,5 +1,3 @@
-from uuid import uuid4
-
 import pytest
 
 from geo_voyager.target_ref import TargetRef
@@ -17,7 +15,7 @@ def intent(text='渋谷区の件数', **kwargs):
 
 def entry(step=1, obs='{"name": "渋谷区", "relation_id": "1"}', ok=True, **kwargs):
     base = dict(step=step, intent=intent(), observations=(Observation(obs),) if obs else (),
-                critique=Critique(ok, 'r'), failure=None, reused_skill_id=None, learned_skill_id=None, targets=())
+                critique=Critique(ok, 'r'), failure=None, called_skills=(), learned_skill=None, targets=())
     base.update(kwargs)
     return HistoryEntry(**base)
 
@@ -72,25 +70,18 @@ def test_targets_found_in_successful_steps_accumulate_without_repeats():
 
 def test_an_entry_is_built_from_an_intent_execution_with_the_targets_that_are_new():
     history = GoalHistory()
-    first = IntentExecution([Observation('{"name": "渋谷区", "relation_id": "1"}')], (), None, None, Critique(True, 'ok'), None)
+    first = IntentExecution([Observation('{"name": "渋谷区", "relation_id": "1"}')], (), (), None, Critique(True, 'ok'))
     history.append(HistoryEntry.from_execution(1, intent(), first, history))
-    learned, reused = uuid4(), uuid4()
     second = IntentExecution([Observation('{"name": "渋谷区", "relation_id": "1", "count": 5}'),
-                              Observation('{"name": "港区", "relation_id": "2"}')],
-                             (), reused, learned, Critique(True, 'ok'), Critique(True, 'skill ok'))
+                              Observation('{"name": "港区", "relation_id": "2"}')], (), ('count_tag@v1',), 'compare_tags@v1', Critique(True, 'ok'))
     built = HistoryEntry.from_execution(2, intent('港区の件数'), second, history)
     assert built.targets == (TargetRef('港区', 'relation_id', '2'),)        # 渋谷区 was already known
-    assert built.reused_skill_id == reused and built.learned_skill_id == learned
-
-
-def test_a_skill_that_failed_the_critic_is_not_counted_as_reused():
-    execution = IntentExecution([Observation('{"x": 1}')], (), uuid4(), None, Critique(True, 'ok'), Critique(False, 'skill failed'))
-    assert HistoryEntry.from_execution(1, intent(), execution, GoalHistory()).reused_skill_id is None
+    assert built.called_skills == ('count_tag@v1',) and built.learned_skill == 'compare_tags@v1'
 
 
 def test_a_failed_execution_keeps_its_failure_and_discovers_no_targets():
     failure = ExecutionFailure('failed', '', 'KeyError: 0', 73)
-    execution = IntentExecution([], (), None, None, Critique(False, 'failed'), None, failure=failure)
+    execution = IntentExecution([], (), (), None, Critique(False, 'failed'), failure=failure)
     built = HistoryEntry.from_execution(1, intent(), execution, GoalHistory())
     assert built.failure == failure and built.targets == () and not built.succeeded
 

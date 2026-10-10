@@ -27,11 +27,10 @@ from geo_voyager.goal_history import FinalCriticFailure, PlannerFailure
 from geo_voyager.intent_execution import IntentExecution
 from geo_voyager.intent_executor import IntentExecutor
 from geo_voyager.planner import DONE, Planner
-from geo_voyager.skill import SkillLibrary
+from geo_voyager.skill_library import SkillLibrary
 from geo_voyager.skill_candidate_generator import SkillCandidateGenerator
 from geo_voyager.skill_candidate_repairer import SkillCandidateRepairer
 from geo_voyager.skill_retriever import SkillRetriever
-from geo_voyager.skill_selector import SkillSelector
 from geo_voyager.worker import Worker
 
 
@@ -53,7 +52,7 @@ class FirstStepFails:
                                    'Traceback (most recent call last):\n  File "<candidate>", line 3, in <module>\n'
                                    'RuntimeError: injected failure for the first step', 73)
         attempts = tuple(ExecutionAttempt('(injected)', [], failure) for _ in range(3))
-        return IntentExecution([], (), None, None, Critique(False, failure.message), None, failure=failure, attempts=attempts)
+        return IntentExecution([], (), (), None, Critique(False, failure.message), failure=failure, attempts=attempts)
 
 
 class EarlyDone:
@@ -129,7 +128,7 @@ def run_one(spec: str, names, directory: Path, embedding: EmbeddingClient) -> di
     llm = logged_llm(directory)
     critic = Critic(llm)
     repairer = SkillCandidateRepairer(llm)
-    executor = IntentExecutor(SkillRetriever(library, embedding), SkillSelector(llm), Worker(names['internal']),
+    executor = IntentExecutor(SkillRetriever(library, embedding), Worker(names['internal']),
                               SkillCandidateGenerator(llm), critic, library, repairer)
     if options['inject']:
         executor = FirstStepFails(executor)

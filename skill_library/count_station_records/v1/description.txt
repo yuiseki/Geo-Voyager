@@ -1,0 +1,1 @@
+Count every record of the station dataset, with no filtering by operating state and no merging of the same station.

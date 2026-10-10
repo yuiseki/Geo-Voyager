@@ -6,31 +6,31 @@ from geo_voyager.intent import Intent
 from geo_voyager.intent_executor import IntentExecutor
 from geo_voyager.observation import Observation
 from geo_voyager.semantic_repairer import SemanticRepair
-from geo_voyager.skill_candidate import SkillCandidate
+from geo_voyager.skill_candidate import SkillCandidate, new_skill_code
 
 FAILURE = ExecutionFailure('failed', '', 'KeyError: 0', 73)
-FIRST = SkillCandidate('first', '説明')
-FIXED = SkillCandidate('fixed', '修正後')
+FIRST = SkillCandidate('def first():\n    """First."""\n    return 0\n\nprint(first())', '説明')
+FIXED = SkillCandidate('def fixed():\n    """Fixed."""\n    return 1\n\nprint(fixed())', '修正後')
 REASON = '件数が0で足りない'
 
 
 def build(critiques, runs, semantic=None, with_semantic=True):
-    retriever, selector, worker, generator, critic, library, repairer = [Mock() for _ in range(7)]
-    retriever.retrieve.return_value = []; selector.select.return_value = None
+    retriever, worker, generator, critic, library, repairer = [Mock() for _ in range(6)]
+    retriever.retrieve.return_value = []
+    library.names.return_value = []; library.add.return_value = 1
     generator.generate.return_value = FIRST
     worker.execute_candidate.side_effect = runs
     critic.check.side_effect = critiques
     semantic_repairer = Mock()
     semantic_repairer.repair.return_value = semantic if semantic is not None else SemanticRepair(FIXED, 'proposed')
-    executor = IntentExecutor(retriever, selector, worker, generator, critic, library, repairer,
+    executor = IntentExecutor(retriever, worker, generator, critic, library, repairer,
                               semantic_repairer=semantic_repairer if with_semantic else None)
     return executor, semantic_repairer, worker, critic, library, repairer
 
 
 def run(executor):
-    with patch('geo_voyager.intent_executor.promote') as promote:
-        promote.side_effect = lambda candidate: Mock(id=candidate.code)
-        return executor.execute(Intent('港区の件数', service_ids=('overpass',))), promote
+    result = executor.execute(Intent('港区の件数', service_ids=('overpass',)))
+    return result, executor.skill_library.add
 
 
 def test_it_does_not_fire_when_the_critic_passes():
@@ -54,7 +54,7 @@ def test_a_rescued_intent_runs_the_repaired_code_and_asks_the_critic_again():
     assert [o.text for o in result.observations] == ['{"count": 7}']
     assert worker.execute_candidate.call_args_list[1].args[1] == FIXED
     assert critic.check.call_count == 2
-    promote.assert_called_once_with(FIXED)           # only the repaired candidate is saved
+    promote.assert_called_once_with(new_skill_code(FIXED.code))     # only the repaired candidate is saved
     assert library.add.call_count == 1 and repairer.repair.call_count == 0
 
 
@@ -65,7 +65,7 @@ def test_it_passes_what_the_repair_needs_and_only_once():
     assert semantic.repair.call_count == 1
     intent, candidate, observations, reason = semantic.repair.call_args.args
     assert candidate == FIRST and [o.text for o in observations] == ['{"count": 0}'] and reason == REASON
-    assert [a.code for a in semantic.repair.call_args.kwargs['history']] == ['first']
+    assert [a.code for a in semantic.repair.call_args.kwargs['history']] == [FIRST.code]
 
 
 def test_a_repair_the_critic_still_rejects_leaves_the_original_result_and_saves_nothing():
@@ -104,7 +104,7 @@ def test_provenance_keeps_the_runtime_attempts_the_critic_verdicts_and_the_seman
     result, _ = run(executor)
     runtime, semantic = result.attempts[0], result.attempts[1]
     assert runtime.route == 'runtime' and runtime.critique == Critique(False, REASON)
-    assert semantic.route == 'semantic' and semantic.code == 'fixed' and semantic.trigger == REASON
+    assert semantic.route == 'semantic' and semantic.code == FIXED.code and semantic.trigger == REASON
     assert semantic.critique == Critique(True, 'now ok') and semantic.executed and semantic.failure is None
     assert len(result.attempts) == 2
 
@@ -123,4 +123,4 @@ def test_a_runtime_repair_comes_first_and_the_semantic_repair_follows_a_successf
     result, _ = run(executor)
     assert [a.route for a in result.attempts] == ['runtime', 'runtime', 'semantic']
     assert semantic.repair.call_args.args[1].code == 'runtime-fixed'
-    assert [a.code for a in semantic.repair.call_args.kwargs['history']] == ['first', 'runtime-fixed']
+    assert [a.code for a in semantic.repair.call_args.kwargs['history']] == [FIRST.code, 'runtime-fixed']

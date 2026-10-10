@@ -1,5 +1,4 @@
 from unittest.mock import Mock
-from uuid import uuid4
 
 from geo_voyager.target_ref import TargetRef
 from geo_voyager.critique import Critique
@@ -16,18 +15,17 @@ def intent(text, **kwargs):
     return Intent(text, service_ids=('overpass',), **kwargs)
 
 
-def ok(*texts, learned=None, reused=None):
-    return IntentExecution([Observation(t) for t in texts], (), reused, learned, Critique(True, 'ok'),
-                           Critique(True, 'skill ok') if reused else None)
+def ok(*texts, learned=None, reused=()):
+    return IntentExecution([Observation(t) for t in texts], (), reused, learned, Critique(True, 'ok'))
 
 
 def critic_rejected(*texts):
-    return IntentExecution([Observation(t) for t in texts], (), None, None, Critique(False, '足りない'), None)
+    return IntentExecution([Observation(t) for t in texts], (), (), None, Critique(False, '足りない'))
 
 
 def crashed():
     failure = ExecutionFailure('failed', '', 'KeyError: 0', 73)
-    return IntentExecution([], (), None, None, Critique(False, 'Generated Python execution failed'), None, failure=failure)
+    return IntentExecution([], (), (), None, Critique(False, 'Generated Python execution failed'), failure=failure)
 
 
 class Script:
@@ -95,12 +93,12 @@ def test_a_target_first_made_known_by_a_step_is_known_to_the_planner_at_the_next
     assert planner.seen[2][2] == (TargetRef('港区', 'relation_id', '1761717'),)         # not added twice
 
 
-def test_the_history_keeps_which_skill_was_learned_and_which_was_reused():
-    learned, reused = uuid4(), uuid4()
+def test_the_history_keeps_which_skill_was_learned_and_which_was_called():
+    learned, reused = 'count_tag_in_area@v1', ('count_tag_in_area@v1',)
     planner = Script(intent('a'), intent('a again'), DONE)
     result, _, _ = run(planner, [ok('1', learned=learned), ok('2', reused=reused)])
-    assert result.history[0].learned_skill_id == learned and result.history[0].reused_skill_id is None
-    assert result.history[1].reused_skill_id == reused
+    assert result.history[0].learned_skill == learned and result.history[0].called_skills == ()
+    assert result.history[1].called_skills == reused
 
 
 def test_the_goal_stops_at_the_step_limit():

@@ -5,3 +5,4 @@ __pycache__/
 skill_library/**/*_embedding.json
 skill_library/vectordb/*
 !skill_library/vectordb/.gitkeep
+skill_library/**/embedding.json

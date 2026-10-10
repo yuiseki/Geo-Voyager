@@ -2,6 +2,8 @@
 from .id_type_literals import id_type_comparisons
 from .intent import Intent
 from .local_aggregation_contract import local_aggregation_violations
+from .skill_candidate import skill_shape_problems
+from .skill_function import SkillFunction
 from .llama_client import LlamaClient
 from .skill_candidate import SkillCandidate
 from .services import load_service_graph
@@ -42,9 +44,37 @@ def _local_note(found: list[str]) -> str:
               '前段の object は name と ID で選び（条件で絞った一覧の先頭は可）、必須のキーは [] で取り、無ければ例外にする。')
 
 
+def _shape_note(found: list[str]) -> str:
+    return ('\n\n前回の応答は拒否された。新しい関数が Skill の形になっていない: ' + '; '.join(found)
+            + '。新しい処理は、名前と引数と docstring を持つ関数 1 つにまとめる。実行時変数は関数の中で読まず、関数を呼ぶ行で引数として渡す。')
+
+
+def skills_section(skills: list[SkillFunction] | tuple = ()) -> str:
+    """The saved Skills the code may call, as Voyager shows its retrieved programs. Empty when there are none."""
+    if not skills:
+        return ''
+    listed = '\n\n'.join(f'# Skill: {skill.name}\n{skill.code}' for skill in skills)
+    return ('\n\n再利用できる Skill（保存済みの関数）。これらは実行時に定義済みなので、名前で呼べる。定義をコピーしない。'
+            'Intent の一部または全部をこれらで果たせるなら、呼んで再利用する:\n' + listed + '\n')
+
+
+def skill_rules(intent: Intent) -> str:
+    """How to shape the code so that its function can become a reusable Skill."""
+    runtime = ([*(['dataset_id'] if intent.dataset_ids else []), *(['intent_target'] if intent.target is not None else []),
+                *(['previous_observations', 'intent_text'] if intent.previous_observations else [])])
+    passing = (f'実行時変数（{"、".join(runtime)}）は関数の中で読まず、呼ぶ行で引数として渡す。' if runtime else '')
+    return ('\nコードの形: 必要なら、新しい処理を名前と引数と docstring（何をするかの 1〜3 文）を持つ関数 1 つにまとめ、'
+            'その下のトップレベルの行で関数（または再利用できる Skill）を呼んで、結果を print する。関数は 1 つまで。'
+            '関数は後で別の Intent から呼ばれる部品になるので、対象・条件・データは引数で受け取り、汎用に書く。'
+            + passing + '既存の Skill だけで足りるなら、新しい関数は書かず、呼ぶ行だけでよい。\n')
+
+
 def contract_problems(intent: Intent, code: str) -> list[tuple[str, str]]:
     """What the code breaks, as (the code found, the note for the model), for the kinds of Intent that have a contract."""
     problems = []
+    shape = skill_shape_problems(code)
+    if shape:
+        problems.append(('skill shape: ' + '; '.join(shape), _shape_note(shape)))
     if intent.target is not None and intent.target.resolved:
         found = id_type_comparisons(code)
         if found:
@@ -60,7 +90,7 @@ class SkillCandidateGenerator:
     def __init__(self, llm_client: LlamaClient | None = None) -> None:
         self.llm_client = llm_client if llm_client is not None else LlamaClient()
 
-    def generate(self, intent: Intent) -> SkillCandidate:
+    def generate(self, intent: Intent, skills: list[SkillFunction] | tuple = ()) -> SkillCandidate:
         datasets = '\n'.join(f'- {dataset_id}' for dataset_id in intent.dataset_ids)
         prompt = (
             'Intent を完遂する実行可能な Python コードと簡潔な説明を書いてください。\n'
@@ -106,6 +136,7 @@ class SkillCandidateGenerator:
             '    # 行政区域なら load_admin_units(dataset_id, connection, area="東京都23区")\n'
             '    # 駅なら load_stations(dataset_id, connection)（import も追加する）\n'
             '    # Intent に必要な relation 操作と print をここに書く\n```\n\n'
+            + skill_rules(intent) + skills_section(skills) +
             f'Intent:\n{intent.text}\n\n利用する Dataset ids:\n{datasets}\n\n'
             '返答の1行目は必ず「説明:」のみ。説明本文を同じ行に書かない。2行目から説明を書き、必須ラベルを省略しない。\n'
             '続けて「---」「コード:」「```python」、Pythonコード、最後に「```」をそれぞれ独立した行に書く。'
@@ -158,6 +189,7 @@ class SkillCandidateGenerator:
                 '対象でないもの（タグの値、件数のランキング、距離など）は、name や relation_id のキーを使わず、意味に沿ったキー（例: {"value": "pizza", "count": 132565}）で出力する。\n'
                 'description は任意対象の測定という再利用可能な操作を説明し、対象の名前や答えを固定しない。\n'
                 'UUID や Skill 保存処理を書かない。\n'
+                + skill_rules(intent) + skills_section(skills) +
                 f'Intent:\n{intent.text}\n\n'
                 '出力形式は厳密に次の形式。前置きや追記は禁止。返答の1行目は必ず「説明:」だけ。説明本文を同じ行に書かない。説明本文は2行目から。\n'
                 '説明:\n調査コードの簡潔な説明\n---\nコード:\n```python\n'
@@ -258,12 +290,18 @@ class SkillCandidateGenerator:
                     'Exact layout, with every label on a separate line:\n説明:\n<description>\n---\nコード:\n```python\n<executable code>\n```'
                 ),
             ))
-            candidate = generate_once()
-            for retry in range(MAX_ID_TYPE_RETRIES + 1):
-                problems = contract_problems(intent, candidate.code)
-                if not problems:
-                    return candidate
-                if retry == MAX_ID_TYPE_RETRIES:
-                    raise ValueError('Candidate breaks the code contract: ' + ' | '.join(found for found, _ in problems))
-                candidate = generate_once(''.join(note for _, note in problems))
-        return _parse_candidate(self.llm_client.generate(service_contract + prompt))
+            return self._keep_the_contract(intent, generate_once)
+        return self._keep_the_contract(
+            intent, lambda extra='': _parse_candidate(self.llm_client.generate(service_contract + prompt + extra)))
+
+    @staticmethod
+    def _keep_the_contract(intent: Intent, generate_once) -> SkillCandidate:
+        """Generate, and generate again with the reason while the code breaks a contract. Refuse after the retries."""
+        candidate = generate_once()
+        for retry in range(MAX_ID_TYPE_RETRIES + 1):
+            problems = contract_problems(intent, candidate.code)
+            if not problems:
+                return candidate
+            if retry == MAX_ID_TYPE_RETRIES:
+                raise ValueError('Candidate breaks the code contract: ' + ' | '.join(found for found, _ in problems))
+            candidate = generate_once(''.join(note for _, note in problems))
