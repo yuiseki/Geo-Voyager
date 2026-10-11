@@ -83,3 +83,16 @@ def load_dataset_graph() -> DatasetGraph:
     for dataset in CATALOG:
         graph.register(dataset)
     return graph
+
+
+def load_readable_dataset_graph() -> DatasetGraph:
+    """The datasets generated code can read: the ones with a data_url, which dataset_url serves.
+
+    The Curriculum and the Planner see only these. A dataset the sandbox can not open makes a Goal or an Intent
+    that no code can answer, and a model asked to write that code reasons about how to read it until its reply is cut.
+    """
+    graph = DatasetGraph()
+    for dataset in CATALOG:
+        if dataset.data_url:
+            graph.register(dataset)
+    return graph

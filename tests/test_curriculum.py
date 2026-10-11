@@ -63,9 +63,17 @@ def test_the_prompt_counts_how_often_each_resource_was_used_and_names_the_unused
     prompt = client.generate.call_args.args[0]
     assert 'overpass: 2 件' in prompt and 'yuisekin-geosparql: 1 件' in prompt
     unused = prompt.split('まだ使っていないリソース:', 1)[1].split('\n', 1)[0]
-    for resource in ('yuiseki/jp-admin-2026-09', 'yuiseki/worldpop-jp-2026-01', 'nominatim', 'valhalla', 'taginfo'):
+    for resource in ('yuiseki/jp-admin-2026-09', 'yuiseki/ekidata-jp', 'nominatim', 'valhalla', 'taginfo'):
         assert resource in unused
     assert 'overpass' not in unused
+
+
+def test_a_dataset_the_sandbox_can_not_read_is_neither_shown_nor_suggested():
+    agent, client = curriculum('Goal: x を求める\n理由: y')
+    agent.propose([FINDING], [])
+    prompt = client.generate.call_args.args[0]
+    for dataset in ('yuiseki/worldpop-jp-2026-01', 'yuiseki/mlit-toshi-keikaku-jp', 'yuiseki/osm-japan-src-2026-08'):
+        assert dataset not in prompt, dataset
 
 
 def test_the_prompt_asks_for_questions_about_the_world_not_about_identifiers_and_for_a_new_kind_of_question():

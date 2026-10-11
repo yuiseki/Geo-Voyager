@@ -13,7 +13,7 @@ from .verdict import Verdict
 from .services import load_service_graph
 from .target_identity import resolve_reference
 from .target_ref import TargetRef
-from .datasets import load_dataset_graph
+from .datasets import load_dataset_graph, load_readable_dataset_graph
 
 
 TARGET_PREFIXES = ('対象:', '対象：')
@@ -123,7 +123,9 @@ def _parse_intent(block: list[str], datasets, services, *, allow_local: bool, kn
                     requires_context=local,
                     target=resolve_reference(reference, known) if reference is not None else None)
     if len(intent.dataset_ids) > 1:
-        raise ValueError('Only one dataset per execution is supported')
+        raise ValueError(f'1つの Intent で使える Dataset は1件だけ（{", ".join(intent.dataset_ids)} が宣言された）。'
+                         'Dataset ごとに Intent を分け、それぞれ対象ごとの値の一覧（名前、ID、値）を返す。'
+                         '一覧どうしの結合、差、割り算は、次の Intent で前段の一覧から求める（利用データセット: []、利用サービス: []）')
     for id in intent.dataset_ids:
         datasets.get(id)
     for id in intent.service_ids:
@@ -256,7 +258,7 @@ class Planner:
         """
         if not goal.strip():
             raise ValueError('Goal must not be empty')
-        datasets, services = load_dataset_graph(), load_service_graph()
+        datasets, services = load_readable_dataset_graph(), load_service_graph()
         prompt = (
             'Goal を達成するために、次に実行する Intent を1件だけ決めてください。1 Intent = 1 measurable output。\n'
             '履歴は、これまでに実行した Intent と、その Observation、Critic の判定、失敗、判明した対象です。履歴を読んで次の1件を決める。\n'
@@ -266,6 +268,8 @@ class Planner:
             '対象が複数あるときは、対象ごとに Intent を分ける。1つの Intent に「対象:」は1行だけ書く。\n'
             'ただし、前段の Observation の一覧のすべての対象（例: 23 区すべて）を同じ方法で測るときは、対象ごとに分けず、1つの Intent でまとめて測る。'
             'その Intent は「対象:」を付けず、前段の一覧を入力にして、対象ごとの値の一覧（名前、ID、値）を返す。最大・最小・件数などは、次の Intent でその一覧から求める。\n'
+            '2つの Dataset の値を組み合わせる測定（例: 駅数を人口で割る）は、Dataset ごとに Intent を分け、それぞれ対象ごとの値の一覧を返させる。'
+            '組み合わせは、次の Intent で前段の一覧どうしを名前と ID で結合して求める。宣言していない Dataset の値を調査項目に書かない。\n'
             '履歴に「Goal の最終判定が未達」があるときは、DONE を返したが Critic が不足を指摘したということ。その理由が示す不足を埋める Intent を返し、同じ DONE を繰り返さない。\n'
             'Service の説明は、そのサービスで何ができるかを知るためのものです。Intent の調査項目には、何を調べるか（調べる対象、条件、得たい値）だけを書く。'
             'API のパス（/api/... など）やパラメータ（limit=3 など）は書かない。サービスの呼び方は実行側が決める。書いた Intent は拒否される。\n'

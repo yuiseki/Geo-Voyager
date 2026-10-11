@@ -1,3 +1,4 @@
+import pytest
 from geo_voyager.datasets import load_dataset_graph
 
 
@@ -27,3 +28,16 @@ def test_admin_dataset_has_one_pinned_municipalities_download_url():
         "e6c87b1d7095c17422147962185071a986e13135/municipalities.parquet"
     )
     assert dataset.url == "https://huggingface.co/datasets/yuiseki/jp-admin-2026-09"
+
+
+def test_the_readable_datasets_are_the_ones_with_a_data_url_and_the_ones_the_sandbox_can_open():
+    from geo_voyager.control_primitives.dataset_url import dataset_url
+    from geo_voyager.datasets import load_readable_dataset_graph
+    readable = {dataset.id for dataset in load_readable_dataset_graph().all()}
+    assert readable == {dataset.id for dataset in load_dataset_graph().all() if dataset.data_url}
+    for dataset in load_dataset_graph().all():
+        if dataset.id in readable:
+            assert dataset_url(dataset.id)
+        else:
+            with pytest.raises(ValueError):
+                dataset_url(dataset.id)

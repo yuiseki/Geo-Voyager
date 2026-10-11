@@ -338,3 +338,37 @@ def test_the_prompt_asks_to_measure_a_whole_list_of_targets_in_one_intent():
     prompt = client.generate.call_args.args[0]
     for rule in ['一覧のすべての対象', '1つの Intent でまとめて測る', '対象ごとの値の一覧']:
         assert rule in prompt, rule
+
+
+TWO_DATASETS = ('調査項目: 前段の東京23区の一覧の各区について、駅数と人口を取得する\n利用データセット:\n'
+                '  - yuiseki/ekidata-jp\n  - yuiseki/jp-admin-2026-09\n利用サービス:\n  - overpass')
+
+
+def test_an_intent_with_two_datasets_is_rejected_with_how_to_split_it():
+    plan, _ = planner(TWO_DATASETS)
+    with pytest.raises(PlannerRejected) as raised:
+        plan.next('東京23区の1万人あたりの駅数', history(LOOKED_UP))
+    reason = raised.value.reason
+    assert 'yuiseki/ekidata-jp' in reason and 'yuiseki/jp-admin-2026-09' in reason
+    for rule in ['Dataset ごとに Intent を分け', '対象ごとの値の一覧', '次の Intent']:
+        assert rule in reason, rule
+
+
+def test_the_prompt_tells_how_to_combine_two_datasets():
+    plan, client = planner(NEXT)
+    plan.next('東京23区の1万人あたりの駅数', history(LOOKED_UP))
+    prompt = client.generate.call_args.args[0]
+    for rule in ['Dataset ごとに Intent を分け', '宣言していない Dataset の値を調査項目に書かない']:
+        assert rule in prompt, rule
+
+
+UNREADABLE = ('調査項目: 前段の東京23区の一覧の各区について、WorldPop の画素値の合計を取得する\n利用データセット:\n'
+              '  - yuiseki/worldpop-jp-2026-01\n利用サービス:\n  - overpass')
+
+
+def test_a_dataset_the_sandbox_can_not_read_is_not_offered_and_an_intent_naming_it_is_rejected():
+    plan, client = planner(UNREADABLE)
+    with pytest.raises(PlannerRejected) as raised:
+        plan.next('東京23区の推計人口', history(LOOKED_UP))
+    assert 'yuiseki/worldpop-jp-2026-01' in raised.value.reason
+    assert 'yuiseki/worldpop-jp-2026-01' not in client.generate.call_args.args[0]

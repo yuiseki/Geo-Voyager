@@ -1,7 +1,7 @@
 from collections import Counter
 from dataclasses import dataclass
 
-from .datasets import load_dataset_graph
+from .datasets import load_readable_dataset_graph
 from .intent_text import api_details_in
 from .llama_client import LlamaClient
 from .planner import Planner
@@ -63,7 +63,7 @@ class Curriculum:
             'Goal には何を知りたいかだけを書く。API のパスやパラメータ、コードは書かない。\n'
             + (f'{note}\n' if note else '')
             + '返答は次の2行だけ。前置き、番号、コードフェンス禁止。\nGoal: 問いの本文\n理由: この問いを選んだ理由（これまでの発見とのつながり）\n'
-            + f'INPUT: 利用可能リソース:\n{Planner._resource_text(load_dataset_graph(), load_service_graph(), full=True)}\n'
+            + f'INPUT: 利用可能リソース:\n{Planner._resource_text(load_readable_dataset_graph(), load_service_graph(), full=True)}\n'
             + f'リソースを使った発見の数: {_usage(findings)}\n'
             + f'まだ使っていないリソース: {_unused(findings)}\n'
             + f'これまでの発見:\n{known}'
@@ -78,7 +78,7 @@ class Curriculum:
 
 
 def _resource_ids() -> list[str]:
-    return [item.id for item in load_dataset_graph().all()] + [item.id for item in load_service_graph().all()]
+    return [item.id for item in load_readable_dataset_graph().all()] + [item.id for item in load_service_graph().all()]
 
 
 def _usage(findings: list[dict]) -> str:
