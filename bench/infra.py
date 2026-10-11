@@ -1,6 +1,7 @@
 """The environment every benchmark script runs in: isolated worker, one Gateway serving the
 registered services and datasets, and the pinned GeoSPARQL server."""
 from contextlib import contextmanager
+import subprocess
 
 from integration.network_topology import network_topology
 from integration.service_gateway_setup import gateway_code, wait_for_gateway
@@ -19,3 +20,21 @@ def benchmark_environment():
         wait_for_gateway(names['gateway'], start=True, attempts=DATASET_RESOLVE_ATTEMPTS)
         with pinned_geosparql(names):
             yield names
+
+
+def environment_problem(names) -> str | None:
+    """Why the environment can no longer answer, or None. The Gateway must run and reach the GeoSPARQL server.
+
+    A cleanup once removed the containers of a running exploration; every later step failed on name resolution and
+    the run recorded those failures as if the model had made them.
+    """
+    probe = ("from urllib.request import urlopen; "
+             "print(urlopen('http://geosparql:3030/geo/sparql?query=ASK%7B%7D', timeout=5).status)")
+    try:
+        result = subprocess.run(['docker', 'exec', names['gateway'], 'python', '-c', probe],
+                                capture_output=True, text=True, timeout=30)
+    except subprocess.TimeoutExpired:
+        return 'the Gateway did not answer within 30 s'
+    if result.returncode != 0:
+        return (result.stderr.strip().splitlines() or ['the GeoSPARQL probe failed'])[-1]
+    return None

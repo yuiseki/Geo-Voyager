@@ -21,7 +21,7 @@ import sys
 import time
 
 from bench.adaptive_trace import trace_events, trace_steps
-from bench.infra import benchmark_environment
+from bench.infra import benchmark_environment, environment_problem
 from bench.run_goals import logged_llm
 from geo_voyager.critic import Critic
 from geo_voyager.curriculum import Curriculum, CurriculumRejected, ProposedGoal
@@ -126,6 +126,10 @@ def main() -> None:
             if stop_requested(out):
                 print(number, f'| stopped by {out / STOP_FILE}', flush=True)
                 break
+            problem = environment_problem(names)
+            if problem:
+                print(number, f'| stopped: the environment is gone: {problem}', flush=True)
+                sys.exit(1)
             attempt = explore_one(number, out, names, SkillLibrary(shared), embedding, world, exploration,
                                   replayed[index] if replayed else None)
             if attempt is None:
