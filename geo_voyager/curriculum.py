@@ -12,6 +12,11 @@ from .target_ref import TargetRef
 FINDINGS_SHOWN = 20
 ATTEMPTS_SHOWN = 15
 ANSWER_SHOWN = 300
+# Findings and attempts grow with the exploration. In round 3 the prompt reached 7,608 of the 8,192 tokens by Goal 25
+# and every reply came back empty. 6,000 characters of history is about 3,400 tokens, which keeps the whole prompt
+# near 5,700 tokens and leaves room to think and answer. A third of it goes to the attempts.
+HISTORY_CHARS = 6000
+ATTEMPTS_CHARS = HISTORY_CHARS // 3
 
 
 @dataclass(frozen=True)
@@ -37,10 +42,12 @@ class Curriculum:
         self.llm_client = llm_client if llm_client is not None else LlamaClient()
 
     def propose(self, findings: list[dict], attempts: list[dict], *, note: str | None = None) -> ProposedGoal:
-        known = _render_findings(findings[-FINDINGS_SHOWN:]) if findings else 'まだ何も分かっていない。\n'
-        tried = ''.join(f'- {attempt["goal"]} → ' + ('答えが出た' if attempt['success'] else
-                                                   f'未達（{attempt["stop_reason"]}: {attempt["reason"][:150]}）') + '\n'
-                        for attempt in attempts[-ATTEMPTS_SHOWN:]) or 'まだ無い。\n'
+        tried = _newest_within([f'- {attempt["goal"]} → ' + ('答えが出た' if attempt['success'] else
+                                                            f'未達（{attempt["stop_reason"]}: {attempt["reason"][:150]}）') + '\n'
+                                for attempt in attempts[-ATTEMPTS_SHOWN:]], ATTEMPTS_CHARS) or 'まだ無い。\n'
+        budget = HISTORY_CHARS - len('これまでの発見:\nこれまでに試した Goal:\n') - len(tried)
+        known = (_newest_within(_render_findings(findings[-FINDINGS_SHOWN:]), budget) or 'まだ何も分かっていない。\n'
+                 if findings else 'まだ何も分かっていない。\n')
         prompt = (
             'あなたは、利用可能なデータとサービスを使って東京の世界を自律的に探索するエージェントの curriculum です。'
             '次に調べる Goal を1件だけ決めてください。\n'
@@ -84,14 +91,26 @@ def _unused(findings: list[dict]) -> str:
     return '、'.join(resource for resource in _resource_ids() if resource not in used) or '無い'
 
 
-def _render_findings(findings: list[dict]) -> str:
-    lines = []
+def _newest_within(entries: list[str], budget: int) -> str:
+    """The newest entries whose total length fits the budget, in their original order."""
+    kept, used = [], 0
+    for entry in reversed(entries):
+        if used + len(entry) > budget:
+            break
+        kept.append(entry)
+        used += len(entry)
+    return ''.join(reversed(kept))
+
+
+def _render_findings(findings: list[dict]) -> list[str]:
+    entries = []
     for finding in findings:
-        lines.append(f'- {finding["goal"]}\n  答え: {finding["answer"][:ANSWER_SHOWN]}')
+        entry = f'- {finding["goal"]}\n  答え: {finding["answer"][:ANSWER_SHOWN]}\n'
         targets = [TargetRef(**item).display() for item in finding['targets']]
         if targets:
-            lines.append('  判明した対象: ' + '、'.join(targets))
-    return '\n'.join(lines) + '\n'
+            entry += '  判明した対象: ' + '、'.join(targets) + '\n'
+        entries.append(entry)
+    return entries
 
 
 def _parse(text: str, findings: list[dict]) -> ProposedGoal:

@@ -74,3 +74,18 @@ def test_the_prompt_asks_for_questions_about_the_world_not_about_identifiers_and
     prompt = client.generate.call_args.args[0]
     for text in ('識別子', '何を表すか', '同じ型の問い', 'まだ使っていないリソース'):
         assert text in prompt
+
+
+def test_the_history_shown_stays_within_a_length_budget_newest_first():
+    from geo_voyager.curriculum import HISTORY_CHARS
+    agent, client = curriculum('Goal: x を求める\n理由: y')
+    long = 'あ' * 280
+    findings = [dict(FINDING, goal=f'goal {n} {long}', answer=long) for n in range(20)]
+    attempts = [dict(ATTEMPT, goal=f'attempt {n} {long}', reason=long) for n in range(15)]
+    agent.propose(findings, attempts)
+    prompt = client.generate.call_args.args[0]
+    history = prompt[prompt.index('これまでの発見:'):prompt.index('OUTPUT:')]
+    assert len(history) <= HISTORY_CHARS
+    assert 'goal 19 ' in history and 'attempt 14 ' in history
+    assert 'goal 0 ' not in history and 'attempt 0 ' not in history
+    assert history.index('goal 18 ') < history.index('goal 19 ')
