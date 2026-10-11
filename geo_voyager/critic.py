@@ -20,7 +20,16 @@ class Critic:
         self.llm_client = llm_client if llm_client is not None else LlamaClient()
         self.thinking = thinking
 
-    def check(self, intent: Intent, observations: list[Observation], *, final: bool = False) -> Critique:
+    def check(self, intent: Intent, observations: list[Observation], *, final: bool = False,
+              asked: tuple[str, ...] = ()) -> Critique:
+        """Judge whether the observations answer the Intent.
+
+        asked, for the final check, is the Intent text of the step that produced each Observation. A step that
+        picked the smallest from a list prints only the one it picked; without the step beside it, that output is a
+        bare record and the model can not tell it is the answer.
+        """
+        if asked and len(asked) != len(observations):
+            raise ValueError('asked must name the step of each Observation')
         if not observations:
             return Critique(success=False, reason='Observation がありません')
         if all(not observation.text.strip() for observation in observations):
@@ -31,7 +40,11 @@ class Critic:
             conflict = identity_conflict(intent.target, tuple(observations))
             if conflict:
                 return Critique(success=False, reason=conflict)
-        observation_text = '\n'.join(f'- {observation.text}' for observation in observations)
+        if asked:
+            observation_text = '\n'.join(f'- 調査項目: {step}\n  出力: {observation.text}'
+                                         for step, observation in zip(asked, observations))
+        else:
+            observation_text = '\n'.join(f'- {observation.text}' for observation in observations)
         prompt = (
             'Observation が Intent の要求した調査結果を実際に答えているか判定してください。\n'
             '仮説が正しいか、結果が望ましいかは判定しない。\n'
@@ -75,6 +88,9 @@ class Critic:
                        'Observation のどれかに値として実際に出力されていなければならない。複数の Observation の数値から自分で比較・計算して答えを導かない。'
                        '答えの材料だけが別々の Observation にあり、答えそのものを出力した Observation が無いときは失敗とし、'
                        '理由に、どの材料からどんな答えを出す作業が足りないかを書く。')
+            if asked:
+                prompt += ('\n各 Observation には、それを出力した調査項目を添えた。調査項目が一覧からの選択、最大・最小、比較、合計を'
+                           '求めているとき、その出力はその調べ物の答えとして読む（例: 最小の区を1件選ぶ調査項目の出力は、最小の区そのもの）。')
         elif ASKS_FOR_AN_ANSWER.search(intent.text):
             prompt += ('\nIntent が比較・選択・集計（比較の勝者、最大・最小、一覧からの選択、合計など）を求めるときは、その答えそのものが'
                        'Observation に値として出力されていなければならない。Observation の数値から自分で比較・計算して答えを導かない。'

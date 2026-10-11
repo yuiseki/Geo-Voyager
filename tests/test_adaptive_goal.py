@@ -351,4 +351,9 @@ def test_a_goal_that_ended_on_a_failure_still_lists_it():
 
 def test_the_final_check_is_marked_as_the_final_one():
     _, _, critic = run(Script(intent('a'), DONE), [ok('1')])
-    assert critic.check.call_args.kwargs == {'final': True}
+    assert critic.check.call_args.kwargs == {'final': True, 'asked': ('a',)}
+
+
+def test_the_final_check_is_told_which_succeeded_step_produced_each_observation():
+    _, _, critic = run(Script(intent('a'), intent('b'), intent('c'), DONE), [ok('1'), crashed(), ok('3')])
+    assert critic.check.call_args.kwargs['asked'] == ('a', 'c')

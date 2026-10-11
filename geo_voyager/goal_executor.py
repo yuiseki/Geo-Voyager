@@ -101,7 +101,8 @@ class GoalExecutor:
                 stop, error = 'planner_error', f'{type(problem).__name__}: {problem}'
                 break
             if isinstance(decision, Done):
-                critique = self.critic.check(self._goal_intent(goal, history), history.observations(), final=True)
+                asked = tuple(entry.intent.text for entry in history.entries if entry.succeeded for _ in entry.observations)
+                critique = self.critic.check(self._goal_intent(goal, history), history.observations(), final=True, asked=asked)
                 if critique.success:
                     stop = 'done'
                     break

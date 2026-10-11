@@ -219,3 +219,24 @@ def test_the_critic_judges_values_not_the_key_names_an_intent_wrote():
     prompt = client.generate.call_args.args[0]
     assert 'キー名の違いは失敗の理由にしない' in prompt
     assert prompt.index('キー名の違い') < prompt.index('Intent:\n')
+
+
+def test_the_final_check_shows_each_observation_under_the_step_that_produced_it():
+    client = Mock(); client.generate.return_value = '判定: 成功\n理由: x'
+    goal = Intent('東京23区で ref の付いた駅が最も少ない区', service_ids=('overpass',), requires_context=True)
+    observations = [Observation('[{"name": "江戸川区", "ref_count": 9}, {"name": "目黒区", "ref_count": 10}]'),
+                    Observation('{"name": "江戸川区", "ref_count": 9}')]
+    Critic(client).check(goal, observations, final=True, asked=('各区の ref の付いた駅数を測る', 'ref_count が最小の区を1件選ぶ'))
+    prompt = client.generate.call_args.args[0]
+    assert '- 調査項目: ref_count が最小の区を1件選ぶ\n  出力: {"name": "江戸川区", "ref_count": 9}' in prompt
+    assert 'その調べ物の答えとして読む' in prompt
+
+
+def test_the_steps_must_match_the_observations_one_to_one():
+    with pytest.raises(ValueError):
+        Critic(Mock()).check(intent(), [Observation('1'), Observation('2')], final=True, asked=('a',))
+
+
+def test_without_the_steps_the_final_check_lists_the_observations_as_before():
+    prompt = _prompt(True)
+    assert '- {"name": "渋谷区", "count": 459}' in prompt and '調査項目:' not in prompt
