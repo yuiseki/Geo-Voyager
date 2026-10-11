@@ -1,6 +1,10 @@
 import json
 from urllib.request import Request, urlopen
 
+# Code generation has a long tail with Qwen3.8-27B: median 19 s, p99 107 s, and some calls over 120 s, which ended
+# the whole Goal. Measured from the exploration logs of 2026-10-11.
+TIMEOUT_SECONDS = 300
+
 
 class LlamaClient:
     def generate(self, prompt: str, *, temperature: float | None = None,
@@ -26,6 +30,6 @@ class LlamaClient:
             headers={"Content-Type": "application/json"},
             method="POST",
         )
-        with urlopen(request, timeout=120) as response:
+        with urlopen(request, timeout=TIMEOUT_SECONDS) as response:
             data = json.load(response)
         return data["choices"][0]["message"]["content"]

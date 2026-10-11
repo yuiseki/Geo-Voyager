@@ -81,3 +81,12 @@ def test_client_can_prefill_a_free_text_assistant_prefix():
         payload = json.loads(opened.call_args.args[0].data)
         assert payload['messages'][-1] == {'role': 'assistant', 'content': 'description:\n'}
         assert 'response_format' not in payload and 'grammar' not in payload
+
+
+def test_the_client_waits_long_enough_for_the_slowest_code_generation():
+    response = MagicMock()
+    response.read.return_value = json.dumps({"choices": [{"message": {"content": "x"}}]}).encode()
+    with patch('geo_voyager.llama_client.urlopen') as opened:
+        opened.return_value.__enter__.return_value = response
+        LlamaClient().generate('p')
+    assert opened.call_args.kwargs['timeout'] >= 300
