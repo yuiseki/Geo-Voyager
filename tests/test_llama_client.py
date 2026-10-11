@@ -90,3 +90,27 @@ def test_the_client_waits_long_enough_for_the_slowest_code_generation():
         opened.return_value.__enter__.return_value = response
         LlamaClient().generate('p')
     assert opened.call_args.kwargs['timeout'] >= 300
+
+
+def _replying(finish_reason):
+    response = MagicMock()
+    response.read.return_value = json.dumps(
+        {"choices": [{"message": {"content": "def f("}, "finish_reason": finish_reason}]}).encode()
+    return response
+
+
+def test_a_reply_cut_at_the_token_limit_is_refused_when_asked():
+    import pytest
+    from geo_voyager.llama_client import LlamaTruncated
+    with patch('geo_voyager.llama_client.urlopen') as opened:
+        opened.return_value.__enter__.return_value = _replying('length')
+        with pytest.raises(LlamaTruncated):
+            LlamaClient().generate('p', max_tokens=10, refuse_truncated=True)
+        assert 'refuse_truncated' not in json.loads(opened.call_args.args[0].data)
+        assert LlamaClient().generate('p', max_tokens=10) == 'def f('
+
+
+def test_a_finished_reply_is_returned_when_truncation_is_refused():
+    with patch('geo_voyager.llama_client.urlopen') as opened:
+        opened.return_value.__enter__.return_value = _replying('stop')
+        assert LlamaClient().generate('p', refuse_truncated=True) == 'def f('

@@ -575,3 +575,11 @@ def test_contract_refuses_a_service_the_intent_did_not_declare():
     problems = contract_problems(Intent('23区の人口', ('yuiseki/jp-admin-2026-09',)), code)
     assert any('overpass' in found for found, _ in problems)
     assert contract_problems(Intent('23区の人口', service_ids=('overpass',)), code.replace('dataset_id, ', '')) == []
+
+
+def test_code_generation_has_a_token_limit_and_refuses_a_reply_cut_at_it():
+    client = Mock()
+    client.generate.return_value = VALID
+    SkillCandidateGenerator(client).generate(Intent('東京都23区で人口が最も少ない区と人口を求める', ('yuiseki/jp-admin-2026-09',)))
+    kwargs = client.generate.call_args.kwargs
+    assert kwargs['max_tokens'] == 8192 and kwargs['refuse_truncated'] is True

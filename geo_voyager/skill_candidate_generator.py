@@ -11,6 +11,11 @@ from .services import load_service_graph
 from .observation_context import describe_observations
 
 
+# Without a limit, a model that never emits a stop token writes until the context is full: three calls on
+# Qwen3.8-Flash-Next wrote 23,757 to 26,384 tokens and were cut by the client timeout. Other calls reach 3,954 at most.
+CODE_MAX_TOKENS = 8192
+
+
 def _parse_candidate(text: str) -> SkillCandidate:
     lines = text.strip().splitlines()
     # A local model sometimes writes the description on the 説明: line, or leaves out the --- line. Where the code
@@ -348,7 +353,7 @@ class SkillCandidateGenerator:
             def generate_once(extra: str = '') -> SkillCandidate:
                 return _parse_candidate(self.llm_client.generate(
                 harness_section(intent) + skills_section(skills) + service_contract + prompt + extra, temperature=0.2, enable_thinking=True,
-                max_tokens=3072, reasoning_budget_tokens=1024, assistant_prefix="説明:\n",
+                max_tokens=3072, reasoning_budget_tokens=1024, assistant_prefix="説明:\n", refuse_truncated=True,
                 system_prompt=(
                     'You are a precise Python programmer. Return exactly one description, a short plan and one Python function '
                     'in the requested format. Description must be one sentence. '
@@ -366,7 +371,9 @@ class SkillCandidateGenerator:
             ))
             return self._reuse_once(intent, generate_once, shown, skills)
         return self._reuse_once(
-            intent, lambda extra='': _parse_candidate(self.llm_client.generate(harness_section(intent) + skills_section(skills) + service_contract + prompt + extra)), shown, skills)
+            intent, lambda extra='': _parse_candidate(self.llm_client.generate(
+                harness_section(intent) + skills_section(skills) + service_contract + prompt + extra,
+                max_tokens=CODE_MAX_TOKENS, refuse_truncated=True)), shown, skills)
 
     def _reuse_once(self, intent: Intent, generate_once, shown: tuple[str, ...], skills) -> SkillCandidate:
         """Point out, once, a shown Skill the code does again instead of calling it (Voyager: reuse, do not reinvent).

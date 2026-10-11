@@ -108,7 +108,7 @@ class SkillCandidateRepairer:
     def _generate(self, prompt: str, temperature: float) -> SkillCandidate:
         return _parse_candidate(self.llm_client.generate(
             prompt, temperature=temperature, enable_thinking=True, max_tokens=3072,
-            reasoning_budget_tokens=1024, assistant_prefix='説明:\n',
+            reasoning_budget_tokens=1024, assistant_prefix='説明:\n', refuse_truncated=True,
             system_prompt=(
                 'You repair Python code. Fix the direct failure and preserve unrelated working code. '
                 'Preserve the original description and its operation, scope and output; never describe the bug fix. '

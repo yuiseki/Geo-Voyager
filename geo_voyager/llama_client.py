@@ -6,11 +6,17 @@ from urllib.request import Request, urlopen
 TIMEOUT_SECONDS = 300
 
 
+class LlamaTruncated(ValueError):
+    """The reply stopped at max_tokens (finish_reason length), so it is cut off, not finished."""
+
+
 class LlamaClient:
     def generate(self, prompt: str, *, temperature: float | None = None,
                  enable_thinking: bool | None = None, system_prompt: str | None = None,
                  max_tokens: int | None = None, reasoning_budget_tokens: int | None = None,
-                 assistant_prefix: str | None = None) -> str:
+                 assistant_prefix: str | None = None, refuse_truncated: bool = False) -> str:
+        """refuse_truncated: raise LlamaTruncated instead of returning a reply cut at max_tokens. Code cut off this
+        way can still parse and run, so code generation asks for it."""
         payload = {"model": "gvt-llm", "messages": [{"role": "user", "content": prompt}]}
         if system_prompt is not None:
             payload['messages'].insert(0, {'role': 'system', 'content': system_prompt})
@@ -32,4 +38,7 @@ class LlamaClient:
         )
         with urlopen(request, timeout=TIMEOUT_SECONDS) as response:
             data = json.load(response)
-        return data["choices"][0]["message"]["content"]
+        choice = data["choices"][0]
+        if refuse_truncated and choice.get("finish_reason") == "length":
+            raise LlamaTruncated(f'the reply reached max_tokens ({max_tokens}) and was cut off')
+        return choice["message"]["content"]

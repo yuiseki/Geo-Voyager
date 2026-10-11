@@ -293,3 +293,9 @@ def test_a_repair_that_turns_a_function_back_into_a_script_is_asked_again():
     failure = ExecutionFailure('failed', '', "Traceback\nKeyError: 'x'", 73)
     result = SkillCandidateRepairer(llm).repair(Intent('数える', service_ids=('overpass',)), SkillCandidate(original, 'c'), failure)
     assert result.code == fixed and llm.generate.call_count == 2
+
+
+def test_a_repair_reply_cut_at_the_token_limit_is_refused():
+    llm = Mock(); llm.generate.return_value = REPLY
+    SkillCandidateRepairer(llm).repair(Intent('対象を数える', service_ids=('overpass',)), SkillCandidate('broken', '元の説明'), FAILURE)
+    assert llm.generate.call_args.kwargs['refuse_truncated'] is True
