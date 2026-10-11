@@ -330,3 +330,11 @@ def test_a_tag_value_or_a_set_named_in_the_goal_is_not_a_target(name, goal):
 ])
 def test_a_place_the_goal_names_is_still_a_target(name, goal):
     assert planner(named(name))[0].next(goal, GoalHistory()).target.name == name
+
+
+def test_the_prompt_asks_to_measure_a_whole_list_of_targets_in_one_intent():
+    plan, client = planner(NEXT)
+    plan.next('東京23区のうち駅が無い区の数', history(LOOKED_UP))
+    prompt = client.generate.call_args.args[0]
+    for rule in ['一覧のすべての対象', '1つの Intent でまとめて測る', '対象ごとの値の一覧']:
+        assert rule in prompt, rule

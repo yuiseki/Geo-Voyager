@@ -1,6 +1,10 @@
 """Free exploration: the curriculum proposes a Goal, the step-by-step route answers it, the finding is kept. Repeat.
 
     .venv/bin/python -m bench.run_explore --out DIR --library DIR --goals N
+    .venv/bin/python -m bench.run_explore --out DIR --library DIR --replay FILE
+
+--replay takes the Goals from FILE (one per line) instead of the curriculum, to compare a change on the Goals an
+earlier exploration tried.
 
 There is no list of Goals and no oracle. The Skill library, the World Graph (DIR/world.jsonl, the answered Goals with
 their provenance) and the record of every Goal tried (DIR/exploration.jsonl) carry over from Goal to Goal, and
@@ -18,7 +22,7 @@ from bench.adaptive_trace import trace_events, trace_steps
 from bench.infra import benchmark_environment
 from bench.run_goals import logged_llm
 from geo_voyager.critic import Critic
-from geo_voyager.curriculum import Curriculum, CurriculumRejected
+from geo_voyager.curriculum import Curriculum, CurriculumRejected, ProposedGoal
 from geo_voyager.embedding_client import EmbeddingClient
 from geo_voyager.goal_executor import GoalExecutor
 from geo_voyager.intent_executor import IntentExecutor
@@ -48,11 +52,11 @@ def propose(curriculum: Curriculum, findings: list[dict], attempts: list[dict]):
 
 
 def explore_one(number: int, out: Path, names, library: SkillLibrary, embedding: EmbeddingClient,
-                world: WorldGraph, exploration: Path) -> dict | None:
+                world: WorldGraph, exploration: Path, given: ProposedGoal | None = None) -> dict | None:
     directory = out / f'{number:03d}'
     directory.mkdir(parents=True, exist_ok=False)
     llm = logged_llm(directory)
-    proposed = propose(Curriculum(llm), world.findings(), read_jsonl(exploration))
+    proposed = given or propose(Curriculum(llm), world.findings(), read_jsonl(exploration))
     if proposed is None:
         return None
     critic = Critic(llm)
@@ -85,8 +89,12 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('--out', required=True)
     parser.add_argument('--library', required=True, help="made from the repository's seed Skills when it does not exist yet")
-    parser.add_argument('--goals', type=int, required=True, help='how many Goals to explore in this run')
+    which = parser.add_mutually_exclusive_group(required=True)
+    which.add_argument('--goals', type=int, help='how many Goals to explore in this run')
+    which.add_argument('--replay', help='a file of Goals, one per line, explored in order instead of asking the curriculum')
     args = parser.parse_args()
+    replayed = ([ProposedGoal(line.strip(), 'replay') for line in Path(args.replay).read_text().splitlines() if line.strip()]
+                if args.replay else None)
     out = Path(args.out).expanduser()
     out.mkdir(parents=True, exist_ok=True)
     shared = Path(args.library).expanduser()
@@ -97,8 +105,9 @@ def main() -> None:
     embedding = EmbeddingClient(os.environ['GEO_VOYAGER_EMBEDDING_BASE_URL'], os.environ['GEO_VOYAGER_EMBEDDING_MODEL'])
     first = sum(1 for path in out.iterdir() if path.is_dir() and path.name.isdigit()) + 1
     with benchmark_environment() as names:
-        for number in range(first, first + args.goals):
-            attempt = explore_one(number, out, names, SkillLibrary(shared), embedding, world, exploration)
+        for index, number in enumerate(range(first, first + (len(replayed) if replayed else args.goals))):
+            attempt = explore_one(number, out, names, SkillLibrary(shared), embedding, world, exploration,
+                                  replayed[index] if replayed else None)
             if attempt is None:
                 print(number, '| the curriculum gave no usable Goal', flush=True)
                 continue
