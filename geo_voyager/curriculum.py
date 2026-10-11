@@ -1,3 +1,4 @@
+from collections import Counter
 from dataclasses import dataclass
 
 from .datasets import load_dataset_graph
@@ -47,11 +48,17 @@ class Curriculum:
             'まだ分かっていないことを調べる。これまでの発見で答えが出た Goal を繰り返さない。\n'
             'これまでの発見を土台にして、少しずつ難しく、より広い問いへ進む。分かった対象や値を組み合わせ、新しい関係や傾向を明らかにする。'
             'ただし、未達が続いたときは、より小さく確実に答えられる問いに分ける。\n'
+            '問いは、場所、人口、施設、移動、土地利用など、世界について何かを教えるものにする。relation_id のような識別子は対象を指す名札で、'
+            'その最大値や合計は何も教えないので問いにしない。測る値が世界の何を表すか（例: 駅の数か、線路の区間の数か）を考えて選ぶ。\n'
+            '直近の発見と同じ型の問い（同じタグや同じ測り方で、対象だけを変えたもの）を続けない。別の主題、別の測り方へ広げる。'
+            'まだ使っていないリソースがあれば、それで何が分かるかを試す。\n'
             '未達の Goal を同じ文で繰り返さない。未達の理由を読んで、問いを変えるか分ける。\n'
             'Goal には何を知りたいかだけを書く。API のパスやパラメータ、コードは書かない。\n'
             + (f'{note}\n' if note else '')
             + '返答は次の2行だけ。前置き、番号、コードフェンス禁止。\nGoal: 問いの本文\n理由: この問いを選んだ理由（これまでの発見とのつながり）\n'
             + f'INPUT: 利用可能リソース:\n{Planner._resource_text(load_dataset_graph(), load_service_graph(), full=True)}\n'
+            + f'リソースを使った発見の数: {_usage(findings)}\n'
+            + f'まだ使っていないリソース: {_unused(findings)}\n'
             + f'これまでの発見:\n{known}'
             + f'これまでに試した Goal:\n{tried}'
             + 'OUTPUT: Goal: と 理由: の2行だけ。'
@@ -61,6 +68,20 @@ class Curriculum:
             system_prompt='You are the curriculum of an exploring agent. Propose exactly one new, concrete, measurable Goal '
                           'that builds on what is known. Reply with the two lines Goal: and 理由: only.')
         return _parse(text, findings)
+
+
+def _resource_ids() -> list[str]:
+    return [item.id for item in load_dataset_graph().all()] + [item.id for item in load_service_graph().all()]
+
+
+def _usage(findings: list[dict]) -> str:
+    counts = Counter(resource for finding in findings for resource in finding['resources'])
+    return '、'.join(f'{resource}: {count} 件' for resource, count in counts.most_common()) or 'まだ無い'
+
+
+def _unused(findings: list[dict]) -> str:
+    used = {resource for finding in findings for resource in finding['resources']}
+    return '、'.join(resource for resource in _resource_ids() if resource not in used) or '無い'
 
 
 def _render_findings(findings: list[dict]) -> str:

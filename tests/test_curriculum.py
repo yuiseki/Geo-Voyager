@@ -55,3 +55,22 @@ def test_a_rejection_note_is_shown_on_the_next_call():
     agent, client = curriculum('Goal: x を求める\n理由: y')
     agent.propose([], [], note='前回の応答は使えなかった: Goal: の行が無い')
     assert '前回の応答は使えなかった: Goal: の行が無い' in client.generate.call_args.args[0]
+
+
+def test_the_prompt_counts_how_often_each_resource_was_used_and_names_the_unused_ones():
+    agent, client = curriculum('Goal: x を求める\n理由: y')
+    agent.propose([FINDING, dict(FINDING, goal='b', resources=['overpass', 'yuisekin-geosparql'])], [])
+    prompt = client.generate.call_args.args[0]
+    assert 'overpass: 2 件' in prompt and 'yuisekin-geosparql: 1 件' in prompt
+    unused = prompt.split('まだ使っていないリソース:', 1)[1].split('\n', 1)[0]
+    for resource in ('yuiseki/jp-admin-2026-09', 'yuiseki/worldpop-jp-2026-01', 'nominatim', 'valhalla', 'taginfo'):
+        assert resource in unused
+    assert 'overpass' not in unused
+
+
+def test_the_prompt_asks_for_questions_about_the_world_not_about_identifiers_and_for_a_new_kind_of_question():
+    agent, client = curriculum('Goal: x を求める\n理由: y')
+    agent.propose([FINDING], [])
+    prompt = client.generate.call_args.args[0]
+    for text in ('識別子', '何を表すか', '同じ型の問い', 'まだ使っていないリソース'):
+        assert text in prompt
