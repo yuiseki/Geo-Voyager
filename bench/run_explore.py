@@ -59,14 +59,23 @@ def explore_one(number: int, out: Path, names, library: SkillLibrary, embedding:
     executor = IntentExecutor(SkillRetriever(library, embedding), Worker(names['internal']),
                               SkillCandidateGenerator(llm), critic, library, SkillCandidateRepairer(llm))
     started = time.time()
-    result = GoalExecutor(Planner(llm), executor, critic).execute_adaptive(proposed.goal)
+    try:
+        result = GoalExecutor(Planner(llm), executor, critic).execute_adaptive(proposed.goal)
+    except Exception as problem:
+        # One Goal that breaks (a model call that times out, say) is recorded as tried and the exploration goes on.
+        result = None
+        error = f'{type(problem).__name__}: {problem}'
     at = datetime.datetime.now().isoformat(timespec='seconds')
-    finding = world.record(result, explored_at=at)
-    attempt = {'number': number, 'goal': proposed.goal, 'curriculum_reason': proposed.reason,
-               'success': finding is not None, 'stop_reason': result.stop_reason, 'reason': result.critique.reason,
-               'steps': len(result.history), 'elapsed': round(time.time() - started, 1), 'explored_at': at}
+    finding = world.record(result, explored_at=at) if result is not None else None
+    attempt = {'number': number, 'goal': proposed.goal, 'curriculum_reason': proposed.reason, 'success': finding is not None,
+               'stop_reason': result.stop_reason if result is not None else 'error',
+               'reason': result.critique.reason if result is not None else error,
+               'steps': len(result.history) if result is not None else None,
+               'elapsed': round(time.time() - started, 1), 'explored_at': at}
     with exploration.open('a') as file:
         file.write(json.dumps(attempt, ensure_ascii=False) + '\n')
+    if result is None:
+        return attempt
     (directory / 'trace.json').write_text(json.dumps(
         {'goal': proposed.goal, 'steps': trace_steps(result), 'events': trace_events(result)}, ensure_ascii=False, indent=1))
     return attempt
