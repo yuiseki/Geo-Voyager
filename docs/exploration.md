@@ -30,7 +30,7 @@ Voyager の automatic curriculum に当たるものを足し、答えが出た�
 
 ## 2 回目（2026-10-11、31 Goal）
 
-コードは `bafb464`。5 Goal 目の後で、llama.cpp への 1 回の呼び出しが 120 秒を越え、その例外で全体が止まった。Goal ごとに例外を受け止めて記録し、次へ進むようにして（`f5ad2b8`）、続きから再開した。止まった 6 番は error として後から記録した。記録は [evidence/explore_2/](evidence/explore_2/)。
+コードは `bafb464`。5 Goal 目の後で、llama.cpp への 1 回の呼び出しが 120 秒を越え、その例外で全体が止まった。Goal ごとに例外を受け止めて記録し、次へ進むようにして（`c0f46c4`）、続きから再開した。止まった 6 番は error として後から記録した。記録は [evidence/explore_2/](evidence/explore_2/)。
 
 | | 1 回目 | 2 回目 |
 |---|---|---|
