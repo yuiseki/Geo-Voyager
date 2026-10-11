@@ -107,6 +107,22 @@ def test_the_goal_stops_at_the_step_limit():
     assert result.stop_reason == 'max_steps' and executor.execute.call_count == 3 and len(result.history) == 3
     assert not result.critique.success and 'max_steps' in result.critique.reason
     critic.check.assert_not_called()
+    assert len(planner.seen) == 4                         # asked once more after the last step, and it was not DONE
+
+
+def test_the_planner_can_still_say_done_after_the_last_step():
+    # Replay of round 3: the eighth step printed the answer and the Goal ended as max_steps before DONE could be said.
+    planner = Script(intent('a'), intent('b'), DONE)
+    result, executor, critic = run(planner, [ok('1'), ok('2')], max_steps=2)
+    assert result.stop_reason == 'done' and executor.execute.call_count == 2
+
+
+def test_after_the_last_step_a_final_critic_failure_or_a_rejected_reply_ends_the_goal():
+    for decision in (DONE, PlannerRejected('ValueError: x', 'reply')):
+        critic = Mock(); critic.check.return_value = Critique(False, 'not answered')
+        planner = Script(intent('a'), decision, DONE)
+        result, executor, _ = run(planner, [ok('1')], critic, max_steps=1)
+        assert result.stop_reason == 'max_steps' and executor.execute.call_count == 1 and len(planner.seen) == 2
 
 
 def test_an_intent_that_already_succeeded_is_not_run_again():

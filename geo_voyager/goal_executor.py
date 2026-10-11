@@ -88,11 +88,16 @@ class GoalExecutor:
         history, executions = GoalHistory(), []
         stop, error = 'max_steps', None
         critique = None
-        while len(history) < max_steps:
+        while True:
+            # max_steps bounds the steps executed. After the last one the Planner is asked once more, and only DONE
+            # is taken: a last step that printed the answer should not end the Goal as max_steps.
+            last_call = len(history) >= max_steps
             try:
                 decision = self.planner.next(goal, history)
             except PlannerRejected as rejected:
                 history.append(PlannerFailure(rejected.reason, rejected.reply, len(history)))
+                if last_call:
+                    break
                 if self._give_up(history.planner_failures(), max_planner_failures):
                     stop, error = 'planner_failure', rejected.reason
                     break
@@ -107,10 +112,14 @@ class GoalExecutor:
                     stop = 'done'
                     break
                 history.append(FinalCriticFailure(critique.reason, len(history)))
+                if last_call:
+                    break
                 if self._give_up(history.final_critic_failures(), max_final_critic_failures):
                     stop, error = 'final_critic_failed', critique.reason
                     break
                 continue
+            if last_call:
+                break
             earlier = history.entries_for(decision)
             if any(entry.succeeded for entry in earlier) or len(earlier) >= max_attempts_per_intent:
                 stop = 'repeated_intent'
