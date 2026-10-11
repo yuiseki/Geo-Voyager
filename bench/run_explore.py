@@ -16,6 +16,8 @@ import json
 import os
 from pathlib import Path
 import shutil
+import signal
+import sys
 import time
 
 from bench.adaptive_trace import trace_events, trace_steps
@@ -85,6 +87,20 @@ def explore_one(number: int, out: Path, names, library: SkillLibrary, embedding:
     return attempt
 
 
+# A file of this name in the output directory stops the run before the next Goal, so a run can end between Goals.
+STOP_FILE = 'STOP'
+
+
+def stop_requested(out: Path) -> bool:
+    return (out / STOP_FILE).exists()
+
+
+def exit_on_sigterm() -> None:
+    """Turn SIGTERM into SystemExit. Killed by the default handler, the run left its GeoSPARQL and gateway
+    containers behind; exiting through Python lets benchmark_environment remove them."""
+    signal.signal(signal.SIGTERM, lambda signum, frame: sys.exit(128 + signum))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('--out', required=True)
@@ -104,8 +120,12 @@ def main() -> None:
     world, exploration = WorldGraph(out / 'world.jsonl'), out / 'exploration.jsonl'
     embedding = EmbeddingClient(os.environ['GEO_VOYAGER_EMBEDDING_BASE_URL'], os.environ['GEO_VOYAGER_EMBEDDING_MODEL'])
     first = sum(1 for path in out.iterdir() if path.is_dir() and path.name.isdigit()) + 1
+    exit_on_sigterm()
     with benchmark_environment() as names:
         for index, number in enumerate(range(first, first + (len(replayed) if replayed else args.goals))):
+            if stop_requested(out):
+                print(number, f'| stopped by {out / STOP_FILE}', flush=True)
+                break
             attempt = explore_one(number, out, names, SkillLibrary(shared), embedding, world, exploration,
                                   replayed[index] if replayed else None)
             if attempt is None:
