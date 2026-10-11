@@ -172,3 +172,29 @@ def test_called_service_ids_include_calls_whose_path_is_a_variable():
             'def f(dataset_id, endpoint="/api/interpreter"):\n    """f"""\n'
             '    return call_service("overpass", path=endpoint, params={})\n')
     assert called_service_ids(code) == {'overpass'}
+
+
+@pytest.mark.parametrize('body', [
+    '    for text in previous_observations:\n        value = json.loads(text)\n',
+    '    for value in previous_observations:\n        pass\n',
+    '    key, rest = previous_observations[0].split("=")\n',
+])
+def test_a_function_that_overwrites_its_argument_with_another_value_is_refused(body):
+    code = ('import json\n\n\ndef f(previous_observations, key="railway", value="station"):\n    """F."""\n'
+            + body + '    return {"tag": f"{key}={value}"}\n')
+    problems = skill_shape_problems(code)
+    assert any('引数' in item and ('value' in item or 'key' in item) for item in problems), problems
+
+
+def test_an_argument_rebuilt_from_itself_is_allowed():
+    code = ('def f(limit="3", key=" amenity "):\n    """F."""\n    limit = int(limit)\n    key = key.strip()\n'
+            '    return {"limit": limit, "key": key}\n')
+    assert skill_shape_problems(code) == []
+
+
+def test_an_argument_filled_in_when_it_is_missing_is_allowed():
+    code = ('def f(previous_observations=None, name=None, intent_target=None):\n    """F."""\n'
+            '    if previous_observations is None:\n        previous_observations = []\n'
+            '    if not name:\n        name = intent_target["name"]\n'
+            '    return {"n": len(previous_observations), "name": name}\n')
+    assert skill_shape_problems(code) == []

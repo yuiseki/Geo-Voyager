@@ -172,9 +172,56 @@ def skill_shape_problems(code: str, shown: tuple[str, ...] = ()) -> list[str]:
     if not _returns_a_value(function):
         return [f'the function {function.name} does not return its result; return it and print it where it is called']
     parameters = {a.arg for a in (*function.args.posonlyargs, *function.args.args, *function.args.kwonlyargs)}
+    overwritten = _overwritten_parameters(function, parameters)
+    if overwritten:
+        return [f'the function {function.name} が引数 {name} に別の値を代入して上書きしている。引数（タグの値など）は後の行で'
+                f'そのまま使われるので、別の値には別の変数名を付ける' for name in overwritten]
     read = sorted({node.id for node in ast.walk(function) if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load)
                    and node.id in RUNTIME_NAMES and node.id not in parameters})
     return [f'the function {function.name} reads {name} directly; take it as an argument' for name in read]
+
+
+def _overwritten_parameters(function: ast.FunctionDef, parameters: set[str]) -> list[str]:
+    """Arguments given another value in the body: `for value in ...`, or `value = x` where x does not use value.
+
+    A local model wrote `value = json.loads(text)` in a loop of a function whose argument value was the tag value, and
+    every later use of the tag got the previous Observation instead. Rebuilding an argument from itself
+    (`limit = int(limit)`, `key += ...`) keeps its meaning, and so does filling in a missing one under an if that
+    tests it (`if name is None: name = ...`); both are allowed.
+    """
+    def names(target):
+        return [node.id for node in ast.walk(target) if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store)]
+
+    def uses(node, name):
+        return any(isinstance(n, ast.Name) and n.id == name and isinstance(n.ctx, ast.Load) for n in ast.walk(node))
+
+    found = set()
+
+    def visit(node, guarded):
+        if isinstance(node, ast.If):
+            inner = guarded | {name for name in parameters if uses(node.test, name)}
+            for child in node.body:
+                visit(child, inner)
+            for child in node.orelse:
+                visit(child, guarded)
+            return
+        candidates = set()
+        if isinstance(node, ast.Assign):
+            candidates = {name for target in node.targets for name in names(target) if not uses(node.value, name)}
+        elif isinstance(node, (ast.AnnAssign, ast.NamedExpr)) and node.value is not None:
+            candidates = {name for name in names(node.target) if not uses(node.value, name)}
+        elif isinstance(node, (ast.For, ast.AsyncFor)):
+            candidates = set(names(node.target))
+        elif isinstance(node, (ast.With, ast.AsyncWith)):
+            candidates = {name for item in node.items if item.optional_vars is not None for name in names(item.optional_vars)}
+        found.update((candidates & parameters) - guarded)
+        for child in ast.iter_child_nodes(node):
+            if not isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)):
+                visit(child, guarded)
+
+    for statement in function.body:
+        visit(statement, set())
+    return sorted(found)
 
 
 def _same_function(a: ast.FunctionDef, b: ast.FunctionDef) -> bool:
