@@ -198,3 +198,39 @@ def test_an_argument_filled_in_when_it_is_missing_is_allowed():
             '    if not name:\n        name = intent_target["name"]\n'
             '    return {"n": len(previous_observations), "name": name}\n')
     assert skill_shape_problems(code) == []
+
+
+from geo_voyager.skill_candidate import overpass_element_mismatch
+
+COUNT_NWR = ('import json\nfrom geo_voyager.control_primitives import call_service\n\n'
+             'def count_tag(key="amenity", value="pharmacy"):\n    """数える。"""\n'
+             '    query = f\'[out:json];nwr["{key}"="{value}"](area:3601761717);out count;\'\n'
+             '    return json.loads(call_service("overpass", path="/api/interpreter", params={"data": query}))\n')
+
+
+def test_an_intent_about_nodes_refuses_a_query_for_every_element_type():
+    # Round 3: 'amenity=pharmacy のノード件数' was counted with nwr, 211 where the nodes are 208.
+    found = overpass_element_mismatch('各区の amenity=pharmacy のノード件数を数える', COUNT_NWR)
+    assert found and 'nwr' in found[0] and 'node' in found[0]
+    assert overpass_element_mismatch('各区の amenity=pharmacy のノード件数を数える', COUNT_NWR.replace('nwr[', 'node[')) == []
+
+
+def test_an_intent_about_ways_refuses_nodes_and_every_element_type():
+    assert overpass_element_mismatch('highway=primary の道路ウェイの総延長', COUNT_NWR)
+    assert overpass_element_mismatch('highway=primary の道路ウェイの総延長', COUNT_NWR.replace('nwr[', 'node['))
+    assert overpass_element_mismatch('highway=primary の道路ウェイの総延長', COUNT_NWR.replace('nwr[', 'way[')) == []
+
+
+def test_an_intent_that_names_no_element_type_or_several_is_not_checked():
+    for text in ('amenity=pharmacy の件数', 'amenity=pharmacy のノードとウェイの件数', 'amenity=pharmacy の要素のうちノード以外'):
+        assert overpass_element_mismatch(text, COUNT_NWR) == [], text
+
+
+def test_python_that_indexes_a_node_or_a_way_is_not_a_query():
+    code = ('def lat_of(node, way):\n    """緯度。"""\n    return node["lat"], way["nodes"]\n')
+    assert overpass_element_mismatch('ノードの緯度', code) == []
+
+
+def test_a_relation_looked_up_by_id_for_its_area_is_not_what_is_counted():
+    code = COUNT_NWR.replace('nwr["{key}"="{value}"](area:3601761717)', 'rel(1761717);map_to_area->.a;node["{key}"="{value}"](area.a)')
+    assert overpass_element_mismatch('amenity=pharmacy のノード件数', code) == []

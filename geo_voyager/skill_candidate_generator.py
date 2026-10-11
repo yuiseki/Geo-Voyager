@@ -2,7 +2,7 @@
 from .id_type_literals import id_type_comparisons
 from .intent import Intent
 from .local_aggregation_contract import local_aggregation_violations
-from .skill_candidate import entry_problems, main_function_name, rewritten_skills, service_calls, skill_shape_problems, unpassed_runtime_reads, called_service_ids
+from .skill_candidate import entry_problems, main_function_name, rewritten_skills, service_calls, skill_shape_problems, unpassed_runtime_reads, called_service_ids, intent_element_type, overpass_element_mismatch
 from .place_names import place_words_in
 from .skill_function import SkillFunction
 from .llama_client import LlamaClient
@@ -156,6 +156,7 @@ def contract_problems(intent: Intent, code: str, shown: tuple[str, ...] = ()) ->
                    else 'Dataset ' + '、'.join(intent.dataset_ids) if intent.dataset_ids else '前段の Observation')
         shape = shape + [f'この Intent に無い Service（{", ".join(undeclared)}）を呼んでいる。この Intent が使えるのは {allowed} だけなので、'
                          'そこから値を得る']
+    shape = shape + overpass_element_mismatch(intent.text, code)
     if shape:
         problems.append(('skill shape: ' + '; '.join(shape), _shape_note(shape)))
     if intent.target is not None and intent.target.resolved:
@@ -327,7 +328,7 @@ class SkillCandidateGenerator:
                                    'ID のキー名は前段の形に合わせる。この target からIDを取り、要求された測定を続ける。')
             if 'overpass' in intent.service_ids:
                 prompt += ('\n件数測定の場合の抽象構文（メタ変数を実行時値へ置換）: '
-                           '[out:json][timeout:12];nwr["<key>"="<value>"](area:<area_id>);out count;'
+                           f'[out:json][timeout:12];{intent_element_type(intent.text) or "nwr"}["<key>"="<value>"](area:<area_id>);out count;'
                            'キー比較は角括弧、地理区域指定はその後の丸括弧。上の構文の順序を保つ。'
                            )
                 if intent.target is not None and intent.target.resolved:

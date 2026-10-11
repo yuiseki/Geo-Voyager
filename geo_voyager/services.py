@@ -14,6 +14,7 @@ def load_service_graph() -> ServiceGraph:
                 'program = header + feature_selection + output; '
                 'header = [out:json]; '
                 'feature_selection = nwr["<key>"="<value>"](area:<area_id>); area_filter = (area:<area_id>); '
+                'nwr はノード・ウェイ・リレーションを合わせて選ぶ。ノードだけなら node、ウェイだけなら way を nwr の位置に書く。'
                 'output = out body; Count program = [out:json][timeout:12];nwr["<key>"="<value>"](area:<area_id>);out count; Count query header MUST be [out:json][timeout:12]; and count output MUST be out count;。返答は JSON object、件数は data["elements"][0]["tags"]["total"]（文字列の整数）を読む。'
                 'timeout は12秒以下、HTTP上限15秒。remark があれば失敗扱い。繰り返すタグ検索は対象集合を先に取得すると速い。'
                 'Replace <...> with runtime values. Never use bare IDs as statements. '

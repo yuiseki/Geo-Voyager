@@ -320,3 +320,50 @@ def rewritten_skills(code: str, skills) -> list:
     own = main_function_name(code)
     return [skill for skill in skills
             if skill.name not in called and skill.name != own and service_calls(skill.code) and service_calls(skill.code) <= mine]
+
+
+# An Overpass selector with a tag filter: nwr["amenity"="pharmacy"], node[railway=station]. A relation looked up by
+# id for its area (rel(1761717)) has no filter and is not what a query counts.
+_OVERPASS_SELECTOR = re.compile(r'(?<![A-Za-z_])(nwr|nw|nr|wr|node|way|rel|relation)\s*\[')
+_ELEMENT_WORDS = {'node': 'ノード', 'way': 'ウェイ'}
+_OTHER_ELEMENT_WORDS = ('リレーション', '要素')
+
+
+def intent_element_type(intent_text: str) -> str | None:
+    """node or way when the Intent names that one OSM element type, else None."""
+    named = [kind for kind, word in _ELEMENT_WORDS.items() if word in intent_text]
+    if len(named) != 1 or any(word in intent_text for word in _OTHER_ELEMENT_WORDS):
+        return None
+    return named[0]
+
+
+def _string_constants(tree: ast.AST) -> list[str]:
+    """The strings in the code, with each f-string's placeholders written as {}."""
+    strings = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.JoinedStr):
+            strings.append(''.join(part.value if isinstance(part, ast.Constant) else '{}' for part in node.values))
+        elif isinstance(node, ast.Constant) and isinstance(node.value, str):
+            strings.append(node.value)
+    return strings
+
+
+def overpass_element_mismatch(intent_text: str, code: str) -> list[str]:
+    """An Overpass query for other element types than the one the Intent names (ノード or ウェイ).
+
+    Round 3 counted 'amenity=pharmacy のノード' with nwr and got 211 where the nodes are 208; the Critic sees only
+    the number and can not tell. An Intent that names both types, a relation or 要素 in general is not checked.
+    """
+    wanted = intent_element_type(intent_text)
+    if wanted is None:
+        return []
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return []
+    found = sorted({match for text in _string_constants(tree) for match in _OVERPASS_SELECTOR.findall(text)} - {wanted})
+    if not found:
+        return []
+    word = _ELEMENT_WORDS[wanted]
+    return [f'Intent は OSM の{word}を求めているが、Overpass の問い合わせが {", ".join(found)}[...] で他の種類の要素も数えている。'
+            f'{word}だけを {wanted}[...] で問い合わせる']

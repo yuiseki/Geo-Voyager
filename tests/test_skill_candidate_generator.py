@@ -583,3 +583,24 @@ def test_code_generation_has_a_token_limit_and_refuses_a_reply_cut_at_it():
     SkillCandidateGenerator(client).generate(Intent('東京都23区で人口が最も少ない区と人口を求める', ('yuiseki/jp-admin-2026-09',)))
     kwargs = client.generate.call_args.kwargs
     assert kwargs['max_tokens'] == 8192 and kwargs['refuse_truncated'] is True
+
+
+def test_contract_refuses_a_query_for_other_element_types_than_the_intent_names():
+    from geo_voyager.skill_candidate_generator import contract_problems
+
+    code = ('import json\nfrom geo_voyager.control_primitives import call_service\n\n'
+            'def count_tag(key="amenity", value="pharmacy"):\n    """数える。"""\n'
+            '    query = f\'[out:json];nwr["{key}"="{value}"](area:3601761717);out count;\'\n'
+            '    return json.loads(call_service("overpass", path="/api/interpreter", params={"data": query}))\n')
+    problems = contract_problems(Intent('港区の amenity=pharmacy のノード件数', service_ids=('overpass',)), code)
+    assert any('nwr' in found for found, _ in problems)
+    assert contract_problems(Intent('港区の amenity=pharmacy の件数', service_ids=('overpass',)), code) == []
+
+
+@pytest.mark.parametrize('text, selector', [('港区の amenity=pharmacy のノード件数', 'node'),
+                                            ('港区の highway=primary の道路ウェイの件数', 'way'),
+                                            ('港区の amenity=pharmacy の件数', 'nwr')])
+def test_the_count_syntax_asks_for_the_element_type_the_intent_names(text, selector):
+    client = Mock(); client.generate.return_value = VALID
+    SkillCandidateGenerator(client).generate(Intent(text, service_ids=('overpass',)))
+    assert f'[out:json][timeout:12];{selector}["<key>"="<value>"](area:<area_id>);out count;' in client.generate.call_args.args[0]
