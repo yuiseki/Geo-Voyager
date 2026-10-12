@@ -141,3 +141,21 @@ def test_the_code_generation_prompt_shows_each_input_by_name_with_where_it_came_
     assert 'results["ward_population"]' in prompt and 'step 3「各区の2020年国勢調査人口」' in prompt
     assert 'results["ward_stations"]' in prompt and '"stations"' in prompt
     assert 'decoded = [json.loads(text) for text in previous_observations]' not in prompt
+
+
+def test_the_planner_is_told_not_to_add_up_the_counts_of_each_area_for_the_whole():
+    # Round 8, Goals 22 and 23: the 23 wards' counts were added up, and a feature on the border of two wards was
+    # counted twice (library and community_centre 1,180 against 1,179 counted once over all 23).
+    client = planner('DONE')[1]
+    Planner(client).next('23区の図書館の数', LISTED)
+    prompt = client.generate.call_args.args[0]
+    assert '区域の集まり全体の件数' in prompt and '区ごとの件数を足さない' in prompt
+
+
+def test_a_census_population_is_read_from_the_boundaries_and_an_estimate_only_when_asked():
+    # Round 8, Goal 1: asked for the 2020 population of the 23 wards, the step summed WorldPop (9,653,022) instead of
+    # the census in jp-admin-2026-09 (9,733,276), and the Critic passed it.
+    from geo_voyager.datasets import CATALOG
+    by_id = {item.id: item.description for item in CATALOG}
+    assert 'population は2020年国勢調査の人口' in by_id['yuiseki/jp-admin-2026-09']
+    assert 'WorldPop・推計を名指ししない人口は' in by_id['yuiseki/worldpop-jp-2026-01']
