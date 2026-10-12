@@ -55,7 +55,7 @@ def test_the_planner_resolves_a_short_name_to_the_known_target_with_its_id():
     history.append(HistoryEntry(1, Intent('港区の ID', service_ids=('nominatim',), target=TargetRef('港区')),
                                 (obs({'name': '港区, 東京都, 日本', 'relation_id': 1761717}),), Critique(True, 'ok'), None, None, None,
                                 (MINATO_LONG,)))
-    client = Mock(); client.generate.return_value = '調査項目: 港区の件数\n利用データセット: []\n利用サービス:\n  - overpass\n対象: 港区'
+    client = Mock(); client.generate.return_value = '調査項目: 港区の件数\n入力: []\n利用データセット: []\n利用サービス:\n  - overpass\n対象: 港区'
     result = Planner(client).next('g', history)
     assert result.target == MINATO_LONG and result.target.resolved             # the id came along, the display name is the known one
 
@@ -75,7 +75,7 @@ def test_a_name_known_under_two_ids_is_refused_by_the_planner_with_the_ids_liste
     history.append(HistoryEntry(1, Intent('港区を探す', service_ids=('nominatim',), target=TargetRef('港区')),
                                 (obs([{'name': '港区, 東京都, 日本', 'relation_id': 1761717}, {'name': nagoya.name, 'relation_id': 3554304}]),),
                                 Critique(True, 'ok'), None, None, None, (MINATO_LONG, nagoya)))
-    client = Mock(); client.generate.return_value = '調査項目: 港区の件数\n利用データセット: []\n利用サービス:\n  - overpass\n対象: 港区'
+    client = Mock(); client.generate.return_value = '調査項目: 港区の件数\n入力: []\n利用データセット: []\n利用サービス:\n  - overpass\n対象: 港区'
     with pytest.raises(PlannerRejected) as raised:
         Planner(client).next('g', history)
     assert '1761717' in raised.value.reason and '3554304' in raised.value.reason and 'ID' in raised.value.reason

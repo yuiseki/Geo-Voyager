@@ -98,8 +98,35 @@ def _extract_target(block: list[str]) -> tuple[list[str], str | None]:
     return [line for line in block if not line.startswith(TARGET_PREFIXES)], (names[0] if names else None)
 
 
+RESULT_NAME = re.compile(r'[a-z][a-z0-9_]*')
+
+
+def _extract_results(block: list[str]) -> tuple[list[str], str | None, tuple[str, ...] | None]:
+    """The block without its 結果名 and 入力 lines, the result name and the inputs. Either may be anywhere after the
+    first line; None when it is not written."""
+    rest, name, inputs = [], None, None
+    position = 0
+    while position < len(block):
+        line = block[position]
+        if line.startswith('結果名:'):
+            name = line[len('結果名:'):].strip()
+            if not RESULT_NAME.fullmatch(name):
+                raise ValueError(f'結果名「{name}」は使えない。結果名は英小文字で始まり、英小文字・数字・_ だけの名前にする（例: ward_pharmacy_counts）')
+        elif line.strip() in ('入力:', '入力: []'):
+            inputs = ()
+            if line.strip() == '入力:':
+                while position + 1 < len(block) and block[position + 1].startswith('  - '):
+                    position += 1
+                    inputs += (block[position][4:].strip(),)
+        else:
+            rest.append(line)
+        position += 1
+    return rest, name, inputs
+
+
 def _parse_intent(block: list[str], datasets, services, *, allow_local: bool, known: tuple[TargetRef, ...] = ()) -> Intent:
     """One Intent from its block of lines. A step that only works on earlier output needs allow_local."""
+    block, result_name, inputs = _extract_results(block)
     lines, reference = _extract_target(block)
     if not lines or not lines[0].startswith('調査項目: '):
         raise ValueError('Plan must start with 調査項目:')
@@ -121,12 +148,28 @@ def _parse_intent(block: list[str], datasets, services, *, allow_local: bool, kn
         raise ValueError('First step requires an external resource')
     intent = Intent(lines[0][len('調査項目: '):], tuple(ids['利用データセット']), tuple(ids['利用サービス']),
                     requires_context=local,
-                    target=resolve_reference(reference, known) if reference is not None else None)
+                    target=resolve_reference(reference, known) if reference is not None else None,
+                    result_name=result_name, inputs=inputs)
     for id in intent.dataset_ids:
         datasets.get(id)
     for id in intent.service_ids:
         services.get(id)
     return intent
+
+
+def _require_known_inputs(intent: Intent, results: tuple[str, ...]) -> None:
+    """Once there are results, a step says which it works on, by names that are there. A step with no Dataset and
+    no Service works only on its inputs, so it needs at least one."""
+    if not results:
+        return
+    names = '、'.join(results)
+    if intent.inputs is None:
+        raise ValueError(f'「入力:」が無い。使える結果（{names}）のうち、この Intent が使うものを「入力:」に書く。使わないなら「入力: []」')
+    unknown = [name for name in intent.inputs if name not in results]
+    if unknown:
+        raise ValueError(f'入力の {"、".join(unknown)} は結果に無い。使える結果は {names}')
+    if intent.requires_context and not intent.inputs:
+        raise ValueError(f'利用データセットも利用サービスも無い Intent は、入力の結果だけを使う。使う結果（{names} のどれか）を「入力:」に書く')
 
 
 # A set of targets, not one: '東京23区', '23区', '全23区', '各区'.
@@ -266,6 +309,9 @@ class Planner:
             'その Intent は「対象:」を付けず、前段の一覧を入力にして、対象ごとの値の一覧（名前、ID、値）を返す。最大・最小・件数などは、次の Intent でその一覧から求める。\n'
             '2つの Dataset を空間で結び付ける測定（例: 駅データの駅を行政区域の境界に入れて区ごとに数える、区域ごとに人口格子を足す）は、'
             '1つの Intent で両方の Dataset を宣言する。宣言していない Dataset の値を調査項目に書かない。\n'
+            '各 Intent の出力には「結果名:」で名前を付ける。英小文字で始まり、英小文字・数字・_ だけで、何を測ったかが分かる名前にする（例: ward_pharmacy_counts）。\n'
+            '前の結果を使う Intent は、「入力:」に使う結果名だけを書く。使わないなら「入力: []」。後の手は結果を名前で受け取るので、同じ形の一覧がいくつあっても取り違えない。'
+            '同じ測定を対象を広げて測り直すときは、同じ結果名を付けると新しいほうに置き換わる。\n'
             '履歴に「Goal の最終判定が未達」があるときは、DONE を返したが Critic が不足を指摘したということ。その理由が示す不足を埋める Intent を返し、同じ DONE を繰り返さない。\n'
             'Service の説明は、そのサービスで何ができるかを知るためのものです。Intent の調査項目には、何を調べるか（調べる対象、条件、得たい値）だけを書く。'
             'API のパス（/api/... など）やパラメータ（limit=3 など）は書かない。サービスの呼び方は実行側が決める。書いた Intent は拒否される。\n'
@@ -273,10 +319,10 @@ class Planner:
             '「判明した対象」は、前段の Observation で分かった名前と安定IDです。対象は ID で区別する。その対象を測る Intent は、「対象:」に判明した対象の名前、または ID（例: 対象: relation_id=1761717）を書く。同じ名前の対象が複数あるときは ID で書く。調査項目には対象の名前を書く。IDをコードに書き写さなくてよい。\n'
             + SHARED_RULES
             + 'DONE とだけ返すか、次の Intent を以下の形式で1件だけ返す。複数返さない。前置き、番号、コードフェンス禁止。\n'
-            + '調査項目: 調査内容\n利用データセット: []\n利用サービス:\n  - 登録済みid\n対象: 名前\n'
-            + '利用データセットと利用サービスは空なら []、非空なら半角2空白の - id の行を続ける。「対象:」は対象を測る Intent だけが付ける。\n'
+            + '調査項目: 調査内容\n結果名: 結果の名前\n入力:\n  - 使う結果名\n利用データセット: []\n利用サービス:\n  - 登録済みid\n対象: 名前\n'
+            + '入力、利用データセット、利用サービスは空なら []、非空なら半角2空白の - の行を続ける。「対象:」は対象を測る Intent だけが付ける。\n'
             + f'INPUT: 利用可能リソース:\n{self._resource_text(datasets, services, full=True)}\nGoal:\n{goal}\n履歴:\n{render_history(history)}\n'
-            + 'OUTPUT: DONE、または調査項目、利用データセット、利用サービス、必要なら対象の行だけ。INPUT のメタデータを繰り返さない。'
+            + 'OUTPUT: DONE、または調査項目、結果名、入力、利用データセット、利用サービス、必要なら対象の行だけ。INPUT のメタデータを繰り返さない。'
         )
         text = self.llm_client.generate(
             prompt, temperature=0.0, max_tokens=4096, enable_thinking=True, reasoning_budget_tokens=768,
@@ -293,6 +339,7 @@ class Planner:
                 raise ValueError('Plan must start with 調査項目:')
             intent = _parse_intent(blocks[0], datasets, services, allow_local=bool(history.observations()), known=history.targets())
             _require_an_entity(intent.target, goal, history.targets())
+            _require_known_inputs(intent, tuple(history.results()))
             details = api_details_in(intent.text)
             if details:
                 raise ValueError(f'Intent の調査項目に API の詳細が書かれている: {", ".join(details)}。'

@@ -30,6 +30,10 @@ def _records(text: str) -> frozenset[str]:
     return frozenset(json.dumps(row, sort_keys=True, ensure_ascii=False) for row in rows)
 
 
+def result_name(entry: "HistoryEntry") -> str:
+    return entry.intent.result_name or f'step_{entry.step}'
+
+
 def intent_key(intent: Intent) -> tuple:
     """What makes two Intents the same step: the wording, the resources and the target."""
     target = intent.target
@@ -117,6 +121,17 @@ class GoalHistory:
         """The Observations of the steps that succeeded. A failed step's output is not carried forward."""
         return tuple(observation for entry in self.entries if entry.succeeded for observation in entry.observations)
 
+    def results(self) -> dict[str, "HistoryEntry"]:
+        """The named results so far: each succeeded step under its result name (step_N if it gave none). A later
+        step with the same name replaces the earlier one, as a measurement made again for all targets replaces the
+        one made first for one target."""
+        named: dict[str, HistoryEntry] = {}
+        for entry in self.entries:
+            if entry.succeeded:
+                named.pop(result_name(entry), None)
+                named[result_name(entry)] = entry
+        return named
+
     def carried_observations(self) -> tuple[Observation, ...]:
         """The Observations the next step is given: those of observations(), less each one whose records all appear,
         unchanged, in a single later Observation.
@@ -184,6 +199,10 @@ def render_history(history: GoalHistory) -> str:
         lines = [f'step {entry.step}: {intent.text}',
                  f'  リソース: {resources}' + (f' / 対象: {intent.target.display()}' if intent.target else ''),
                  f'  結果: {status}']
+        if entry.succeeded:
+            lines.append(f'  結果名: {result_name(entry)}')
+        if intent.inputs:
+            lines.append(f'  入力: {", ".join(intent.inputs)}')
         if entry.failure is not None:
             lines.append('  実行失敗: ' + (error_line(entry.failure) or entry.failure.message))
         if entry.critique is not None:
@@ -194,6 +213,10 @@ def render_history(history: GoalHistory) -> str:
         if entry.learned_skill is not None:
             lines.append(f'  学習した Skill: {entry.learned_skill}')
         parts.append('\n'.join(lines))
+    results = history.results()
+    if results:
+        parts.append('使える結果（結果名: それを出した調査項目。同じ結果名で測り直すと新しいほうに置き換わる）:\n' + '\n'.join(
+            f'- {name}: {entry.intent.text}' for name, entry in results.items()))
     targets = history.targets()
     if targets:
         parts.append('判明した対象（前段の Observation で分かった名前と安定ID。対象は ID で区別する）:\n' + '\n'.join(

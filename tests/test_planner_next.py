@@ -11,8 +11,8 @@ from geo_voyager.observation import Observation
 from geo_voyager.planner import DONE, Done, Planner, PlannerRejected
 
 STEP = '調査項目: 港区の relation_id を取得する\n利用データセット: []\n利用サービス:\n  - yuisekin-geosparql\n対象: 港区'
-NEXT = '調査項目: 港区内の amenity=hospital の地物数を取得する\n利用データセット: []\n利用サービス:\n  - overpass\n対象: 港区'
-LOCAL = '調査項目: 前段の件数を比べる\n利用データセット: []\n利用サービス: []'
+NEXT = '調査項目: 港区内の amenity=hospital の地物数を取得する\n入力:\n  - step_1\n利用データセット: []\n利用サービス:\n  - overpass\n対象: 港区'
+LOCAL = '調査項目: 前段の件数を比べる\n入力:\n  - step_1\n利用データセット: []\n利用サービス: []'
 
 
 def planner(reply):
@@ -134,7 +134,7 @@ def test_the_history_is_not_changed_by_planning():
 from geo_voyager.goal_history import FinalCriticFailure, PlannerFailure
 from geo_voyager.planner import PlannerRejected
 
-TWO_TARGETS = '調査項目: 両方の件数\n利用データセット: []\n利用サービス:\n  - overpass\n対象: 渋谷区\n対象: 新宿区'
+TWO_TARGETS = '調査項目: 両方の件数\n入力: []\n利用データセット: []\n利用サービス:\n  - overpass\n対象: 渋谷区\n対象: 新宿区'
 
 
 def test_an_unusable_reply_is_rejected_with_its_reason_and_the_reply_that_caused_it():
@@ -211,8 +211,8 @@ def test_the_prompt_tells_the_model_how_to_recover_from_each_kind_of_failure():
 
 from geo_voyager.services import load_service_graph
 
-HOW = '調査項目: taginfo API /api/4/keys/cuisine/values に limit=3 を指定して上位3件を取得する\n利用データセット: []\n利用サービス:\n  - taginfo'
-WHAT = '調査項目: cuisine キーの値を使用数の多い順に並べ、上位3つを求める\n利用データセット: []\n利用サービス:\n  - taginfo'
+HOW = '調査項目: taginfo API /api/4/keys/cuisine/values に limit=3 を指定して上位3件を取得する\n入力: []\n利用データセット: []\n利用サービス:\n  - taginfo'
+WHAT = '調査項目: cuisine キーの値を使用数の多い順に並べ、上位3つを求める\n入力: []\n利用データセット: []\n利用サービス:\n  - taginfo'
 
 
 def test_the_prompt_shows_every_service_description_in_full():
@@ -270,7 +270,7 @@ def test_the_prompt_tells_the_planner_to_say_what_to_find_and_not_how_to_call():
 
 
 def named(name):
-    return f'調査項目: {name}の件数を取得する\n利用データセット: []\n利用サービス:\n  - overpass\n対象: {name}'
+    return f'調査項目: {name}の件数を取得する\n入力: []\n利用データセット: []\n利用サービス:\n  - overpass\n対象: {name}'
 
 
 @pytest.mark.parametrize('name', ['ID 最小の区', '各 23 区', '起点座標の地名', '地点 A'])
@@ -340,7 +340,7 @@ def test_the_prompt_asks_to_measure_a_whole_list_of_targets_in_one_intent():
         assert rule in prompt, rule
 
 
-TWO_DATASETS = ('調査項目: 前段の東京23区の一覧の各区について、駅数と人口を取得する\n利用データセット:\n'
+TWO_DATASETS = ('調査項目: 前段の東京23区の一覧の各区について、駅数と人口を取得する\n入力:\n  - step_1\n利用データセット:\n'
                 '  - yuiseki/ekidata-jp\n  - yuiseki/jp-admin-2026-09\n利用サービス:\n  - overpass')
 
 
@@ -358,7 +358,7 @@ def test_the_prompt_tells_how_to_combine_two_datasets():
         assert rule in prompt, rule
 
 
-UNREADABLE = ('調査項目: 前段の東京23区の一覧の各区について、用途地域の面積を取得する\n利用データセット:\n'
+UNREADABLE = ('調査項目: 前段の東京23区の一覧の各区について、用途地域の面積を取得する\n入力:\n  - step_1\n利用データセット:\n'
               '  - yuiseki/mlit-toshi-keikaku-jp\n利用サービス:\n  - overpass')
 
 

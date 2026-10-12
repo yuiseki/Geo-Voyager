@@ -13,6 +13,10 @@ class Intent:
     requires_context: bool = False
     # The one target this Intent is about, by its stable id when that is known. Never a list position.
     target: TargetRef | None = None
+    # The name its output is kept under, and the earlier results it works on, by name. None: not declared (the
+    # first step, or the old route that plans every step at once).
+    result_name: str | None = None
+    inputs: tuple[str, ...] | None = None
 
     def __post_init__(self) -> None:
         if not self.text.strip():
