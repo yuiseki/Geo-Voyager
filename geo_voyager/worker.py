@@ -1,4 +1,5 @@
 from dataclasses import replace
+import json
 import subprocess
 
 from .docker_sandbox import DockerSandbox
@@ -10,6 +11,13 @@ from .skill_library import SkillLibrary, link
 from .services import load_service_graph
 
 
+def _parsed(text: str):
+    try:
+        return json.loads(text)
+    except ValueError:
+        return text
+
+
 def injected_lines(intent: Intent) -> str:
     """The runtime variables the Worker defines in front of the generated code, one per line."""
     lines = ''
@@ -19,6 +27,9 @@ def injected_lines(intent: Intent) -> str:
         lines += f"intent_target={intent.target.to_dict()!r}\n"
     if intent.previous_observations:
         lines += f"previous_observations={[obs.text for obs in intent.previous_observations]!r}\nintent_text={intent.text!r}\n"
+    if intent.inputs:
+        # The inputs by name, parsed: the code reads results["ward_stations"], not a position in a list of texts.
+        lines += f"results={dict(zip(intent.inputs, (_parsed(obs.text) for obs in intent.previous_observations)))!r}\n"
     return lines
 
 

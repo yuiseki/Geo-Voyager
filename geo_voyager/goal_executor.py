@@ -103,8 +103,11 @@ class GoalExecutor:
                 stop, error = 'planner_error', f'{type(problem).__name__}: {problem}'
                 break
             if isinstance(decision, Done):
-                asked = tuple(entry.intent.text for entry in history.entries if entry.succeeded for _ in entry.observations)
-                critique = self.critic.check(self._goal_intent(goal, history), history.observations(), final=True, asked=asked)
+                # The latest result under each name: a measurement made again for all targets replaces the trial.
+                results = history.results()
+                observations = [observation for entry in results.values() for observation in entry.observations]
+                asked = tuple(f'{name}: {entry.intent.text}' for name, entry in results.items() for _ in entry.observations)
+                critique = self.critic.check(self._goal_intent(goal, history), observations, final=True, asked=asked)
                 if critique.success:
                     stop = 'done'
                     break
@@ -121,7 +124,8 @@ class GoalExecutor:
             if any(entry.succeeded for entry in earlier) or len(earlier) >= max_attempts_per_intent:
                 stop = 'repeated_intent'
                 break
-            current = replace(decision, previous_observations=history.carried_observations())
+            current = replace(decision, previous_observations=history.inputs_of(decision),
+                              input_notes=history.input_notes(decision))
             refusal = _execution_refusal(current)
             if refusal:
                 reason = f'ValueError: {refusal}'

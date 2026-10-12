@@ -146,32 +146,27 @@ def test_an_unknown_kind_of_event_is_refused():
         GoalHistory().append('not an event')
 
 
-MINATO = '{"name": "港区", "relation_id": "1761717", "tag": "railway=station", "count": 46}'
-WARDS = ('[{"name": "世田谷区", "relation_id": "1759474", "tag": "railway=station", "count": 40}, '
-         '{"name": "港区", "relation_id": "1761717", "tag": "railway=station", "count": 46}]')
+
+def named_entry(step, obs, name, ok=True):
+    return entry(step, obs=obs, ok=ok, intent=Intent('測る', service_ids=('overpass',), result_name=name))
 
 
-def test_a_trial_on_one_target_that_a_later_step_repeats_for_all_targets_is_not_carried_forward():
-    # Exploration round 7, Goal 20: the code summed every earlier list it was given, and Minato, measured alone
-    # first and then again with the other 22 wards, was counted twice.
+def test_a_result_is_the_latest_succeeded_step_under_its_name():
     history = GoalHistory()
-    history.append(entry(1, obs='[{"name": "港区", "relation_id": "1761717"}]'))
-    history.append(entry(2, obs=MINATO))
-    history.append(entry(3, obs=WARDS))
-    assert [o.text for o in history.carried_observations()] == ['[{"name": "港区", "relation_id": "1761717"}]', WARDS]
-    assert len(history.observations()) == 3          # the record of the steps keeps every Observation
+    history.append(named_entry(1, '[1]', 'wards'))
+    history.append(named_entry(2, '{"count": 46}', 'stations'))
+    history.append(named_entry(3, '[2]', 'stations'))
+    history.append(named_entry(4, '[3]', 'stations', ok=False))
+    history.append(entry(5, obs='{"x": 1}'))
+    results = history.results()
+    assert list(results) == ['wards', 'stations', 'step_5']
+    assert results['stations'].step == 3
 
 
-def test_an_observation_with_a_record_no_later_one_has_is_carried_forward():
+def test_a_step_gets_the_results_it_names_in_its_order():
     history = GoalHistory()
-    history.append(entry(1, obs=MINATO.replace('46', '47')))
-    history.append(entry(2, obs=WARDS))
-    history.append(entry(3, obs='9733276'))
-    assert len(history.carried_observations()) == 3
-
-
-def test_records_are_compared_by_value_not_by_how_the_json_is_written():
-    history = GoalHistory()
-    history.append(entry(1, obs='{"count": 46, "tag": "railway=station", "relation_id": "1761717", "name": "港区"}'))
-    history.append(entry(2, obs=WARDS))
-    assert [o.text for o in history.carried_observations()] == [WARDS]
+    history.append(named_entry(1, '[1]', 'wards'))
+    history.append(named_entry(2, '[2]', 'stations'))
+    wanted = Intent('比べる', requires_context=True, inputs=('stations', 'wards'))
+    assert [o.text for o in history.inputs_of(wanted)] == ['[2]', '[1]']
+    assert history.inputs_of(Intent('次', service_ids=('overpass',), inputs=())) == ()

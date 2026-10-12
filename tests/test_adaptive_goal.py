@@ -78,14 +78,25 @@ def test_a_step_receives_only_the_observations_of_the_steps_that_succeeded():
     assert received == [[], ['1'], ['1']]
 
 
-def test_a_trial_on_one_target_repeated_by_a_later_step_is_not_given_to_the_next_step_but_is_judged():
+def test_a_step_receives_the_results_it_names_in_the_order_it_names_them():
     minato = '{"name": "港区", "count": 46}'
     wards = '[{"name": "世田谷区", "count": 40}, {"name": "港区", "count": 46}]'
-    planner = Script(intent('a'), intent('b'), intent('c'), DONE)
-    _, executor, critic = run(planner, [ok(minato), ok(wards), ok('86')])
+    planner = Script(intent('港区の駅', result_name='minato_stations'), intent('各区の駅', result_name='ward_stations'),
+                     intent('人口', result_name='ward_population'),
+                     Intent('人口あたりの駅', requires_context=True, result_name='ratio',
+                            inputs=('ward_population', 'ward_stations')), DONE)
+    _, executor, critic = run(planner, [ok(minato), ok(wards), ok('[1]'), ok('86')])
     received = [[o.text for o in call.args[0].previous_observations] for call in executor.execute.call_args_list]
-    assert received[2] == [wards]
-    assert [o.text for o in critic.check.call_args.args[1]] == [minato, wards, '86']
+    assert received[3] == ['[1]', wards]                         # not the trial on Minato
+    given = executor.execute.call_args_list[3].args[0]
+    assert given.inputs == ('ward_population', 'ward_stations')
+    assert given.input_notes == ('step 3「人口」（overpass）', 'step 2「各区の駅」（overpass）')
+
+
+def test_a_step_that_names_no_inputs_receives_nothing():
+    planner = Script(intent('a', result_name='a'), intent('b', result_name='b', inputs=()), DONE)
+    _, executor, _ = run(planner, [ok('1'), ok('2')])
+    assert executor.execute.call_args_list[1].args[0].previous_observations == ()
 
 
 def test_a_failure_does_not_end_the_goal_and_the_planner_sees_it_before_replanning():
@@ -374,9 +385,18 @@ def test_a_goal_that_ended_on_a_failure_still_lists_it():
 
 def test_the_final_check_is_marked_as_the_final_one():
     _, _, critic = run(Script(intent('a'), DONE), [ok('1')])
-    assert critic.check.call_args.kwargs == {'final': True, 'asked': ('a',)}
+    assert critic.check.call_args.kwargs == {'final': True, 'asked': ('step_1: a',)}
 
 
 def test_the_final_check_is_told_which_succeeded_step_produced_each_observation():
     _, _, critic = run(Script(intent('a'), intent('b'), intent('c'), DONE), [ok('1'), crashed(), ok('3')])
-    assert critic.check.call_args.kwargs['asked'] == ('a', 'c')
+    assert critic.check.call_args.kwargs['asked'] == ('step_1: a', 'step_3: c')
+
+
+def test_the_final_check_judges_the_latest_result_under_each_name_with_its_name():
+    planner = Script(intent('港区の駅', result_name='stations'), intent('各区の駅', result_name='stations'),
+                     intent('最多', result_name='most'), DONE)
+    _, _, critic = run(planner, [ok('{"count": 46}'), ok('[40, 46]'), ok('{"name": "千代田区"}')])
+    _, observations = critic.check.call_args.args
+    assert [o.text for o in observations] == ['[40, 46]', '{"name": "千代田区"}']
+    assert critic.check.call_args.kwargs['asked'] == ('stations: 各区の駅', 'most: 最多')

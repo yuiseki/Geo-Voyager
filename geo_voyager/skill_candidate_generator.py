@@ -84,10 +84,22 @@ def skills_section(skills: list[SkillFunction] | tuple = ()) -> str:
             '名前で呼べます。\n```python\n' + listed + '\n```\n\n')
 
 
+def named_inputs(intent: Intent) -> str:
+    """Each input as the code reads it: its name, the step it came from, and the shape of its value."""
+    lines = []
+    for index, name in enumerate(intent.inputs or ()):
+        note = intent.input_notes[index] if index < len(intent.input_notes) else ''
+        shape = describe_observations((intent.previous_observations[index],)).split(': ', 1)[1] \
+            if index < len(intent.previous_observations) else ''
+        lines.append(f'- results["{name}"]: {note} の出力。形: {shape}')
+    return '\n'.join(lines)
+
+
 def passed_runtime_values(intent: Intent) -> tuple[str, ...]:
     """The runtime values the environment passes to the function of this Intent; the others arrive as None."""
     return (*(['dataset_id'] if len(intent.dataset_ids) == 1 else []), *(['intent_target'] if intent.target is not None else []),
-            *(['previous_observations', 'intent_text'] if intent.previous_observations else []))
+            *(['previous_observations', 'intent_text'] if intent.previous_observations else []),
+            *(['results'] if intent.inputs else []))
 
 
 def harness_section(intent: Intent) -> str:
@@ -122,8 +134,7 @@ def harness_section(intent: Intent) -> str:
 
 def skill_rules(intent: Intent) -> str:
     """How to write the code, numbered as in Voyager's action prompt."""
-    runtime = ([*(['dataset_id'] if intent.dataset_ids else []), *(['intent_target'] if intent.target is not None else []),
-                *(['previous_observations', 'intent_text'] if intent.previous_observations else [])])
+    runtime = passed_runtime_values(intent)
     arguments = ('、'.join(runtime) + ' だけ。これらは関数の中で直接読まず、引数として受け取る' if runtime
                  else 'ない。引数を取るなら既定値を付ける')
     return ('\nコードの決まり:\n'
@@ -304,8 +315,15 @@ class SkillCandidateGenerator:
                 + RESPONSE_FORMAT
             )
         if intent.requires_context:
-            prompt += '\nローカル集計の Intent。外部サービスを呼ばず previous_observations のデータだけを解析・集計する。\n'
-        if intent.previous_observations:
+            prompt += ('\nローカル集計の Intent。外部サービスを呼ばず、入力の結果（results）のデータだけを解析・集計する。\n' if intent.inputs
+                       else '\nローカル集計の Intent。外部サービスを呼ばず previous_observations のデータだけを解析・集計する。\n')
+        if intent.inputs:
+            prompt += ('\nこの Intent の入力（実行時変数 results。結果名から、前の手の出力の JSON を解析した値を引く。値は実行時に取得）:\n'
+                       + named_inputs(intent)
+                       + '\n入力は results["結果名"] で読む。結果名で選ぶので、一覧の位置や形で入力を選ばない。'
+                         'results を引数として受け取り、代入で上書きしない。結果をコードへ埋め込まない。'
+                         '最終結果は意味の分かるキーを持つ値を return で返す。')
+        elif intent.previous_observations:
             prompt += ('\n前段 Observation の JSON の形（値は実行時に取得）:\n'
                        + describe_observations(intent.previous_observations)
                        + '\n実行環境の previous_observations は前段 stdout の list[str]。intent_text は現在の Intent 本文。'
@@ -368,7 +386,7 @@ class SkillCandidateGenerator:
                 prompt += ('\n外部RelationIDが必要な場合の取得は ?ward gs:osmRelation ?relation 。'
                            'SELECT ?label ?relation の ?relation から正の数値IDを取る。'
                            '出力前に全IDについて str(relation_id).isdigit() を assert する。')
-            if intent.requires_context:
+            if intent.requires_context and not intent.inputs:
                 prompt += ('\nローカル集計の入力契約: 全 Observation を解析する接続例は '
                            'decoded = [json.loads(text) for text in previous_observations] 。'
                            '最初の対象一覧は対象メタデータであり、後続の各 JSON object が個別測定を持つ。'

@@ -17,6 +17,8 @@ class Intent:
     # first step, or the old route that plans every step at once).
     result_name: str | None = None
     inputs: tuple[str, ...] | None = None
+    # Where each input came from (the step, its Intent and its resources), in the order of inputs.
+    input_notes: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.text.strip():

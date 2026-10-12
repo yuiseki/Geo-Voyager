@@ -12,7 +12,7 @@ import re
 from .skill_function import parse_skill
 
 TRIPLE_QUOTE = '"' * 3
-RUNTIME_NAMES = ('intent_target', 'previous_observations', 'dataset_id', 'intent_text')
+RUNTIME_NAMES = ('intent_target', 'previous_observations', 'dataset_id', 'intent_text', 'results')
 
 
 @dataclass(frozen=True)

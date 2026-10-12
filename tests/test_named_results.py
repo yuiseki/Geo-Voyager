@@ -91,3 +91,44 @@ def test_the_prompt_lists_the_results_by_name_with_what_each_measured():
     prompt = client.generate.call_args.args[0]
     assert '結果名:' in prompt and '入力:' in prompt
     assert 'wards: 23区の一覧' in prompt and 'minato_pharmacy: 港区の amenity=pharmacy の要素数' in prompt
+
+
+NAMED = Intent('人口あたりの駅', requires_context=True, result_name='ratio', inputs=('ward_population', 'ward_stations'),
+               previous_observations=(Observation('[{"name": "港区", "population": 260486}]'),
+                                      Observation('[{"name": "港区", "stations": 32}]')),
+               input_notes=('step 3「各区の2020年国勢調査人口」（yuiseki/jp-admin-2026-09）',
+                            'step 4「各区の営業中の駅の数」（yuiseki/ekidata-jp, yuiseki/jp-admin-2026-09）'))
+
+
+def test_the_worker_passes_the_inputs_by_name_as_parsed_json():
+    from geo_voyager.worker import injected_lines
+    namespace = {}
+    exec(injected_lines(NAMED), namespace)
+    assert namespace['results'] == {'ward_population': [{'name': '港区', 'population': 260486}],
+                                    'ward_stations': [{'name': '港区', 'stations': 32}]}
+
+
+def test_a_text_that_is_not_json_is_passed_as_it_is():
+    from dataclasses import replace
+    from geo_voyager.worker import injected_lines
+    namespace = {}
+    exec(injected_lines(replace(NAMED, previous_observations=(Observation('9733276'), Observation('done')))), namespace)
+    assert namespace['results'] == {'ward_population': 9733276, 'ward_stations': 'done'}
+
+
+def test_the_function_is_given_the_results():
+    from geo_voyager.skill_candidate import entry_program
+    from geo_voyager.skill_candidate_generator import passed_runtime_values
+    assert 'results' in passed_runtime_values(NAMED)
+    assert "results=globals().get('results')" in entry_program('def ratio(results):\n    """比。"""\n    return 1\n')
+
+
+def test_the_code_generation_prompt_shows_each_input_by_name_with_where_it_came_from():
+    from stub_replies import reply_reading
+    from geo_voyager.skill_candidate_generator import SkillCandidateGenerator
+    client = Mock(); client.generate.return_value = reply_reading(NAMED, '説明:\nS\n---\nコード:\n```python\ndef ratio(results):\n    """比。"""\n    return 1\n```')
+    SkillCandidateGenerator(client).generate(NAMED)
+    prompt = client.generate.call_args.args[0]
+    assert 'results["ward_population"]' in prompt and 'step 3「各区の2020年国勢調査人口」' in prompt
+    assert 'results["ward_stations"]' in prompt and '"stations"' in prompt
+    assert 'decoded = [json.loads(text) for text in previous_observations]' not in prompt

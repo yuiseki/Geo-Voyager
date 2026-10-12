@@ -5,7 +5,6 @@ Observations, the Critic's verdict, the failure if there was one, the Skill it r
 the targets (a name with a stable id) that the step made known for the first time.
 """
 from dataclasses import dataclass
-import json
 from typing import Iterator
 
 from .critique import Critique
@@ -15,19 +14,6 @@ from .intent_execution import IntentExecution
 from .observation import Observation
 from .target_identity import discover_targets
 from .target_ref import TargetRef
-
-
-def _records(text: str) -> frozenset[str]:
-    """The JSON objects of an Observation (one object, or a list of them), each written in one canonical form.
-    Empty for anything else: a bare value or text is never taken for a repeat."""
-    try:
-        value = json.loads(text)
-    except ValueError:
-        return frozenset()
-    rows = [value] if isinstance(value, dict) else value if isinstance(value, list) else []
-    if not rows or not all(isinstance(row, dict) for row in rows):
-        return frozenset()
-    return frozenset(json.dumps(row, sort_keys=True, ensure_ascii=False) for row in rows)
 
 
 def result_name(entry: "HistoryEntry") -> str:
@@ -132,18 +118,24 @@ class GoalHistory:
                 named[result_name(entry)] = entry
         return named
 
-    def carried_observations(self) -> tuple[Observation, ...]:
-        """The Observations the next step is given: those of observations(), less each one whose records all appear,
-        unchanged, in a single later Observation.
+    def inputs_of(self, intent: Intent) -> tuple[Observation, ...]:
+        """What a step works on: the results it names, in its order, one Observation each. An Intent that names
+        none (the first step; the Planner requires the line once there are results) gets every succeeded step's."""
+        if intent.inputs is None:
+            return self.observations()
+        results = self.results()
+        return tuple(Observation('\n'.join(observation.text for observation in results[name].observations))
+                     for name in intent.inputs)
 
-        The Planner first measures one target to find the method, then all of them. Code that joins the lists it is
-        given then counts the first target twice. An Observation left out this way holds nothing the later one does
-        not, so nothing is lost; the record of the steps (observations()) keeps it.
-        """
-        observations = self.observations()
-        records = [_records(observation.text) for observation in observations]
-        return tuple(observation for index, observation in enumerate(observations)
-                     if not records[index] or not any(records[index] <= later for later in records[index + 1:]))
+    def input_notes(self, intent: Intent) -> tuple[str, ...]:
+        """Where each input of the Intent came from: the step, what it measured and with what."""
+        results = self.results()
+        notes = []
+        for name in intent.inputs or ():
+            entry = results[name]
+            used = ', '.join(entry.intent.service_ids + entry.intent.dataset_ids) or '前の結果'
+            notes.append(f'step {entry.step}「{entry.intent.text}」（{used}）')
+        return tuple(notes)
 
     def targets(self) -> tuple[TargetRef, ...]:
         """The targets known so far, in the order they were first made known. Failed steps add none.
