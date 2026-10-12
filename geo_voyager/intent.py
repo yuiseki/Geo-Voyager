@@ -43,3 +43,12 @@ class Intent:
             text=lines[0].removeprefix("調査項目:").strip(),
             dataset_ids=tuple(line.removeprefix("  - ").strip() for line in lines[2:]),
         )
+
+
+def execution_refusal(intent: Intent) -> str | None:
+    """Why no step can run this Intent: it names nothing to read, neither a Dataset nor a Service nor earlier
+    Observations. None if it can run. An Intent may read several Datasets: a step joins them in space (a station in
+    its ward), which two steps with a list each could not do."""
+    if not intent.dataset_ids and not intent.service_ids and not (intent.requires_context and intent.previous_observations):
+        return 'An Intent needs a dataset_id, registered service_ids or earlier Observations to work on'
+    return None

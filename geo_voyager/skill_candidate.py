@@ -289,19 +289,37 @@ def called_service_ids(code: str) -> set[str]:
     return ids
 
 
-DATASET_READERS = ('load_admin_units', 'load_stations', 'sum_population_grid', 'dataset_url')
+# The Dataset each reading primitive reads. dataset_url reads the one its argument names.
+PRIMITIVE_DATASETS = {
+    'load_admin_units': 'yuiseki/jp-admin-2026-09',
+    'load_stations': 'yuiseki/ekidata-jp',
+    'sum_population_grid': 'yuiseki/worldpop-jp-2026-01',
+}
 DATASET_READERS_NOTE = 'load_admin_units、load_stations、sum_population_grid のうち Dataset に合うもの'
 
 
-def reads_a_dataset(code: str, skills: tuple[str, ...] = ()) -> bool:
-    """Whether the code calls a Control Primitive that reads a Dataset, or a saved Skill, which may be what reads it.
-    Code that does not parse is left to the other checks."""
+def read_datasets(code: str) -> set[str] | None:
+    """The Datasets the code reads, by the primitives it calls. None if the code does not parse."""
     try:
         tree = ast.parse(code)
     except SyntaxError:
-        return True
-    readers = set(DATASET_READERS) | set(skills)
-    return any(isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in readers
+        return None
+    read = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            if node.func.id in PRIMITIVE_DATASETS:
+                read.add(PRIMITIVE_DATASETS[node.func.id])
+            elif node.func.id == 'dataset_url' and node.args and isinstance(node.args[0], ast.Constant):
+                read.add(node.args[0].value)
+    return read
+
+
+def calls_any(code: str, names: tuple[str, ...]) -> bool:
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return False
+    return any(isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in names
                for node in ast.walk(tree))
 
 

@@ -4,12 +4,13 @@ from unittest.mock import Mock
 from geo_voyager.intent import Intent
 from geo_voyager.skill_candidate_generator import SkillCandidateGenerator
 from geo_voyager.target_ref import TargetRef
+from stub_replies import reply_reading
 
 VALID = '説明:\nS\n---\nコード:\n```python\ndef answer():\n    """Answer."""\n    return 1\n```'
 
 
 def prompt_for(intent):
-    client = Mock(); client.generate.return_value = VALID
+    client = Mock(); client.generate.return_value = reply_reading(intent, VALID)
     SkillCandidateGenerator(client).generate(intent)
     return client.generate.call_args.args[0]
 

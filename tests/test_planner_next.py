@@ -344,21 +344,17 @@ TWO_DATASETS = ('調査項目: 前段の東京23区の一覧の各区につい�
                 '  - yuiseki/ekidata-jp\n  - yuiseki/jp-admin-2026-09\n利用サービス:\n  - overpass')
 
 
-def test_an_intent_with_two_datasets_is_rejected_with_how_to_split_it():
+def test_an_intent_with_two_datasets_is_accepted():
     plan, _ = planner(TWO_DATASETS)
-    with pytest.raises(PlannerRejected) as raised:
-        plan.next('東京23区の1万人あたりの駅数', history(LOOKED_UP))
-    reason = raised.value.reason
-    assert 'yuiseki/ekidata-jp' in reason and 'yuiseki/jp-admin-2026-09' in reason
-    for rule in ['Dataset ごとに Intent を分け', '対象ごとの値の一覧', '次の Intent']:
-        assert rule in reason, rule
+    decision = plan.next('東京23区の1万人あたりの駅数', history(LOOKED_UP))
+    assert decision.dataset_ids == ('yuiseki/ekidata-jp', 'yuiseki/jp-admin-2026-09')
 
 
 def test_the_prompt_tells_how_to_combine_two_datasets():
     plan, client = planner(NEXT)
     plan.next('東京23区の1万人あたりの駅数', history(LOOKED_UP))
     prompt = client.generate.call_args.args[0]
-    for rule in ['Dataset ごとに Intent を分け', '宣言していない Dataset の値を調査項目に書かない']:
+    for rule in ['1つの Intent で両方の Dataset を宣言', '宣言していない Dataset の値を調査項目に書かない']:
         assert rule in prompt, rule
 
 

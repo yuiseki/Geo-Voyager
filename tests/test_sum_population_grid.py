@@ -28,7 +28,7 @@ def test_the_code_generation_prompts_name_the_primitive():
     from geo_voyager.contracts import PRIMITIVE_CONTRACT
     from geo_voyager.intent import Intent
     from geo_voyager.skill_candidate_generator import SkillCandidateGenerator
-    assert 'sum_population_grid(dataset_id, connection, area="東京都23区")' in PRIMITIVE_CONTRACT
+    assert 'sum_population_grid(connection, zones)' in PRIMITIVE_CONTRACT
     client = Mock()
     client.generate.return_value = '説明:\nx\n---\nコード:\n```python\ndef f():\n    return 1\n```'
     try:
@@ -36,4 +36,4 @@ def test_the_code_generation_prompts_name_the_primitive():
     except Exception:
         pass
     prompt = client.generate.call_args.args[0]
-    assert '人口格子 Dataset には sum_population_grid を使う' in prompt
+    assert 'sum_population_grid(connection, zones)' in prompt and 'geometry 列を持つ relation' in prompt

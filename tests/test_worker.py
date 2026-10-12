@@ -26,9 +26,9 @@ def test_worker_executes_supplied_skill_and_injects_single_dataset_without_savin
         assert not hasattr(module, name)
 
 
-@pytest.mark.parametrize('dataset_ids', [(), ('admin', 'stations')])
+@pytest.mark.parametrize('dataset_ids', [()])
 @pytest.mark.parametrize('candidate', [False, True])
-def test_worker_rejects_zero_or_multiple_datasets_before_docker(dataset_ids, candidate):
+def test_worker_rejects_an_intent_with_nothing_to_read_before_docker(dataset_ids, candidate):
     from unittest.mock import Mock
     from geo_voyager.skill_candidate import SkillCandidate
     intent = Intent('調査', ('initial',))
@@ -44,6 +44,15 @@ def test_worker_rejects_zero_or_multiple_datasets_before_docker(dataset_ids, can
     sandbox.assert_not_called()
     critic.check.assert_not_called()
     library.add.assert_not_called()
+
+
+def test_an_intent_with_two_datasets_runs_without_a_dataset_id_to_choose_between_them():
+    intent = Intent('駅を区に入れる', ('yuiseki/jp-admin-2026-09', 'yuiseki/ekidata-jp'))
+    skill = SkillCandidate('print("joined")', '結合')
+    with patch('geo_voyager.worker.DockerSandbox') as sandbox:
+        sandbox.return_value.run.return_value = 'joined\n'
+        assert Worker('internal').execute_candidate(intent, skill) == [Observation('joined')]
+    assert sandbox.return_value.run.call_args.args[0] == sandbox_program(skill.code)
 
 
 def test_worker_executes_service_only_code_without_injecting_dummy_dataset():

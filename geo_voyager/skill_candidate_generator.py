@@ -2,7 +2,7 @@
 from .id_type_literals import id_type_comparisons
 from .intent import Intent
 from .local_aggregation_contract import local_aggregation_violations
-from .skill_candidate import entry_problems, main_function_name, rewritten_skills, service_calls, skill_shape_problems, unpassed_runtime_reads, called_service_ids, intent_element_type, overpass_element_mismatch, reads_a_dataset, DATASET_READERS_NOTE
+from .skill_candidate import entry_problems, main_function_name, rewritten_skills, service_calls, skill_shape_problems, unpassed_runtime_reads, called_service_ids, intent_element_type, overpass_element_mismatch, read_datasets, calls_any, DATASET_READERS_NOTE
 from .place_names import place_words_in
 from .skill_function import SkillFunction
 from .llama_client import LlamaClient
@@ -86,7 +86,7 @@ def skills_section(skills: list[SkillFunction] | tuple = ()) -> str:
 
 def passed_runtime_values(intent: Intent) -> tuple[str, ...]:
     """The runtime values the environment passes to the function of this Intent; the others arrive as None."""
-    return (*(['dataset_id'] if intent.dataset_ids else []), *(['intent_target'] if intent.target is not None else []),
+    return (*(['dataset_id'] if len(intent.dataset_ids) == 1 else []), *(['intent_target'] if intent.target is not None else []),
             *(['previous_observations', 'intent_text'] if intent.previous_observations else []))
 
 
@@ -136,6 +136,26 @@ def skill_rules(intent: Intent) -> str:
             '6) 関数名は、何をするかが分かる名前にする。\n')
 
 
+def dataset_problems(intent: Intent, code: str, shown: tuple[str, ...] = ()) -> list[str]:
+    """The Datasets the code reads that the Intent did not declare, and those it declared that the code does not
+    read. A saved Skill the code calls may be what reads a declared one.
+
+    Round 7 on 27B: asked for the ekidata-jp stations in a ward, the code counted OSM nodes from Overpass instead."""
+    read = read_datasets(code)
+    if read is None:
+        return []
+    problems = []
+    undeclared = sorted(read - set(intent.dataset_ids))
+    if undeclared:
+        problems.append(f'この Intent が宣言していない Dataset（{", ".join(undeclared)}）を読んでいる。'
+                        f'読めるのは {", ".join(intent.dataset_ids) or "なし"} だけ')
+    unread = [dataset for dataset in intent.dataset_ids if dataset not in read]
+    if unread and not calls_any(code, shown):
+        problems.append(f'この Intent は Dataset {", ".join(unread)} の値を求めているが、コードはそれを読んでいない。'
+                        f'{DATASET_READERS_NOTE}で読み、その値から答える。Service や前段の値で代用しない')
+    return problems
+
+
 def contract_problems(intent: Intent, code: str, shown: tuple[str, ...] = ()) -> list[tuple[str, str]]:
     """What the code breaks, as (the code found, the note for the model), for the kinds of Intent that have a contract."""
     problems = []
@@ -156,9 +176,7 @@ def contract_problems(intent: Intent, code: str, shown: tuple[str, ...] = ()) ->
                    else 'Dataset ' + '、'.join(intent.dataset_ids) if intent.dataset_ids else '前段の Observation')
         shape = shape + [f'この Intent に無い Service（{", ".join(undeclared)}）を呼んでいる。この Intent が使えるのは {allowed} だけなので、'
                          'そこから値を得る']
-    if intent.dataset_ids and intent.service_ids and not reads_a_dataset(code, shown):
-        shape = shape + [f'この Intent は Dataset {", ".join(intent.dataset_ids)} の値を求めているが、コードはそれを読んでいない。'
-                         f'{DATASET_READERS_NOTE}で dataset_id を読み、その値から答える。Service の値で代用しない']
+    shape = shape + dataset_problems(intent, code, shown)
     shape = shape + overpass_element_mismatch(intent.text, code)
     if shape:
         problems.append(('skill shape: ' + '; '.join(shape), _shape_note(shape)))
@@ -184,48 +202,51 @@ class SkillCandidateGenerator:
             'Intent を完遂する Python の関数と簡潔な説明を書いてください。\n'
             '利用可能な Control Primitives（geo_voyager.control_primitives から import）:\n'
             '- connect_duckdb(): sandbox 用 DuckDB 接続を返す。with で接続を管理する。\n'
-            '- dataset_url(dataset_id): 登録済み行政区・駅 Dataset の Gateway URL を返す。\n'
-            '- load_admin_units(dataset_id, connection, area=None): Gateway 経由で行政区域の DuckDB relation を返す。\n'
-            'relation の列は code5（5桁文字列の行政コード）、name（区域名）、population（整数の人口）。\n'
+            '各 Primitive が読む Dataset は決まっている。dataset_id を渡さなくてよい。\n'
+            '- load_admin_units(connection, area=None): 行政区域 Dataset（yuiseki/jp-admin-2026-09）の DuckDB relation を返す。\n'
+            '列は code5（5桁文字列の行政コード）、name（区域名）、population（2020年国勢調査の整数の人口）、geometry（境界、OGC:CRS84）。\n'
             'area=None は全行政区域を返す。area="東京都23区" は23区だけを返す。未対応 area は失敗する。\n'
-            '東京都23区には load_admin_units(dataset_id, connection, area="東京都23区") を使う。\n'
             '行政コードを推測・生成しない。AOI の絞り込みは Primitive に任せる。\n'
-            '- load_stations(dataset_id, connection): Gateway 経由で駅の DuckDB relation を返す。\n'
-            '駅 relation の列は name（駅名）、latitude（緯度）、longitude（経度）。\n'
-            '- sum_population_grid(dataset_id, connection, area="東京都23区"): WorldPop の100m人口格子の画素を、'
-            '画素の中心が入る区ごとに足した DuckDB relation を返す。\n'
-            '人口格子 relation の列は code5、name、estimated_population（推計人口、小数）。国勢調査の population とは別の値。\n'
-            '行政区域 Dataset には load_admin_units、駅 Dataset には load_stations、人口格子 Dataset には sum_population_grid を使う。\n'
+            '- load_stations(connection): 駅 Dataset（yuiseki/ekidata-jp）の DuckDB relation を返す。1駅が路線ごとに1行。\n'
+            '列は station_cd（記録のID）、station_g_cd（路線をまたいで同じ駅をまとめるID）、line_cd（路線のID）、name（駅名）、'
+            'status（0 営業中、1 開業前、2 廃止）、latitude、longitude、geometry（点、OGC:CRS84）。駅の数は count(DISTINCT station_g_cd)。\n'
+            '- sum_population_grid(connection, zones): 人口格子 Dataset（yuiseki/worldpop-jp-2026-01、WorldPop の2020年100m推計人口）の画素を、'
+            'zones（geometry 列を持つ relation。例: load_admin_units の結果）の区域ごとに、画素の中心が入るものだけ足す。\n'
+            'zones の geometry 以外の列と estimated_population（推計人口、小数）を返す。国勢調査の population とは別の値。一度に100区域まで。\n'
+            'Intent が宣言した Dataset ごとに、それを読む Primitive を使う。宣言していない Dataset を読まない。\n'
             '返り値は DuckDB relation であり pandas DataFrame ではない。\n'
-
-            'order(expression) は SQL の列名と ASC/DESC でソートする。limit(n) は行数を制限する。\n'
+            'order(expression) は SQL の列名と ASC/DESC でソートする。limit(n) は行数を制限する。'
+            'project(expression) は列を選ぶ。filter(expression) は行を絞る。\n'
             'aggregate(expression) は SQL 集計式を受け取る。平均人口なら aggregate("avg(population) AS average_population")。\n'
-            'fetchone() は現在の relation の列順の tuple または None を返す。\n'
-            '集計後の値は fetchone()[0] で取得する。集計前の行政区域は (code5, name, population)。\n'
+            'fetchone() は現在の relation の列順の tuple または None を返す。tuple を展開する前に project で列を選ぶ。\n'
+            '集計後の値は fetchone()[0] で取得する。\n'
+            '2つの relation の結合（空間の結合を含む）は connection.sql で書く。relation を変数に入れると、SQL の FROM でその変数名を表として使える。'
+            'relation の join の後では別名が使えないので、結合には connection.sql を使う。\n'
+            'geometry は返り値に入れない（JSON にできない）。必要なら ST_AsText(geometry) か緯度経度にする。\n'
             'DataFrame の添字、between、sort_values、head、iloc は使えない。\n\n'
             '制約:\n'
             '- Primitive はグローバルには存在しない。必ずコードで明示的に import する。\n'
             '- Primitive 名を変更・推測しない。提示した名前・綴りをそのまま使う。\n'
-            'from geo_voyager.control_primitives import connect_duckdb, load_admin_units, load_stations\n'
+            'from geo_voyager.control_primitives import connect_duckdb, load_admin_units, load_stations, sum_population_grid\n'
             '- Dataset へのアクセスは Control Primitives のみ使う。\n'
             '- 外部URLを直接使わない。HTTP や read_parquet を直接呼ばない。\n'
             '- 結果は return で返す。選択・集計の意味が分かるキーと具体的な回答値を持つ dict にする。\n'
             '例えば最小人口なら、{"name": 区名, "population": 人口} を返す。\n'
-            '- dataset_id は実行環境から関数の引数として与えられる。\n'
-            'dataset_id = ... という代入を書かない。Dataset ids は利用範囲のメタデータでありコードへ埋め込まない。\n'
+            '- dataset_id = ... という代入や、Dataset id の文字列をコードに書かない。\n'
             '- 再利用可能な分析コードにする。答えの区名や人口を埋め込まない。\n'
             '- 標準 Python と上記 Primitive・DuckDB relation の操作だけで実装する。\n'
             '- UUID 生成や Skill の保存はしない。\n'
             '- 1件だけ生成し、前置きや追記を付けない。\n\n'
             '接続部分の例（with 行はこの形のまま使う。接続関数は connect_duckdb、duck の綴り）:\n'
             'from geo_voyager.control_primitives import connect_duckdb, load_admin_units, load_stations\n'
-            'def <何をするかが分かる名前>(dataset_id):\n'
+            'def <何をするかが分かる名前>():\n'
             '    """<何をするか>"""\n'
             '    with connect_duckdb() as connection:\n'
-            '        # 行政区域なら load_admin_units(dataset_id, connection, area="東京都23区")\n'
-            '        # 駅なら load_stations(dataset_id, connection)（import も追加する）\n'
-            '        # 人口格子なら sum_population_grid(dataset_id, connection, area="東京都23区")（import も追加する）\n'
-            '        # Intent に必要な relation 操作をして、結果を return する\n\n'
+            '        wards = load_admin_units(connection, area="東京都23区")\n'
+            '        stations = load_stations(connection)\n'
+            '        rows = connection.sql("SELECT w.name, count(DISTINCT s.station_g_cd) AS stations FROM wards w "\n'
+            '                              "JOIN stations s ON ST_Contains(w.geometry, s.geometry) GROUP BY w.name").fetchall()\n'
+            '        # Intent に必要な操作をして、結果を return する（この例は区ごとの駅の数）\n\n'
             + skill_rules(intent) +
             f'Intent:\n{intent.text}\n\n利用する Dataset ids:\n{datasets}\n\n'
             + RESPONSE_FORMAT

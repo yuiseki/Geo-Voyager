@@ -249,14 +249,11 @@ def test_an_error_that_is_not_a_rejected_reply_still_ends_the_goal_at_once():
     assert result.stop_reason == 'planner_error' and planner_failures(result) == [] and executor.execute.call_count == 0
 
 
-def test_an_intent_that_breaks_the_execution_contract_is_a_planner_failure_and_is_not_run():
-    two_datasets = Intent('二つのデータ', dataset_ids=('yuiseki/jp-admin-2026-09', 'yuiseki/ekidata-jp'))
-    executor = Mock(); executor.execute.side_effect = [ok('1')]
-    critic = Mock(); critic.check.return_value = Critique(True, 'answered')
-    result = GoalExecutor(Script(two_datasets, intent('one dataset'), DONE), executor, critic).execute_adaptive('目標')
-    [failure] = planner_failures(result)
-    assert 'At most one dataset_id' in failure.reason and failure.reply == '二つのデータ'
-    assert executor.execute.call_count == 1 and result.stop_reason == 'done'
+def test_an_intent_with_two_datasets_is_run():
+    # A station is put in its ward by joining the station and the boundary tables in one step.
+    two_datasets = Intent('駅を区に入れる', dataset_ids=('yuiseki/jp-admin-2026-09', 'yuiseki/ekidata-jp'))
+    result, executor, _ = run(Script(two_datasets, DONE), [ok('1')])
+    assert planner_failures(result) == [] and executor.execute.call_count == 1 and result.stop_reason == 'done'
 
 
 def test_a_local_step_with_nothing_to_work_on_is_a_planner_failure_too():

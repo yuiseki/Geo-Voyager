@@ -9,10 +9,10 @@ from .services import load_service_graph
 PRIMITIVE_CONTRACT = (
     'Control Primitive contract（geo_voyager.control_primitives から明示的に import）:\n'
     'connect_duckdb(): DuckDB connection。\n'
-    'dataset_url(dataset_id): Gateway URL。dataset_id は実行環境から与えられる。\n'
-    'load_admin_units(dataset_id, connection, area=None): relation(code5,name,population)。area="東京都23区" 対応。\n'
-    'load_stations(dataset_id, connection): relation(name,latitude,longitude)。\n'
-    'sum_population_grid(dataset_id, connection, area="東京都23区"): relation(code5,name,estimated_population)。WorldPop の100m人口格子を区ごとに足した推計人口。国勢調査の population とは別の値。\n'
+    'load_admin_units(connection, area=None): relation(code5,name,population,geometry)。area="東京都23区" 対応。\n'
+    'load_stations(connection): relation(station_cd,station_g_cd,line_cd,name,status,latitude,longitude,geometry)。1駅が路線ごとに1行。\n'
+    'sum_population_grid(connection, zones): zones の geometry 以外の列と estimated_population（WorldPop の2020年100m推計人口）。\n'
+    'geometry は OGC:CRS84。relation どうしの結合は connection.sql で、変数名を表として書く。geometry は返り値に入れない。\n'
     'call_service(service_id, *, path="", params=None, body=None, content_type=None) -> str。'
     'params は dict[str,str]、body=None は GET、それ以外は POST。body は str のまま渡す。encode して bytes にしてはいけない。返答は text。JSON は json.loads。\n'
 )

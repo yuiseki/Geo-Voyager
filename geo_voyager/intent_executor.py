@@ -5,7 +5,7 @@ from .execution_failure import ExecutionFailure
 from .execution_attempt import ExecutionAttempt
 from .semantic_repairer import SemanticRepairer
 from .skill_candidate_repairer import SkillCandidateRepairer
-from .intent import Intent
+from .intent import Intent, execution_refusal
 from .intent_execution import IntentExecution
 from .skill_candidate import SkillCandidate, drop_copied_skills, entry_program, main_function_name, new_skill_code, only_calls_a_saved_skill
 from .skill_candidate_generator import SkillCandidateGenerator
@@ -34,8 +34,9 @@ class IntentExecutor:
         self.skill_library = skill_library
 
     def execute(self, intent: Intent, k: int = 4) -> IntentExecution:
-        if len(intent.dataset_ids) > 1 or (not intent.dataset_ids and not intent.service_ids and not (intent.requires_context and intent.previous_observations)):
-            raise ValueError('At most one dataset_id or registered service_ids are required')
+        refusal = execution_refusal(intent)
+        if refusal:
+            raise ValueError(refusal)
         skills = self.retriever.retrieve(intent.text, k)
         retrieved = tuple(f'{skill.name}@v{self.skill_library.versions(skill.name)[-1]}' for skill in skills)
         candidate = self._without_copies(self.generator.generate(intent, skills))

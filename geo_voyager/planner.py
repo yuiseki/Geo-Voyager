@@ -122,10 +122,6 @@ def _parse_intent(block: list[str], datasets, services, *, allow_local: bool, kn
     intent = Intent(lines[0][len('調査項目: '):], tuple(ids['利用データセット']), tuple(ids['利用サービス']),
                     requires_context=local,
                     target=resolve_reference(reference, known) if reference is not None else None)
-    if len(intent.dataset_ids) > 1:
-        raise ValueError(f'1つの Intent で使える Dataset は1件だけ（{", ".join(intent.dataset_ids)} が宣言された）。'
-                         'Dataset ごとに Intent を分け、それぞれ対象ごとの値の一覧（名前、ID、値）を返す。'
-                         '一覧どうしの結合、差、割り算は、次の Intent で前段の一覧から求める（利用データセット: []、利用サービス: []）')
     for id in intent.dataset_ids:
         datasets.get(id)
     for id in intent.service_ids:
@@ -268,8 +264,8 @@ class Planner:
             '対象が複数あるときは、対象ごとに Intent を分ける。1つの Intent に「対象:」は1行だけ書く。\n'
             'ただし、前段の Observation の一覧のすべての対象（例: 23 区すべて）を同じ方法で測るときは、対象ごとに分けず、1つの Intent でまとめて測る。'
             'その Intent は「対象:」を付けず、前段の一覧を入力にして、対象ごとの値の一覧（名前、ID、値）を返す。最大・最小・件数などは、次の Intent でその一覧から求める。\n'
-            '2つの Dataset の値を組み合わせる測定（例: 駅数を人口で割る）は、Dataset ごとに Intent を分け、それぞれ対象ごとの値の一覧を返させる。'
-            '組み合わせは、次の Intent で前段の一覧どうしを名前と ID で結合して求める。宣言していない Dataset の値を調査項目に書かない。\n'
+            '2つの Dataset を空間で結び付ける測定（例: 駅データの駅を行政区域の境界に入れて区ごとに数える、区域ごとに人口格子を足す）は、'
+            '1つの Intent で両方の Dataset を宣言する。宣言していない Dataset の値を調査項目に書かない。\n'
             '履歴に「Goal の最終判定が未達」があるときは、DONE を返したが Critic が不足を指摘したということ。その理由が示す不足を埋める Intent を返し、同じ DONE を繰り返さない。\n'
             'Service の説明は、そのサービスで何ができるかを知るためのものです。Intent の調査項目には、何を調べるか（調べる対象、条件、得たい値）だけを書く。'
             'API のパス（/api/... など）やパラメータ（limit=3 など）は書かない。サービスの呼び方は実行側が決める。書いた Intent は拒否される。\n'

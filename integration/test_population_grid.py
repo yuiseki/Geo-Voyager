@@ -10,16 +10,35 @@ from geo_voyager.docker_sandbox import DockerSandbox
 
 CODE = '''
 import json
-from geo_voyager.control_primitives import connect_duckdb, sum_population_grid
+from geo_voyager.control_primitives import connect_duckdb, load_admin_units, sum_population_grid
 with connect_duckdb() as connection:
-    rows = sum_population_grid('yuiseki/worldpop-jp-2026-01', connection, area='東京都23区').order('code5').fetchall()
+    wards = load_admin_units(connection, area='東京都23区')
+    rows = sum_population_grid(connection, wards).order('code5').project('code5, name, estimated_population').fetchall()
+print(json.dumps(rows, ensure_ascii=False))
+'''
+
+# The station records in the 23 wards, in service, joined in space with the boundaries; made on the host from the
+# whole files with the same join (2026-10-12).
+STATIONS = '''
+import json
+from geo_voyager.control_primitives import connect_duckdb, load_admin_units, load_stations
+with connect_duckdb() as connection:
+    wards = load_admin_units(connection, area='東京都23区')
+    stations = load_stations(connection)
+    rows = connection.sql("""SELECT w.name, count(*), count(DISTINCT s.station_g_cd) FROM wards w JOIN stations s
+                             ON ST_Contains(w.geometry, s.geometry) WHERE s.status = 0 GROUP BY w.name""").fetchall()
 print(json.dumps(rows, ensure_ascii=False))
 '''
 
 
-def test_the_worker_sums_the_100m_grid_per_ward_through_the_gateway():
+def test_the_worker_sums_the_grid_per_ward_and_puts_stations_in_wards_through_the_gateway():
     with benchmark_environment() as names:
-        rows = json.loads(DockerSandbox(image=WORKER_IMAGE, network=names['internal']).run(CODE))
+        sandbox = DockerSandbox(image=WORKER_IMAGE, network=names['internal'])
+        rows = json.loads(sandbox.run(CODE))
+        stations = json.loads(sandbox.run(STATIONS))
+    by_ward = {name: (records, groups) for name, records, groups in stations}
+    assert by_ward['世田谷区'] == (44, 38)
+    assert sum(groups for _, groups in by_ward.values()) >= 458   # a station with platforms in two wards counts in each
     by_name = {name: population for _, name, population in rows}
     assert len(rows) == 23
     assert round(by_name['台東区']) == 214562

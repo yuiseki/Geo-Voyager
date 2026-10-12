@@ -4,7 +4,7 @@ from .critique import Critique
 from .execution_failure import ExecutionFailure
 from .critic import Critic
 from .goal_history import FinalCriticFailure, GoalHistory, HistoryEntry, PlannerFailure
-from .intent import Intent
+from .intent import Intent, execution_refusal
 from .intent_execution import IntentExecution
 from .intent_executor import IntentExecutor
 from .planner import Done, Planner, PlannerRejected
@@ -38,10 +38,7 @@ DEFAULT_MAX_FINAL_CRITIC_FAILURES = 3
 
 def _execution_refusal(intent: Intent) -> str | None:
     """Why IntentExecutor would refuse this Intent, by the same precondition it checks. None if it would run."""
-    if len(intent.dataset_ids) > 1 or (not intent.dataset_ids and not intent.service_ids
-                                       and not (intent.requires_context and intent.previous_observations)):
-        return 'At most one dataset_id or registered service_ids are required'
-    return None
+    return execution_refusal(intent)
 
 
 def _failed_execution(reason: str) -> IntentExecution:

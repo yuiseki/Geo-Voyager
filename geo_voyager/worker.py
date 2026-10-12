@@ -3,7 +3,7 @@ import subprocess
 
 from .docker_sandbox import DockerSandbox
 from .execution_failure import ExecutionFailure, GENERATED_ERROR_EXIT, candidate_lines, sandbox_program
-from .intent import Intent
+from .intent import Intent, execution_refusal
 from .observation import Observation
 from .skill_candidate import SkillCandidate, entry_program
 from .skill_library import SkillLibrary, link
@@ -13,7 +13,7 @@ from .services import load_service_graph
 def injected_lines(intent: Intent) -> str:
     """The runtime variables the Worker defines in front of the generated code, one per line."""
     lines = ''
-    if intent.dataset_ids:
+    if len(intent.dataset_ids) == 1:          # with several, a primitive knows the one it reads
         lines += f"dataset_id={intent.dataset_ids[0]!r}\n"
     if intent.target is not None:
         lines += f"intent_target={intent.target.to_dict()!r}\n"
@@ -27,8 +27,9 @@ class Worker:
         self.network = network
 
     def _execute_code(self, intent: Intent, code: str, library: SkillLibrary | None = None) -> list[Observation] | ExecutionFailure:
-        if len(intent.dataset_ids) > 1 or (not intent.dataset_ids and not intent.service_ids and not (intent.requires_context and intent.previous_observations)):
-            raise ValueError("At most one dataset_id or registered service_ids are required")
+        refusal = execution_refusal(intent)
+        if refusal:
+            raise ValueError(refusal)
         for service_id in intent.service_ids:
             load_service_graph().get(service_id)
         # The Skills the code calls are defined in front of it (geo_voyager.skill_library.link). Like the runtime

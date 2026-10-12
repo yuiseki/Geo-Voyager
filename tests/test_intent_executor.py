@@ -79,8 +79,8 @@ def test_a_function_that_calls_an_unknown_name_is_kept_out_of_the_library_with_a
     assert result.learned_skill is None and 'helper' in result.note and library.names() == []
 
 
-@pytest.mark.parametrize('dataset_ids', [(), ('a', 'b')])
-def test_an_unsupported_number_of_datasets_fails_before_retrieval(tmp_path, dataset_ids):
+@pytest.mark.parametrize('dataset_ids', [()])
+def test_an_intent_with_nothing_to_read_fails_before_retrieval(tmp_path, dataset_ids):
     run, _, (retriever, *_) = executor(tmp_path, [SkillCandidate('x', 'x')], [])
     intent = Intent('x', ('a',)); object.__setattr__(intent, 'dataset_ids', dataset_ids)
     with pytest.raises(ValueError):
