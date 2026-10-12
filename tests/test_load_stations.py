@@ -19,7 +19,8 @@ def test_load_stations_reads_gateway_and_normalizes_columns_without_analysis():
     relation = load_stations('yuiseki/ekidata-jp', connection)
     connection.read_parquet.assert_called_once_with('http://gateway:8000/datasets/yuiseki/ekidata-jp')
     raw = connection.read_parquet.return_value
-    raw.project.assert_called_once_with('station_name AS name, lat AS latitude, lon AS longitude')
+    raw.project.assert_called_once_with('station_cd, station_g_cd, line_cd, station_name AS name, e_status AS status, '
+                                        'lat AS latitude, lon AS longitude, geometry')
     assert relation is raw.project.return_value
     relation.filter.assert_not_called()
     relation.order.assert_not_called()

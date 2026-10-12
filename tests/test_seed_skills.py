@@ -41,7 +41,7 @@ def test_there_are_ten_seed_skills_and_each_says_what_it_does():
                                         ('least_populous_area', 'population ASC, code5 ASC')])
 def test_the_most_and_least_populous_area_are_ordered_and_returned(primitives, name, order):
     connection, loaders = primitives
-    relation = loaders['load_admin_units'].return_value
+    relation = loaders['load_admin_units'].return_value.project.return_value
     relation.order.return_value.limit.return_value.fetchone.return_value = ('13112', 'テスト区', 123)
     assert run(f'{name}("yuiseki/jp-admin-2026-09", area="東京都23区")') == {'code5': '13112', 'name': 'テスト区', 'population': 123}
     loaders['load_admin_units'].assert_called_once_with('yuiseki/jp-admin-2026-09', connection, area='東京都23区')
@@ -51,7 +51,7 @@ def test_the_most_and_least_populous_area_are_ordered_and_returned(primitives, n
 def test_the_top_areas_are_as_many_as_asked(primitives):
     _, loaders = primitives
     rows = [(f'1310{i}', f'区{i}', 100 - i) for i in range(3)]
-    loaders['load_admin_units'].return_value.order.return_value.limit.return_value.fetchall.return_value = rows
+    loaders['load_admin_units'].return_value.project.return_value.order.return_value.limit.return_value.fetchall.return_value = rows
     assert [item['name'] for item in run('top_areas_by_population("d", 3)')] == ['区0', '区1', '区2']
     with pytest.raises(ValueError, match='5 areas'):
         run('top_areas_by_population("d", 5)')
@@ -67,7 +67,7 @@ def test_the_total_population_and_the_station_count_are_aggregates(primitives):
 
 def test_the_northernmost_station(primitives):
     _, loaders = primitives
-    loaders['load_stations'].return_value.order.return_value.limit.return_value.fetchone.return_value = ('稚内', 45.4, 141.6)
+    loaders['load_stations'].return_value.project.return_value.order.return_value.limit.return_value.fetchone.return_value = ('稚内', 45.4, 141.6)
     assert run('northernmost_station("s")') == {'name': '稚内', 'latitude': 45.4, 'longitude': 141.6}
 
 

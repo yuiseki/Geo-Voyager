@@ -29,7 +29,8 @@ def test_load_admin_units_returns_relation_without_population_analysis(kwargs):
     relation = load_admin_units('yuiseki/jp-admin-2026-09', connection, **kwargs)
     connection.read_parquet.assert_called_once_with(dataset_url('yuiseki/jp-admin-2026-09'))
     assert relation is connection.read_parquet.return_value.project.return_value
-    connection.read_parquet.return_value.project.assert_called_once_with('code5, name, population')
+    connection.read_parquet.return_value.project.assert_called_once_with(
+        "code5, name, population, ST_SetCRS(geometry, 'OGC:CRS84') AS geometry")
     relation.filter.assert_not_called()
     relation.order.assert_not_called()
 
