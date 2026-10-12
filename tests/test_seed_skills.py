@@ -29,9 +29,9 @@ def run(call: str):
     return namespace['result']
 
 
-def test_there_are_ten_seed_skills_and_each_says_what_it_does():
+def test_there_are_eleven_seed_skills_and_each_says_what_it_does():
     names = LIBRARY.names()
-    assert names == ['count_station_records', 'count_tag_in_area', 'get_relation_id', 'least_populous_area',
+    assert names == ['count_station_records', 'count_tag_in_area', 'count_tag_in_areas', 'get_relation_id', 'least_populous_area',
                      'most_populous_area', 'northernmost_station', 'route_summary', 'tag_usage_count',
                      'top_areas_by_population', 'total_population']
     assert all(LIBRARY.get(name).description for name in names)
@@ -108,6 +108,18 @@ def test_count_tag_in_area_makes_the_area_from_the_relation_and_counts(service):
     result = run('count_tag_in_area({"name": "渋谷区", "id_type": "relation_id", "id_value": "1759477"}, "amenity", "cafe")')
     assert result == {'name': '渋谷区', 'relation_id': '1759477', 'tag': 'amenity=cafe', 'count': 459}
     assert '(area:3601759477)' in calls[-1][3] and 'nwr["amenity"="cafe"]' in calls[-1][3]
+
+
+def test_count_tag_in_areas_counts_each_feature_once_over_all_the_areas(service):
+    # Round 8: the 23 wards' counts were added up, and a feature on a border was counted in both wards. Asked for one
+    # count over the set, the model then wrote queries that returned 0, 23 or HTTP 400.
+    calls, replies = service
+    replies[('overpass', '/api/interpreter')] = '{"elements": [{"tags": {"total": "631"}}]}'
+    wards = '[{"name": "港区", "relation_id": "1761717"}, {"name": "渋谷区", "relation_id": 1759477}]'
+    result = run(f'count_tag_in_areas({wards}, "railway", "station")')
+    assert result == {'areas': 2, 'tag': 'railway=station', 'count': 631}
+    assert '(area(id:3601761717);area(id:3601759477);)->.a;' in calls[-1][3] and 'nwr["railway"="station"](area.a);out count;' in calls[-1][3]
+    assert len(calls) == 1
 
 
 def test_tag_usage_count_takes_the_total_of_type_all(service):

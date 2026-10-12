@@ -1,0 +1,1 @@
+Count the OSM features (nodes, ways and relations) with the tag key=value inside the union of several areas, each an object with an OSM relation_id (a list of wards), with one Overpass query. A feature on the border of two areas is counted once, which adding up the count of each area does not do. Returns the number of areas, the tag and the count.
