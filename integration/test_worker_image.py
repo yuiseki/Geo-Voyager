@@ -5,7 +5,7 @@ import subprocess
 
 from geo_voyager.docker_sandbox import DockerSandbox
 
-WORKER_IMAGE = "geo-voyager-worker:duckdb-1.5.6"
+WORKER_IMAGE = "geo-voyager-worker:duckdb-1.5.6-rasterio-1.5.1"
 
 
 def test_worker_image_build_and_offline_extensions():
@@ -26,6 +26,8 @@ with scope['connect']() as con:
     assert con.execute("SELECT current_setting('allow_unsigned_extensions')").fetchone()[0] is False
     assert con.execute("SELECT count(*) FROM duckdb_extensions() WHERE extension_name IN ('httpfs', 'spatial') AND loaded").fetchone()[0] == 2
     print('duckdb extensions ok')
+import rasterio
+assert rasterio.__version__ == '1.5.1' and 'GTiff' in rasterio.drivers.raster_driver_extensions().values()
 '''
     stdout = DockerSandbox(image=WORKER_IMAGE).run(code)
     assert stdout == "duckdb extensions ok\n"

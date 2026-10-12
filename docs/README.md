@@ -128,7 +128,7 @@ LLM のプロンプトだけで課している契約（決定的な検査は無�
 
 - Python は repo の `.venv/bin/python`（anaconda の python は DuckDB 1.5.6 が無い）。
 - LLM: `http://10.108.45.102:8080/v1/chat/completions`（`gvt-llm`、`geo_voyager/llama_client.py`）。embedding: 環境変数 `GEO_VOYAGER_EMBEDDING_BASE_URL=http://10.105.167.163:8080`、`GEO_VOYAGER_EMBEDDING_MODEL=granite-embedding`。
-- ベンチマークの環境（`bench/infra.py`）: 隔離 network の Worker と、1 つの Gateway（メモリ 1g。128MB では OOM で落ちた）。Worker の image は `geo-voyager-worker:duckdb-1.5.6`。
+- ベンチマークの環境（`bench/infra.py`）: 隔離 network の Worker と、1 つの Gateway（メモリ 1g。128MB では OOM で落ちた）。Worker の image は `geo-voyager-worker:duckdb-1.5.6-rasterio-1.5.1`。
 
 ```bash
 # 単体テスト（LLM、HTTP、Docker を使わない）

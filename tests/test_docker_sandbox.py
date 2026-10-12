@@ -58,8 +58,8 @@ def test_sandbox_rejects_timeout_and_removes_its_container():
 def test_sandbox_can_use_prebuilt_worker_image():
     with patch("geo_voyager.docker_sandbox.subprocess.run") as run:
         run.return_value.stdout = "duckdb extensions ok\n"
-        assert DockerSandbox(image="geo-voyager-worker:duckdb-1.5.6").run("fixed code") == "duckdb extensions ok\n"
-    assert "geo-voyager-worker:duckdb-1.5.6" in run.call_args.args[0]
+        assert DockerSandbox(image="geo-voyager-worker:duckdb-1.5.6-rasterio-1.5.1").run("fixed code") == "duckdb extensions ok\n"
+    assert "geo-voyager-worker:duckdb-1.5.6-rasterio-1.5.1" in run.call_args.args[0]
 
 
 def test_sandbox_allows_only_an_internal_network():

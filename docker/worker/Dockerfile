@@ -1,6 +1,10 @@
 FROM python:3.12-slim
 
 RUN pip install --no-cache-dir duckdb==1.5.6
+# rasterio reads the population grid (sum_population_grid). Its wheel carries GDAL with curl, so the COG is read
+# by Range through the Gateway; it needs libexpat, which the slim image lacks. The versions are the analysis image's.
+RUN apt-get update && apt-get install -y --no-install-recommends libexpat1 && rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir rasterio==1.5.1 numpy==2.5.3
 RUN python - <<'PY'
 import duckdb
 con = duckdb.connect(config={"threads": "1"})

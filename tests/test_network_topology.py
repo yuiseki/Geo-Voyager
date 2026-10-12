@@ -57,10 +57,10 @@ def test_topology_can_run_test_gateway_and_origin_code_without_mounts():
 
 def test_topology_uses_worker_image_and_can_omit_the_test_origin():
     with patch("integration.network_topology.subprocess.run") as run:
-        with network_topology(worker_image="geo-voyager-worker:duckdb-1.5.6", include_origin=False) as names:
+        with network_topology(worker_image="geo-voyager-worker:duckdb-1.5.6-rasterio-1.5.1", include_origin=False) as names:
             commands = [entry.args[0] for entry in run.call_args_list]
     starts = [command for command in commands if command[:2] == ["docker", "run"]]
     assert len(starts) == 2
     worker = next(command for command in starts if names["worker"] in command)
-    assert "geo-voyager-worker:duckdb-1.5.6" in worker
+    assert "geo-voyager-worker:duckdb-1.5.6-rasterio-1.5.1" in worker
     assert worker[worker.index("--network") + 1] == names["internal"]

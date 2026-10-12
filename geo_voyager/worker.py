@@ -38,7 +38,7 @@ class Worker:
         code = prefix + code
         try:
             stdout = DockerSandbox(
-                image="geo-voyager-worker:duckdb-1.5.6", network=self.network,
+                image="geo-voyager-worker:duckdb-1.5.6-rasterio-1.5.1", network=self.network,
             ).run(sandbox_program(code))
         except subprocess.TimeoutExpired as error:
             # Code that does too much (a request per item, a query over too wide an area) is a failure of that

@@ -31,7 +31,7 @@
 
 ### 2.1 イメージ
 
-- 推奨: 分析用の別イメージ（例: `geo-voyager-analysis`）を作る。study-geoai の `uv.lock` から書き出した版で依存を固定し、`study_geoai` パッケージも入れる。今の軽い Worker（`geo-voyager-worker:duckdb-1.5.6`）は、今の 22 Goal のために残す。
+- 推奨: 分析用の別イメージ（例: `geo-voyager-analysis`）を作る。study-geoai の `uv.lock` から書き出した版で依存を固定し、`study_geoai` パッケージも入れる。今の軽い Worker（`geo-voyager-worker:duckdb-1.5.6-rasterio-1.5.1`）は、今の 22 Goal のために残す。
 - 理由: oracle の数字は study-geoai の版で出ている。版を揃えないと、数字の違いがライブラリの違いか LLM の違いか分からない。ortools と highspy の版の組み合わせ（同梱の HiGHS の soname）にも、study-geoai で既に答えがある。
 - 任意の torch（tabpfn、timesfm）は最初は入れない。イメージが数 GB 大きくなり、対象の実験も 2 つだけ。
 

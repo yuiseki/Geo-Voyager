@@ -72,7 +72,7 @@ def test_burger_goal_repairs_learns_and_reuses_without_manual_code_edits(tmp_pat
     repairer = Mock(wraps=SkillCandidateRepairer(llm))
     critic = Critic(llm)
     with network_topology(isolated=True, gateway_code=gateway_code(),
-                          worker_image='geo-voyager-worker:duckdb-1.5.6', include_origin=False) as names:
+                          worker_image='geo-voyager-worker:duckdb-1.5.6-rasterio-1.5.1', include_origin=False) as names:
         wait_for_gateway(names['gateway'])
         with pinned_geosparql(names):
             retriever = SkillRetriever(library, EmbeddingClient(base, model))
@@ -122,7 +122,7 @@ def test_burger_goal_repairs_learns_and_reuses_without_manual_code_edits(tmp_pat
                               '    assert not response.get("remark") and len(response["elements"])==1\n'
                               '    counts.append(int(response["elements"][0]["tags"]["total"]))\n'
                               'print(json.dumps({"counts":counts,"timestamp":response["osm3s"]["timestamp_osm_base"]}))')
-                    raw = DockerSandbox(image='geo-voyager-worker:duckdb-1.5.6', network=names['internal']).run(oracle)
+                    raw = DockerSandbox(image='geo-voyager-worker:duckdb-1.5.6-rasterio-1.5.1', network=names['internal']).run(oracle)
                     response = json.loads(raw)
                     for ward, count in zip(wards[start:start + 6], response['counts']):
                         expected[ward['relation_id']] = count

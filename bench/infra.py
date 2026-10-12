@@ -7,7 +7,7 @@ from integration.network_topology import network_topology
 from integration.service_gateway_setup import gateway_code, wait_for_gateway
 from integration.test_service_learning import pinned_geosparql
 
-WORKER_IMAGE = 'geo-voyager-worker:duckdb-1.5.6'
+WORKER_IMAGE = 'geo-voyager-worker:duckdb-1.5.6-rasterio-1.5.1'
 # The default 128m Gateway was OOM-killed mid-run while it relayed Parquet range reads.
 GATEWAY_MEMORY = '1g'
 DATASET_RESOLVE_ATTEMPTS = 400  # each 0.5 s: resolving the Parquet URLs needs the Internet
