@@ -72,7 +72,7 @@ def test_a_dataset_the_sandbox_can_not_read_is_neither_shown_nor_suggested():
     agent, client = curriculum('Goal: x を求める\n理由: y')
     agent.propose([FINDING], [])
     prompt = client.generate.call_args.args[0]
-    for dataset in ('yuiseki/worldpop-jp-2026-01', 'yuiseki/mlit-toshi-keikaku-jp', 'yuiseki/osm-japan-src-2026-08'):
+    for dataset in ('yuiseki/mlit-toshi-keikaku-jp', 'yuiseki/osm-japan-src-2026-08'):
         assert dataset not in prompt, dataset
 
 

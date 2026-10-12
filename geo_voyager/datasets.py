@@ -67,13 +67,23 @@ CATALOG = (
     # cb54e5985662c617a235278bc3529cc172e6368c
     Dataset(
         id="yuiseki/worldpop-jp-2026-01",
-        description="WorldPop R2025A の日本人口ラスター原本と、画素値を保持したCOG変換版。国勢調査値ではなく推計・予測。",
+        description=("WorldPop R2025A の日本人口ラスター原本と、画素値を保持したCOG変換版。国勢調査値ではなく推計・予測。"
+                     "実行環境で読めるのは2020年の100m総人口（constrained）だけで、"
+                     "sum_population_grid が東京都23区の区ごとに画素を足した推計人口を返す。"),
         url="https://huggingface.co/datasets/yuiseki/worldpop-jp-2026-01",
         license="CC-BY-4.0（各製品の DOI による引用）",
         formats=("GeoTIFF", "Cloud Optimized GeoTIFF", "Parquet"),
         spatial_coverage="日本全国",
         temporal_coverage="2015〜2030年の推計・予測、R2025A（原本の更新: 2025-07〜2026-01）",
         contents=("100m・1km総人口", "1km年齢・性別人口", "都市化度", "ラスターのファイルメタデータ表"),
+        # The 100 m COG: the 1 km one put Taito at 173,724 against the census's 211,444. The Hub answers a Range
+        # request with 206, so the worker reads only the pixels of Tokyo.
+        data_url=(
+            "https://huggingface.co/datasets/yuiseki/worldpop-jp-2026-01/resolve/"
+            "cb54e5985662c617a235278bc3529cc172e6368c/"
+            "cog/GIS/Population/Global_2015_2030/R2025A/2020/JPN/v1/100m/constrained/"
+            "jpn_pop_2020_CN_100m_R2025A_v1.tif"
+        ),
     ),
 )
 

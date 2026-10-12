@@ -5,5 +5,6 @@ from .connect_duckdb import connect_duckdb
 from .dataset_url import dataset_url
 from .load_admin_units import load_admin_units
 from .load_stations import load_stations
+from .population_grid import sum_population_grid
 
-__all__ = ["call_service", "connect_duckdb", "dataset_url", "load_admin_units", "load_stations"]
+__all__ = ["call_service", "connect_duckdb", "dataset_url", "load_admin_units", "load_stations", "sum_population_grid"]

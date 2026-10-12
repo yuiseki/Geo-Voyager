@@ -362,13 +362,13 @@ def test_the_prompt_tells_how_to_combine_two_datasets():
         assert rule in prompt, rule
 
 
-UNREADABLE = ('調査項目: 前段の東京23区の一覧の各区について、WorldPop の画素値の合計を取得する\n利用データセット:\n'
-              '  - yuiseki/worldpop-jp-2026-01\n利用サービス:\n  - overpass')
+UNREADABLE = ('調査項目: 前段の東京23区の一覧の各区について、用途地域の面積を取得する\n利用データセット:\n'
+              '  - yuiseki/mlit-toshi-keikaku-jp\n利用サービス:\n  - overpass')
 
 
 def test_a_dataset_the_sandbox_can_not_read_is_not_offered_and_an_intent_naming_it_is_rejected():
     plan, client = planner(UNREADABLE)
     with pytest.raises(PlannerRejected) as raised:
-        plan.next('東京23区の推計人口', history(LOOKED_UP))
-    assert 'yuiseki/worldpop-jp-2026-01' in raised.value.reason
-    assert 'yuiseki/worldpop-jp-2026-01' not in client.generate.call_args.args[0]
+        plan.next('東京23区の用途地域', history(LOOKED_UP))
+    assert 'yuiseki/mlit-toshi-keikaku-jp' in raised.value.reason
+    assert 'yuiseki/mlit-toshi-keikaku-jp' not in client.generate.call_args.args[0]

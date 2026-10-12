@@ -189,7 +189,10 @@ class SkillCandidateGenerator:
             '行政コードを推測・生成しない。AOI の絞り込みは Primitive に任せる。\n'
             '- load_stations(dataset_id, connection): Gateway 経由で駅の DuckDB relation を返す。\n'
             '駅 relation の列は name（駅名）、latitude（緯度）、longitude（経度）。\n'
-            '行政区域 Dataset には load_admin_units、駅 Dataset には load_stations を使う。\n'
+            '- sum_population_grid(dataset_id, connection, area="東京都23区"): WorldPop の100m人口格子の画素を、'
+            '画素の中心が入る区ごとに足した DuckDB relation を返す。\n'
+            '人口格子 relation の列は code5、name、estimated_population（推計人口、小数）。国勢調査の population とは別の値。\n'
+            '行政区域 Dataset には load_admin_units、駅 Dataset には load_stations、人口格子 Dataset には sum_population_grid を使う。\n'
             '返り値は DuckDB relation であり pandas DataFrame ではない。\n'
 
             'order(expression) は SQL の列名と ASC/DESC でソートする。limit(n) は行数を制限する。\n'
@@ -218,6 +221,7 @@ class SkillCandidateGenerator:
             '    with connect_duckdb() as connection:\n'
             '        # 行政区域なら load_admin_units(dataset_id, connection, area="東京都23区")\n'
             '        # 駅なら load_stations(dataset_id, connection)（import も追加する）\n'
+            '        # 人口格子なら sum_population_grid(dataset_id, connection, area="東京都23区")（import も追加する）\n'
             '        # Intent に必要な relation 操作をして、結果を return する\n\n'
             + skill_rules(intent) +
             f'Intent:\n{intent.text}\n\n利用する Dataset ids:\n{datasets}\n\n'

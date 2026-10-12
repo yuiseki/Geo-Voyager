@@ -12,6 +12,7 @@ PRIMITIVE_CONTRACT = (
     'dataset_url(dataset_id): Gateway URL。dataset_id は実行環境から与えられる。\n'
     'load_admin_units(dataset_id, connection, area=None): relation(code5,name,population)。area="東京都23区" 対応。\n'
     'load_stations(dataset_id, connection): relation(name,latitude,longitude)。\n'
+    'sum_population_grid(dataset_id, connection, area="東京都23区"): relation(code5,name,estimated_population)。WorldPop の100m人口格子を区ごとに足した推計人口。国勢調査の population とは別の値。\n'
     'call_service(service_id, *, path="", params=None, body=None, content_type=None) -> str。'
     'params は dict[str,str]、body=None は GET、それ以外は POST。body は str のまま渡す。encode して bytes にしてはいけない。返答は text。JSON は json.loads。\n'
 )

@@ -27,7 +27,7 @@ Dataset yuiseki/osm-japan-src-2026-08: OpenStreetMap の2026-08-31 planet から
 Dataset yuiseki/mlit-toshi-keikaku-jp: 国土交通省の都市計画決定GISデータを層別に再形式化。参考情報で、決定範囲は概略。
 Dataset yuiseki/jp-admin-2026-09: デジタル庁のアドレス・ベース・レジストリと e-Stat の2020年国勢調査小地域境界を結合・集約。
 Dataset yuiseki/ekidata-jp: 株式会社バリューアンドビジョンの駅データ.jp無料版CSVと、その型付きParquet・駅位置。
-Dataset yuiseki/worldpop-jp-2026-01: WorldPop R2025A の日本人口ラスター原本と、画素値を保持したCOG変換版。国勢調査値ではなく推計・予測。
+Dataset yuiseki/worldpop-jp-2026-01: WorldPop R2025A の日本人口ラスター原本と、画素値を保持したCOG変換版。国勢調査値ではなく推計・予測。実行環境で読めるのは2020年の100m総人口（constrained）だけで、sum_population_grid が東京都23区の区ごとに画素を足した推計人口を返す。
 Service overpass: overpass: 既存 planet DB の read-only OSM 検索。GET /api/interpreter は params の data に QL、POST text/plain は body に QL
 Service nominatim: nominatim: セルフホスト地名検索・逆ジオコーディング。/search, /reverse, /lookup
 Service valhalla: valhalla: セルフホスト経路検索。/route, /locate, /status
