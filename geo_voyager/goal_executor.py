@@ -124,7 +124,7 @@ class GoalExecutor:
             if any(entry.succeeded for entry in earlier) or len(earlier) >= max_attempts_per_intent:
                 stop = 'repeated_intent'
                 break
-            current = replace(decision, previous_observations=history.observations())
+            current = replace(decision, previous_observations=history.carried_observations())
             refusal = _execution_refusal(current)
             if refusal:
                 reason = f'ValueError: {refusal}'

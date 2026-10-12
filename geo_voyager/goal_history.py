@@ -5,6 +5,7 @@ Observations, the Critic's verdict, the failure if there was one, the Skill it r
 the targets (a name with a stable id) that the step made known for the first time.
 """
 from dataclasses import dataclass
+import json
 from typing import Iterator
 
 from .critique import Critique
@@ -14,6 +15,19 @@ from .intent_execution import IntentExecution
 from .observation import Observation
 from .target_identity import discover_targets
 from .target_ref import TargetRef
+
+
+def _records(text: str) -> frozenset[str]:
+    """The JSON objects of an Observation (one object, or a list of them), each written in one canonical form.
+    Empty for anything else: a bare value or text is never taken for a repeat."""
+    try:
+        value = json.loads(text)
+    except ValueError:
+        return frozenset()
+    rows = [value] if isinstance(value, dict) else value if isinstance(value, list) else []
+    if not rows or not all(isinstance(row, dict) for row in rows):
+        return frozenset()
+    return frozenset(json.dumps(row, sort_keys=True, ensure_ascii=False) for row in rows)
 
 
 def intent_key(intent: Intent) -> tuple:
@@ -102,6 +116,19 @@ class GoalHistory:
     def observations(self) -> tuple[Observation, ...]:
         """The Observations of the steps that succeeded. A failed step's output is not carried forward."""
         return tuple(observation for entry in self.entries if entry.succeeded for observation in entry.observations)
+
+    def carried_observations(self) -> tuple[Observation, ...]:
+        """The Observations the next step is given: those of observations(), less each one whose records all appear,
+        unchanged, in a single later Observation.
+
+        The Planner first measures one target to find the method, then all of them. Code that joins the lists it is
+        given then counts the first target twice. An Observation left out this way holds nothing the later one does
+        not, so nothing is lost; the record of the steps (observations()) keeps it.
+        """
+        observations = self.observations()
+        records = [_records(observation.text) for observation in observations]
+        return tuple(observation for index, observation in enumerate(observations)
+                     if not records[index] or not any(records[index] <= later for later in records[index + 1:]))
 
     def targets(self) -> tuple[TargetRef, ...]:
         """The targets known so far, in the order they were first made known. Failed steps add none.

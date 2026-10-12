@@ -78,6 +78,16 @@ def test_a_step_receives_only_the_observations_of_the_steps_that_succeeded():
     assert received == [[], ['1'], ['1']]
 
 
+def test_a_trial_on_one_target_repeated_by_a_later_step_is_not_given_to_the_next_step_but_is_judged():
+    minato = '{"name": "港区", "count": 46}'
+    wards = '[{"name": "世田谷区", "count": 40}, {"name": "港区", "count": 46}]'
+    planner = Script(intent('a'), intent('b'), intent('c'), DONE)
+    _, executor, critic = run(planner, [ok(minato), ok(wards), ok('86')])
+    received = [[o.text for o in call.args[0].previous_observations] for call in executor.execute.call_args_list]
+    assert received[2] == [wards]
+    assert [o.text for o in critic.check.call_args.args[1]] == [minato, wards, '86']
+
+
 def test_a_failure_does_not_end_the_goal_and_the_planner_sees_it_before_replanning():
     planner = Script(intent('a'), intent('a but another way'), DONE)
     result, _, _ = run(planner, [crashed(), ok('answer')])

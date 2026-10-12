@@ -2,7 +2,7 @@
 from .id_type_literals import id_type_comparisons
 from .intent import Intent
 from .local_aggregation_contract import local_aggregation_violations
-from .skill_candidate import entry_problems, main_function_name, rewritten_skills, service_calls, skill_shape_problems, unpassed_runtime_reads, called_service_ids, intent_element_type, overpass_element_mismatch
+from .skill_candidate import entry_problems, main_function_name, rewritten_skills, service_calls, skill_shape_problems, unpassed_runtime_reads, called_service_ids, intent_element_type, overpass_element_mismatch, reads_a_dataset, DATASET_READERS_NOTE
 from .place_names import place_words_in
 from .skill_function import SkillFunction
 from .llama_client import LlamaClient
@@ -156,6 +156,9 @@ def contract_problems(intent: Intent, code: str, shown: tuple[str, ...] = ()) ->
                    else 'Dataset ' + '、'.join(intent.dataset_ids) if intent.dataset_ids else '前段の Observation')
         shape = shape + [f'この Intent に無い Service（{", ".join(undeclared)}）を呼んでいる。この Intent が使えるのは {allowed} だけなので、'
                          'そこから値を得る']
+    if intent.dataset_ids and intent.service_ids and not reads_a_dataset(code, shown):
+        shape = shape + [f'この Intent は Dataset {", ".join(intent.dataset_ids)} の値を求めているが、コードはそれを読んでいない。'
+                         f'{DATASET_READERS_NOTE}で dataset_id を読み、その値から答える。Service の値で代用しない']
     shape = shape + overpass_element_mismatch(intent.text, code)
     if shape:
         problems.append(('skill shape: ' + '; '.join(shape), _shape_note(shape)))

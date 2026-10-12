@@ -144,3 +144,34 @@ def test_events_are_immutable_and_the_view_does_not_change_later():
 def test_an_unknown_kind_of_event_is_refused():
     with pytest.raises(TypeError):
         GoalHistory().append('not an event')
+
+
+MINATO = '{"name": "港区", "relation_id": "1761717", "tag": "railway=station", "count": 46}'
+WARDS = ('[{"name": "世田谷区", "relation_id": "1759474", "tag": "railway=station", "count": 40}, '
+         '{"name": "港区", "relation_id": "1761717", "tag": "railway=station", "count": 46}]')
+
+
+def test_a_trial_on_one_target_that_a_later_step_repeats_for_all_targets_is_not_carried_forward():
+    # Exploration round 7, Goal 20: the code summed every earlier list it was given, and Minato, measured alone
+    # first and then again with the other 22 wards, was counted twice.
+    history = GoalHistory()
+    history.append(entry(1, obs='[{"name": "港区", "relation_id": "1761717"}]'))
+    history.append(entry(2, obs=MINATO))
+    history.append(entry(3, obs=WARDS))
+    assert [o.text for o in history.carried_observations()] == ['[{"name": "港区", "relation_id": "1761717"}]', WARDS]
+    assert len(history.observations()) == 3          # the record of the steps keeps every Observation
+
+
+def test_an_observation_with_a_record_no_later_one_has_is_carried_forward():
+    history = GoalHistory()
+    history.append(entry(1, obs=MINATO.replace('46', '47')))
+    history.append(entry(2, obs=WARDS))
+    history.append(entry(3, obs='9733276'))
+    assert len(history.carried_observations()) == 3
+
+
+def test_records_are_compared_by_value_not_by_how_the_json_is_written():
+    history = GoalHistory()
+    history.append(entry(1, obs='{"count": 46, "tag": "railway=station", "relation_id": "1761717", "name": "港区"}'))
+    history.append(entry(2, obs=WARDS))
+    assert [o.text for o in history.carried_observations()] == [WARDS]

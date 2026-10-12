@@ -289,6 +289,22 @@ def called_service_ids(code: str) -> set[str]:
     return ids
 
 
+DATASET_READERS = ('load_admin_units', 'load_stations', 'sum_population_grid', 'dataset_url')
+DATASET_READERS_NOTE = 'load_admin_units、load_stations、sum_population_grid のうち Dataset に合うもの'
+
+
+def reads_a_dataset(code: str, skills: tuple[str, ...] = ()) -> bool:
+    """Whether the code calls a Control Primitive that reads a Dataset, or a saved Skill, which may be what reads it.
+    Code that does not parse is left to the other checks."""
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return True
+    readers = set(DATASET_READERS) | set(skills)
+    return any(isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in readers
+               for node in ast.walk(tree))
+
+
 def service_calls(code: str) -> set[tuple[str, str]]:
     """The (service id, path) of every call_service in the code whose service and path are written as strings."""
     try:

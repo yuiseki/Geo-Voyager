@@ -604,3 +604,27 @@ def test_the_count_syntax_asks_for_the_element_type_the_intent_names(text, selec
     client = Mock(); client.generate.return_value = VALID
     SkillCandidateGenerator(client).generate(Intent(text, service_ids=('overpass',)))
     assert f'[out:json][timeout:12];{selector}["<key>"="<value>"](area:<area_id>);out count;' in client.generate.call_args.args[0]
+
+
+def test_contract_refuses_code_that_does_not_read_the_dataset_the_intent_declared():
+    # Exploration round 7, Goal 26: asked for the ekidata-jp stations in Setagaya, the code counted OSM station
+    # nodes from Overpass and never read the station dataset.
+    from geo_voyager.skill_candidate_generator import contract_problems
+
+    code = ('import json\nfrom geo_voyager.control_primitives import call_service\n\n'
+            'def list_stations_in_ward(dataset_id, previous_observations):\n    """駅。"""\n'
+            '    return json.loads(call_service("overpass", path="/api/interpreter", params={"data": "x"}))\n')
+    intent = Intent('世田谷区内の ekidata-jp の駅', ('yuiseki/ekidata-jp',), service_ids=('overpass',))
+    problems = contract_problems(intent, code)
+    assert any('yuiseki/ekidata-jp' in found for found, _ in problems)
+    reads = code.replace('import call_service', 'import call_service, connect_duckdb, load_stations').replace(
+        '    return json', '    with connect_duckdb() as connection:\n        load_stations(dataset_id, connection)\n    return json')
+    assert not any('yuiseki/ekidata-jp' in found for found, _ in contract_problems(intent, reads))
+
+
+def test_a_saved_skill_the_code_calls_may_be_what_reads_the_dataset():
+    from geo_voyager.skill_candidate_generator import contract_problems
+
+    code = 'def stations(dataset_id):\n    """駅。"""\n    return count_station_records(dataset_id)\n'
+    intent = Intent('駅の数', ('yuiseki/ekidata-jp',), service_ids=('overpass',))
+    assert not any('yuiseki/ekidata-jp' in found for found, _ in contract_problems(intent, code, ('count_station_records',)))
