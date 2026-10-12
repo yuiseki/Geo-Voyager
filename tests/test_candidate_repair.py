@@ -299,3 +299,25 @@ def test_a_repair_reply_cut_at_the_token_limit_is_refused():
     llm = Mock(); llm.generate.return_value = REPLY
     SkillCandidateRepairer(llm).repair(Intent('対象を数える', service_ids=('overpass',)), SkillCandidate('broken', '元の説明'), FAILURE)
     assert llm.generate.call_args.kwargs['refuse_truncated'] is True
+
+
+def test_a_repair_of_a_step_with_named_inputs_is_shown_them_by_name_not_by_position():
+    # Round 8: shown only previous_observations[index], the repairer looped over results as a list and failed with
+    # "string indices must be integers" (Goals 8 and 11).
+    llm = Mock(); llm.generate.return_value = REPLY
+    intent = Intent('各区の footway を数える', service_ids=('overpass',), result_name='footways', inputs=('wards',),
+                    input_notes=('step 1「23区の一覧」（yuisekin-geosparql）',),
+                    previous_observations=(Observation('[{"name": "港区", "relation_id": "1761717"}]'),))
+    SkillCandidateRepairer(llm).repair(intent, SkillCandidate('def f(results):\n    return 1', 'x'), FAILURE)
+    prompt = llm.generate.call_args.args[0]
+    assert 'results["wards"]: step 1「23区の一覧」（yuisekin-geosparql） の出力' in prompt
+    assert 'results は dict' in prompt
+    assert 'previous_observations[index]' not in prompt
+
+
+def test_a_repair_without_named_inputs_keeps_the_previous_observations_advice():
+    llm = Mock(); llm.generate.return_value = REPLY
+    intent = Intent('比べる', service_ids=('overpass',), previous_observations=(Observation('{"count": 1}'),))
+    SkillCandidateRepairer(llm).repair(intent, SkillCandidate('x', 'x'), FAILURE)
+    prompt = llm.generate.call_args.args[0]
+    assert 'json.loads(previous_observations[index])' in prompt and 'results["' not in prompt

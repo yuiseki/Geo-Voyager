@@ -12,7 +12,7 @@ from .repair_context import attempt_history_text, failing_line_excerpt
 from .llama_client import LlamaClient
 from .services import load_service_graph
 from .skill_candidate import SkillCandidate
-from .skill_candidate_generator import _parse_candidate
+from .skill_candidate_generator import _parse_candidate, named_inputs
 
 
 RESAMPLE_BASE_TEMPERATURE = 0.2
@@ -69,9 +69,7 @@ class SkillCandidateRepairer:
             '元のコードが関数だけでできていれば、その形を保つ: import と関数の定義だけを書き、関数を呼ぶ行や print は書かない（実行環境が最後の関数を呼び、戻り値を JSON で出力する）。'
             '結果は return で返す。関数名と引数は変えない。環境変数・秘密情報を出力しない。\n'
             '出力形式のみ:\n説明:\n<description>\n---\nコード:\n```python\n<complete code>\n```\n\n'
-            f'Intent:\n{intent.text}\n前段 Observation:\n{describe_observations(intent.previous_observations)}\n'
-            'previous_observations は実行時 list[str]。intent_text は実行時の現在 Intent。結果をコードに固定せず解析する。\n'
-            '前段データや対象番号を貼り込まない。previous_observations を上書きしない。json.loads(previous_observations[index]) を使う。\n'
+            f'Intent:\n{intent.text}\n{_inputs_section(intent)}'
             f'Dataset ids:\n{intent.dataset_ids}\nServices:\n{services}\n'
             f'元 description:\n{candidate.description}\n元 code:\n{candidate.code}\n'
             f'stdout:\n{bounded_output(failure.stdout)}\nstderr:\n{bounded_output(failure.stderr)}\n'
@@ -123,6 +121,17 @@ class SkillCandidateRepairer:
                 'Exact format:\n説明:\n<one sentence>\n---\nコード:\n```python\n<complete code>\n```'
             ),
         ))
+
+
+def _inputs_section(intent: Intent) -> str:
+    """The earlier results as the code reads them: by name when the step declared its inputs, else by Observation."""
+    if intent.inputs:
+        return ('入力（実行時変数 results。結果名から、前の手の出力の JSON を解析した値を引く）:\n' + named_inputs(intent) +
+                '\nresults は dict で、入力は results["結果名"] で読む。results そのものを一覧として回さない。'
+                '結果をコードに固定しない。results を上書きしない。\n')
+    return (f'前段 Observation:\n{describe_observations(intent.previous_observations)}\n'
+            'previous_observations は実行時 list[str]。intent_text は実行時の現在 Intent。結果をコードに固定せず解析する。\n'
+            '前段データや対象番号を貼り込まない。previous_observations を上書きしない。json.loads(previous_observations[index]) を使う。\n')
 
 
 def _history_section(candidate: SkillCandidate, failure: ExecutionFailure,
