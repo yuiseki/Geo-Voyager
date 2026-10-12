@@ -13,6 +13,22 @@ THINKING_MAX_TOKENS = 4096
 # to every step, the model also failed a step that only listed things (the wards touching Taito).
 ASKS_FOR_AN_ANSWER = re.compile(r'比較|どちら|多い|少ない|最大|最小|最も|上位|合計|選ぶ|特定')
 THINKING_BUDGET_TOKENS = 1024
+# The earlier Observations are reference for the identity of a target, not the answer. Shown whole, two lists of
+# 8 KB beside an 8 KB answer were more than the model's 8,192-token context, and the server refused the prompt.
+REFERENCE_BUDGET = 4096
+
+
+def _references(observations: tuple[Observation, ...], budget: int = REFERENCE_BUDGET) -> list[str]:
+    """Each earlier Observation's text within a shared budget of bytes: the short ones whole, the rest cut to an
+    equal share of what is left, with how long they were."""
+    sizes = [len(observation.text.encode('utf-8')) for observation in observations]
+    shares, left = {}, budget
+    for count, index in enumerate(sorted(range(len(sizes)), key=sizes.__getitem__)):
+        shares[index] = min(sizes[index], left // (len(sizes) - count))
+        left -= shares[index]
+    return [observation.text if shares[index] == sizes[index] else
+            observation.text.encode('utf-8')[:shares[index]].decode('utf-8', errors='ignore') + f'…（以下略、全 {sizes[index]} バイト）'
+            for index, observation in enumerate(observations)]
 
 
 class Critic:
@@ -69,7 +85,7 @@ class Critic:
                 prompt += f'\nIntent の対象: {intent.target.name}。Observation の対象の名前とIDがこの対象のものか照合してください。'
         if intent.previous_observations:
             prompt += ('\n前段 Observation（対象の identity を照合するためのデータ）:\n'
-                        + '\n'.join(f'previous_observations[{index}]: {obs.text}' for index, obs in enumerate(intent.previous_observations))
+                        + '\n'.join(f'previous_observations[{index}]: {text}' for index, text in enumerate(_references(intent.previous_observations)))
                        + '\n対象は名前と安定IDで照合します。回答の名前・IDが Intent の対象と一致するかを先に照合してください。別の対象なら件数があっても失敗です。')
             if intent.target is not None:
                 target = resolve_target(intent.target, intent.previous_observations)

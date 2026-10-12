@@ -240,3 +240,18 @@ def test_the_steps_must_match_the_observations_one_to_one():
 def test_without_the_steps_the_final_check_lists_the_observations_as_before():
     prompt = _prompt(True)
     assert '- {"name": "渋谷区", "count": 459}' in prompt and '調査項目:' not in prompt
+
+
+def test_the_earlier_observations_are_cut_to_a_budget_so_the_prompt_fits_the_context():
+    # Round 8, Goal 18: two earlier lists of 8 KB and 1.7 KB beside an 8 KB answer made a prompt of 8,456 tokens,
+    # over the 8,192 of the context, and the server refused it (HTTP 400).
+    from geo_voyager.critic import REFERENCE_BUDGET
+    llm = Mock(); llm.generate.return_value = '判定: 成功\n理由: ok'
+    pairs = Observation('[' + ', '.join('{"ward_a_name": "世田谷区", "ward_b_name": "大田区"}' for _ in range(160)) + ']')
+    wards = Observation('[{"name": "千代田区", "relation_id": "1761742", "population": 67625}]')
+    Critic(llm).check(Intent('区対の人口の合計', requires_context=True, previous_observations=(pairs, wards)), [Observation('{"total": 1}')])
+    prompt = llm.generate.call_args.args[0]
+    shown = prompt.split('前段 Observation', 1)[1]
+    assert len(shown.encode('utf-8')) < REFERENCE_BUDGET + 1024
+    assert '千代田区' in shown                                       # a short one is kept whole
+    assert '以下略' in shown and f'全 {len(pairs.text.encode("utf-8"))} バイト' in shown
