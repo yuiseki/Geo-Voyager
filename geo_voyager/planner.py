@@ -161,6 +161,8 @@ def _require_known_inputs(intent: Intent, results: tuple[str, ...]) -> None:
     """Once there are results, a step says which it works on, by names that are there. A step with no Dataset and
     no Service works only on its inputs, so it needs at least one."""
     if not results:
+        if intent.inputs:
+            raise ValueError(f'入力の {"、".join(intent.inputs)} は結果に無い。まだ結果は無いので「入力: []」と書くか、「入力:」を書かない')
         return
     names = '、'.join(results)
     if intent.inputs is None:

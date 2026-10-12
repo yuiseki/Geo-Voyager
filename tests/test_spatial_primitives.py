@@ -16,6 +16,9 @@ from rasterio.transform import from_origin
 
 from geo_voyager.control_primitives import load_admin_units, load_stations, sum_population_grid
 
+# rasterio multiplies an Affine with `*`, which affine 3 warns about; -W error must not turn their warning into ours.
+pytestmark = pytest.mark.filterwarnings("ignore:Use `@` matmul instead of `\\*` mul operator:PendingDeprecationWarning")
+
 ADMIN = 'yuiseki/jp-admin-2026-09'
 STATIONS = 'yuiseki/ekidata-jp'
 WORLDPOP = 'yuiseki/worldpop-jp-2026-01'

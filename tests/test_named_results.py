@@ -71,6 +71,15 @@ def test_the_first_step_needs_no_inputs():
     assert planner(reply)[0].next('薬局の数', GoalHistory()).inputs is None
 
 
+def test_a_first_step_that_names_an_input_is_refused_before_it_runs():
+    # Round 9, Goal 7: the first step named tokyo_23_ward_list, which no step had made, and the run stopped with a
+    # KeyError when its inputs were looked up instead of the Planner being asked again.
+    reply = PHARMACY.replace('  - wards', '  - tokyo_23_ward_list')
+    with pytest.raises(PlannerRejected) as raised:
+        planner(reply)[0].next('薬局の数', GoalHistory())
+    assert 'tokyo_23_ward_list' in raised.value.reason and '入力: []' in raised.value.reason
+
+
 @pytest.mark.parametrize('name', ['Ward Counts', '区の一覧', '1wards', 'wards-list'])
 def test_a_result_name_is_a_lower_case_identifier(name):
     with pytest.raises(PlannerRejected) as raised:
