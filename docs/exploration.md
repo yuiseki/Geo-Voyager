@@ -210,5 +210,5 @@ Voyager の automatic curriculum に当たるものを足し、答えが出た�
   - 6 番: ekidata の駅（`station_g_cd` でまとめた数）が最も多い区は、世田谷区と大田区の 38 で同数。答えも 2 区を挙げた。
   - 16 番: 東京駅と日比谷駅（ekidata の座標）の徒歩時間 876 秒。
   - 18 番: highway の最多値 residential 68,886,493。
-- Goal の型が変わった。8 回目までの「23 区全体の件数の合計や割合」は減り、区ごとに測ってから最大の区を選ぶ問いが多い。Dataset（ekidata、jp-admin、WorldPop）を読んだ step は 117 で、Service を読んだ step の 73 より多かった。
+- Goal の型が変わった。8 回目までの「23 区全体の件数の合計や割合」は減り、区ごとに測ってから最大の区を選ぶ問いが多い。step が宣言したリソースを延べで数えると、Dataset（ekidata、jp-admin、WorldPop）が 117 で、Service の 73 より多かった（8 回目は Dataset 58、Service 92）。
 - 答えが出なかった 10 件の内訳は、`max_steps` が 8 件、`repeated_intent` が 1 件、`error` が 1 件。`error` の 7 番は、step を 1 つも終えずに `KeyError: 'tokyo_23_ward_list'` で止まった。
