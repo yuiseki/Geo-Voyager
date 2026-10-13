@@ -52,8 +52,9 @@ def sandbox_program(code: str) -> str:
     return '''import io, os, sys, traceback
 class LimitedOutput(io.TextIOBase):
     def __init__(self):
-        self.text = ''
+        self.text, self.size = '', 0
     def write(self, text):
+        self.size += len(text.encode('utf-8'))
         self.text += text.encode('utf-8')[:max(0, 8192 - len(self.text.encode('utf-8')))].decode('utf-8', errors='ignore')
         return len(text)
     def flush(self):
@@ -68,6 +69,10 @@ except BaseException:
     traceback.print_exc(limit=8)
     status = 73
 finally:
+    # Output cut at the limit would reach the Critic as a list that stops mid-row. It fails, saying what to change.
+    if status == 0 and out.size > 8192:
+        err.write('OutputTooLong: 出力が %d bytes で、上限 8192 bytes を超えた。Intent が求める値だけを残し、返す行か列を減らす\\n' % out.size)
+        status = 73
     sys.stdout, sys.stderr = original_out, original_err
     for stream, text in ((original_out, out.text), (original_err, err.text)):
         for key, value in os.environ.items():

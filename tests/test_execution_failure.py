@@ -93,3 +93,28 @@ def test_a_real_traceback_points_the_failing_line_excerpt_at_the_right_statement
     fixed = ExecutionFailure('failed', result.stdout, candidate_lines(result.stderr, prefix.count('\n')), 73)
     excerpt = failing_line_excerpt(candidate, fixed)
     assert '>> 3: name = data[0]' in excerpt
+
+
+def test_output_over_the_limit_fails_instead_of_being_cut_silently():
+    """56 pairs of wards with their names and populations printed 10 KB; cut at 8 KiB, the Critic read a list that
+    stopped mid-object and could not tell why. Over the limit, the run fails and says what to change."""
+    import subprocess
+    import sys
+    from geo_voyager.execution_failure import GENERATED_ERROR_EXIT, OUTPUT_LIMIT, sandbox_program
+
+    result = subprocess.run([sys.executable, '-I', '-B', '-'], input=sandbox_program(f"print('x' * {OUTPUT_LIMIT + 100})"),
+                            capture_output=True, text=True)
+    assert result.returncode == GENERATED_ERROR_EXIT
+    assert f'{OUTPUT_LIMIT + 101} bytes' in result.stderr
+    assert '行か列を減らす' in result.stderr
+
+
+def test_output_at_the_limit_is_kept():
+    import subprocess
+    import sys
+    from geo_voyager.execution_failure import OUTPUT_LIMIT, sandbox_program
+
+    result = subprocess.run([sys.executable, '-I', '-B', '-'], input=sandbox_program(f"print('x' * {OUTPUT_LIMIT - 1})"),
+                            capture_output=True, text=True)
+    assert result.returncode == 0
+    assert len(result.stdout.encode()) == OUTPUT_LIMIT
