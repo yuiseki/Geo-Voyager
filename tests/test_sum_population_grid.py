@@ -37,3 +37,11 @@ def test_the_code_generation_prompts_name_the_primitive():
         pass
     prompt = client.generate.call_args.args[0]
     assert 'sum_population_grid(connection, zones)' in prompt and 'geometry 列を持つ relation' in prompt
+
+
+def test_the_contract_shows_the_tables_of_the_declared_datasets():
+    from geo_voyager.contracts import primitive_contract
+    from geo_voyager.intent import Intent
+    text = primitive_contract(Intent('区ごとの駅', ('yuiseki/jp-admin-2026-09', 'yuiseki/ekidata-jp')))
+    assert 'read_table(connection, "yuiseki/ekidata-jp", "station")' in text and '東京23区: filter(' in text
+    assert 'load_admin_units' not in text and 'load_stations' not in text

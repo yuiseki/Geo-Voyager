@@ -295,7 +295,7 @@ PRIMITIVE_DATASETS = {
     'load_stations': 'yuiseki/ekidata-jp',
     'sum_population_grid': 'yuiseki/worldpop-jp-2026-01',
 }
-DATASET_READERS_NOTE = 'load_admin_units、load_stations、sum_population_grid のうち Dataset に合うもの'
+DATASET_READERS_NOTE = 'read_table（表）か sum_population_grid（人口格子）'
 
 
 def read_datasets(code: str) -> set[str] | None:
@@ -311,6 +311,11 @@ def read_datasets(code: str) -> set[str] | None:
                 read.add(PRIMITIVE_DATASETS[node.func.id])
             elif node.func.id == 'dataset_url' and node.args and isinstance(node.args[0], ast.Constant):
                 read.add(node.args[0].value)
+            elif node.func.id == 'read_table':
+                named = {keyword.arg: keyword.value for keyword in node.keywords}
+                dataset = node.args[1] if len(node.args) > 1 else named.get('dataset_id')
+                if isinstance(dataset, ast.Constant):
+                    read.add(dataset.value)
     return read
 
 

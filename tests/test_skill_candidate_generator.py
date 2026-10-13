@@ -42,13 +42,14 @@ def test_generator_passes_intent_and_primitive_contracts_and_parses_candidate(re
     client.generate.assert_called_once()
     prompt = client.generate.call_args.args[0]
     for text in (intent.text, intent.dataset_ids[0], 'connect_duckdb()',
-                 'load_admin_units(connection, area=None)', 'load_admin_units(connection, area="東京都23区")',
-                 '外部URLを直接使わない', 'return で返す', 'dataset_id を渡さなくてよい',
-                 '再利用可能', 'load_stations(connection)', 'ST_Contains', 'count(DISTINCT station_g_cd)',
+                 'read_table(connection, "yuiseki/jp-admin-2026-09", "municipalities")',
+                 '東京23区: filter("pref_code = \'13\' AND name LIKE \'%区\'")', 'population BIGINT',
+                 '外部URLを直接使わない', 'return で返す',
+                 '再利用可能', 'ST_Within', 'count(DISTINCT s.station_g_cd)',
                  'connection.sql', 'geometry は返り値に入れない',
-                 'latitude', 'longitude', 'aggregate(expression)', 'avg(population)',
+                 'aggregate(expression)', 'avg(population)',
                  'fetchone()[0]',
-                 'from geo_voyager.control_primitives import connect_duckdb, load_admin_units',
+                 'from geo_voyager.control_primitives import connect_duckdb, read_table',
                  'pandas DataFrame ではない', 'order(expression)', 'fetchone()', 'dataset_id = ... という代入や', '選択・集計の意味が分かるキー', 'トップレベルには import と', 'Primitive 名を変更・推測しない', 'with 行はこの形のまま使う', '1行目は必ず「説明:」だけ', '説明本文は2行目から', '計画:'):
         assert text in prompt
     assert "13101" not in prompt and "13123" not in prompt
@@ -91,8 +92,9 @@ def test_generator_advertises_station_primitive_for_station_intent():
     SkillCandidateGenerator(client).generate(intent)
     prompt = client.generate.call_args.args[0]
     assert intent.text in prompt and intent.dataset_ids[0] in prompt
-    assert 'load_stations(connection)' in prompt
-    assert 'name' in prompt and 'latitude' in prompt and 'longitude' in prompt
+    assert 'read_table(connection, "yuiseki/ekidata-jp", "station")' in prompt
+    assert 'station_name VARCHAR' in prompt and 'lat DOUBLE' in prompt and 'lon DOUBLE' in prompt
+    assert 'load_stations' not in prompt and 'load_admin_units' not in prompt         # ADR 0010: one reader
 
 
 def test_generator_exposes_registered_services_and_generic_api_without_origin_urls():
@@ -678,3 +680,11 @@ def test_dataset_candidate_generation_uses_zero_temperature_too():
     client.generate.return_value = VALID_ADMIN
     SkillCandidateGenerator(client).generate(Intent('23区の人口の合計', ('yuiseki/jp-admin-2026-09',)))
     assert client.generate.call_args.kwargs['temperature'] == 0.0
+
+
+def test_the_datasets_read_through_read_table_are_those_it_names():
+    from geo_voyager.skill_candidate import read_datasets
+    code = ('from geo_voyager.control_primitives import connect_duckdb, read_table\n\n'
+            'def lines():\n    """路線。"""\n    with connect_duckdb() as connection:\n'
+            '        return read_table(connection, "yuiseki/ekidata-jp", "line").count("*").fetchone()[0]\n')
+    assert read_datasets(code) == {'yuiseki/ekidata-jp'}

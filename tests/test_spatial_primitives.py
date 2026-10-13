@@ -154,6 +154,10 @@ def test_the_seed_skills_still_read_the_wider_tables(connection, monkeypatch):
         return db
 
     monkeypatch.setattr(module, 'connect_duckdb', fresh)
+    # The seeds read through read_table (ADR 0010): its tables are the fixture's files.
+    paths = {(ADMIN, 'municipalities'): sys.modules['geo_voyager.control_primitives.load_admin_units'].dataset_url(ADMIN),
+             (STATIONS, 'station'): sys.modules['geo_voyager.control_primitives.load_stations'].dataset_url(STATIONS)}
+    monkeypatch.setattr(sys.modules['geo_voyager.control_primitives.read_table'], 'dataset_url', lambda d, t: paths[(d, t)])
     library = SkillLibrary(Path(__file__).resolve().parents[1] / 'skill_library')
 
     def run(call):
@@ -161,9 +165,11 @@ def test_the_seed_skills_still_read_the_wider_tables(connection, monkeypatch):
         exec(link(f'result = {call}', library), namespace)
         return namespace['result']
 
-    assert run(f"most_populous_area('{ADMIN}', area='東京都23区')") == {'code5': '13102', 'name': '中央区', 'population': 169179}
-    assert run(f"least_populous_area('{ADMIN}', area='東京都23区')")['name'] == '千代田区'
-    assert [a['name'] for a in run(f"top_areas_by_population('{ADMIN}', 2, area='東京都23区')")] == ['中央区', '千代田区']
-    assert run(f"total_population('{ADMIN}', area='東京都23区')") == 235859
-    assert run(f"count_station_records('{STATIONS}')") == 3
-    assert run(f"northernmost_station('{STATIONS}')")['name'] in ('東京', '築地')
+    wards = "code5 BETWEEN '13101' AND '13123'"
+    assert run(f"most_populous_area(where={wards!r})") == {'code5': '13102', 'name': '中央区', 'population': 169179}
+    assert run(f"least_populous_area(where={wards!r})")['name'] == '千代田区'
+    assert [a['name'] for a in run(f"top_areas_by_population(2, where={wards!r})")] == ['中央区', '千代田区']
+    assert run(f"total_population(where={wards!r})") == 235859
+    assert run("most_populous_area()")['name'] == '札幌市'
+    assert run("count_station_records()") == 3
+    assert run("northernmost_station()")['name'] in ('東京', '築地')

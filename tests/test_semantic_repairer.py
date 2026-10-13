@@ -33,7 +33,7 @@ def test_the_prompt_carries_everything_the_repair_is_allowed_to_use():
                  ORIGINAL.code, ORIGINAL.description,                                  # original candidate
                  '{"name": "港区", "count": 0}', REASON,                               # observation and critique reason
                  '"relation_id": "1761717"',                                           # previous observations
-                 'overpass', 'call_service', 'load_admin_units']:                      # service and primitive contracts
+                 'overpass', 'call_service', 'read_table']:                            # service and primitive contracts
         assert part in prompt, part
 
 
@@ -49,7 +49,7 @@ def test_a_dataset_intent_gets_the_dataset_contract():
     result, client = repair(intent=intent(service_ids=(), dataset_ids=('yuiseki/jp-admin-2026-09',), target=None,
                                           previous_observations=()))
     prompt = client.generate.call_args.args[0]
-    assert 'yuiseki/jp-admin-2026-09' in prompt and 'load_admin_units' in prompt
+    assert 'read_table(connection, "yuiseki/jp-admin-2026-09", "municipalities")' in prompt
 
 
 def test_a_changed_candidate_is_proposed():

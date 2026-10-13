@@ -8,7 +8,7 @@ the output keys, and must not write observed values into the code.
 from dataclasses import dataclass
 from typing import Sequence
 
-from .contracts import PRIMITIVE_CONTRACT, dataset_contract, service_contract
+from .contracts import dataset_contract, primitive_contract, service_contract
 from .execution_attempt import ExecutionAttempt
 from .hardcoding import hardcoded_literals
 from .intent import Intent
@@ -79,7 +79,7 @@ class SemanticRepairer:
             '答え・件数・ID・名前をコードへ固定しない。Observation や Critic の理由に出た値を貼り込まない（hardcoded 禁止）。'
             '値は実行時に previous_observations、intent_target、サービスの応答から取る。\n'
             'Critic の理由は不足の指摘であり、答えではない。API や Primitive を勝手に追加せず、外部 URL へ直接アクセスしない。',
-            PRIMITIVE_CONTRACT,
+            primitive_contract(intent),
         ]
         if intent.service_ids:
             sections.append(f'Services:\n{service_contract(intent)}')

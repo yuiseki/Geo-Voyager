@@ -1,18 +1,25 @@
 """Copy the YAML frontmatter of the dataset references in GeoAI-skills (the How-to Graph) into
 geo_voyager/dataset_references.json, at a fixed commit.
 
-    uvx --with pyyaml python scripts/sync_dataset_references.py ../GeoAI-skills <commit>
+    uvx --with pyyaml --with 'duckdb==1.5.6' python scripts/sync_dataset_references.py ../GeoAI-skills <commit>
 
 The references are measured facts about each dataset (what a row is, its ids and join keys, the keys it does not
 have, what the main columns mean). GeoAI-skills is where they are kept; this copies the ones of the datasets the
 sandbox can read, so that a run does not depend on another checkout and the commit it was made from is recorded.
+
+A reference lists the main columns; the code needs every column's name and type. Those are measured here, from the
+Parquet footer of each table at the revision the sandbox reads (geo_voyager.dataset_tables), and kept as the
+table's "schema" with the date: not a fact of the reference, so it is marked as Geo-Voyager's measurement.
 """
+import datetime
 import json
 from pathlib import Path
 import subprocess
 import sys
 
 import yaml
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 REFERENCES = {
     'yuiseki/jp-admin-2026-09': 'jp-admin-2026-09.md',
@@ -39,6 +46,20 @@ def main() -> None:
         datasets[dataset_id] = frontmatter(text)
         if datasets[dataset_id]['id'] != dataset_id:
             raise ValueError(f'{path} is about {datasets[dataset_id]["id"]}, not {dataset_id}')
+    OUT.write_text(json.dumps({'source': {}, 'datasets': datasets}, ensure_ascii=False, default=str))
+    from geo_voyager import dataset_tables
+    import importlib
+    import duckdb
+    importlib.reload(dataset_tables)
+    connection = duckdb.connect()
+    connection.execute('INSTALL httpfs; LOAD httpfs; INSTALL spatial; LOAD spatial')
+    measured = datetime.date.today().isoformat()
+    for (dataset_id, table_name), url in dataset_tables.TABLE_URLS.items():
+        if url.endswith('.parquet'):
+            table = next(t for t in datasets[dataset_id]['tables'] if t['name'] == table_name)
+            columns = connection.execute(f"DESCRIBE SELECT * FROM read_parquet('{url}')").fetchall()
+            table['schema'] = {'measured_by': 'Geo-Voyager', 'measured_on': measured,
+                               'columns': [[name, kind] for name, kind, *_ in columns]}
     source = {'repository': 'https://github.com/yuiseki/GeoAI-skills', 'commit': commit,
               'paths': {dataset_id: DIRECTORY + path for dataset_id, path in REFERENCES.items()}}
     OUT.write_text(json.dumps({'source': source, 'datasets': datasets}, ensure_ascii=False, indent=1, default=str) + '\n')

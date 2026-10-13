@@ -1,0 +1,57 @@
+"""The tables an Intent's datasets offer, as the Generator and the repair read them (ADR 0010).
+
+Made from the dataset references copied from GeoAI-skills (what a row is, the keys, the keys a table lacks, what
+the main columns mean) and the schema measured at sync time (every column and its type), so a table becomes usable
+by syncing its reference, without writing its contract here. Only the datasets the Intent declares are shown: the
+prompt has 8192 tokens in all.
+"""
+import json
+from pathlib import Path
+
+_DATA = json.loads(Path(__file__).with_name('dataset_references.json').read_text(encoding='utf-8'))
+
+# Areas a Goal names, as conditions on the boundaries' columns. Measured on jp-admin-2026-09 (2026-10-13): 23 rows,
+# code5 13101 to 13123, population 9,733,276.
+NAMED_AREAS = {'東京23区': "pref_code = '13' AND name LIKE '%区'"}
+_AREAS_OF = {'yuiseki/jp-admin-2026-09': ('municipalities', NAMED_AREAS)}
+_SHORT_TYPES = {'VARCHAR': 'VARCHAR', 'INTEGER': 'INTEGER', 'BIGINT': 'BIGINT', 'DOUBLE': 'DOUBLE'}
+
+
+def _table_text(dataset_id: str, table: dict) -> str:
+    meanings = {key['column']: key['meaning'] for key in table.get('join_keys', [])}
+    meanings.update({column['name']: column['meaning'] for column in table.get('columns', [])})
+    lines = [f'read_table(connection, "{dataset_id}", "{table["name"]}"): 1 行は{table["grain"]}。']
+    if table.get('id'):
+        lines[0] += f'ID: {", ".join(table["id"])}。'
+    if table.get('join_keys'):
+        lines.append('  結合キー: ' + '、'.join(f'{key["column"]}（→ {", ".join(key.get("joins", []))}）'
+                                               for key in table['join_keys']))
+    if table.get('no_key'):
+        lines.append('  持たないキー: ' + '、'.join(f'{key["name"]}（{key["note"]}）' for key in table['no_key']))
+    columns = table['schema']['columns']
+    lines.append('  列: ' + ', '.join(f'{name} {"GEOMETRY" if kind.startswith("GEOMETRY") else kind}'
+                                     for name, kind in columns))
+    described = [f'{name}（{meanings[name]}）' for name, kind in columns if name in meanings and not kind.startswith('GEOMETRY')]
+    if described:
+        lines.append('  列の意味: ' + '、'.join(described))
+    area_table, areas = _AREAS_OF.get(dataset_id, (None, {}))
+    if table['name'] == area_table:
+        lines.append('  名前のついた地域: ' + '、'.join(f'{name}: filter("{condition}")' for name, condition in areas.items()))
+    return '\n'.join(lines)
+
+
+def table_contract(dataset_ids) -> str:
+    texts = []
+    for dataset_id in dataset_ids:
+        reference = _DATA['datasets'].get(dataset_id)
+        if reference is None:
+            continue
+        for table in reference['tables']:
+            if 'schema' in table:
+                texts.append(_table_text(dataset_id, table))
+            else:
+                texts.append(f'{dataset_id} の {table["name"]} はラスタで、表として読まない（1 画素は{table["grain"]}）。'
+                             'sum_population_grid(connection, zones) が、zones（geometry 列を持つ relation）の区域ごとに画素を足す。')
+    if texts:
+        texts.append('geometry は OGC:CRS84（read_table がそろえる）。2 つの表は ST_Within などで空間結合できる。')
+    return '\n'.join(texts)

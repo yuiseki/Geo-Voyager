@@ -2,6 +2,7 @@
 from .id_type_literals import id_type_comparisons
 from .intent import Intent
 from .local_aggregation_contract import local_aggregation_violations
+from .table_contracts import table_contract
 from .skill_candidate import entry_problems, main_function_name, rewritten_skills, service_calls, skill_shape_problems, unpassed_runtime_reads, called_service_ids, intent_element_type, overpass_element_mismatch, read_datasets, calls_any, DATASET_READERS_NOTE
 from .place_names import place_words_in
 from .skill_function import SkillFunction
@@ -217,18 +218,13 @@ class SkillCandidateGenerator:
             'Intent を完遂する Python の関数と簡潔な説明を書いてください。\n'
             '利用可能な Control Primitives（geo_voyager.control_primitives から import）:\n'
             '- connect_duckdb(): sandbox 用 DuckDB 接続を返す。with で接続を管理する。\n'
-            '各 Primitive が読む Dataset は決まっている。dataset_id を渡さなくてよい。\n'
-            '- load_admin_units(connection, area=None): 行政区域 Dataset（yuiseki/jp-admin-2026-09）の DuckDB relation を返す。\n'
-            '列は code5（5桁文字列の行政コード）、name（区域名）、population（2020年国勢調査の整数の人口）、geometry（境界、OGC:CRS84）。\n'
-            'area=None は全行政区域を返す。area="東京都23区" は23区だけを返す。未対応 area は失敗する。\n'
-            '行政コードを推測・生成しない。AOI の絞り込みは Primitive に任せる。\n'
-            '- load_stations(connection): 駅 Dataset（yuiseki/ekidata-jp）の DuckDB relation を返す。1駅が路線ごとに1行。\n'
-            '列は station_cd（記録のID）、station_g_cd（路線をまたいで同じ駅をまとめるID）、line_cd（路線のID）、name（駅名）、'
-            'status（0 営業中、1 開業前、2 廃止）、latitude、longitude、geometry（点、OGC:CRS84）。駅の数は count(DISTINCT station_g_cd)。\n'
+            '- read_table(connection, dataset_id, table): Dataset の表の全列を DuckDB relation で返す。列名は下の表の説明のまま使う。\n'
+            '地域は filter の条件で絞る（下の「名前のついた地域」）。行政コードを推測・生成しない。\n'
             '- sum_population_grid(connection, zones): 人口格子 Dataset（yuiseki/worldpop-jp-2026-01、WorldPop の2020年100m推計人口）の画素を、'
-            'zones（geometry 列を持つ relation。例: load_admin_units の結果）の区域ごとに、画素の中心が入るものだけ足す。\n'
+            'zones（geometry 列を持つ relation。例: read_table で読んだ境界）の区域ごとに、画素の中心が入るものだけ足す。\n'
             'zones の geometry 以外の列と estimated_population（推計人口、小数）を返す。国勢調査の population とは別の値。一度に100区域まで。\n'
-            'Intent が宣言した Dataset ごとに、それを読む Primitive を使う。宣言していない Dataset を読まない。\n'
+            'Intent が宣言した Dataset だけを読む。宣言していない Dataset を読まない。\n'
+            + (f'Intent の Dataset の表:\n{table_contract(intent.dataset_ids)}\n' if intent.dataset_ids else '') +
             '返り値は DuckDB relation であり pandas DataFrame ではない。\n'
             'order(expression) は SQL の列名と ASC/DESC でソートする。limit(n) は行数を制限する。'
             'project(expression) は列を選ぶ。filter(expression) は行を絞る。\n'
@@ -242,7 +238,7 @@ class SkillCandidateGenerator:
             '制約:\n'
             '- Primitive はグローバルには存在しない。必ずコードで明示的に import する。\n'
             '- Primitive 名を変更・推測しない。提示した名前・綴りをそのまま使う。\n'
-            'from geo_voyager.control_primitives import connect_duckdb, load_admin_units, load_stations, sum_population_grid\n'
+            'from geo_voyager.control_primitives import connect_duckdb, read_table, sum_population_grid\n'
             '- Dataset へのアクセスは Control Primitives のみ使う。\n'
             '- 外部URLを直接使わない。HTTP や read_parquet を直接呼ばない。\n'
             '- 結果は return で返す。選択・集計の意味が分かるキーと具体的な回答値を持つ dict にする。\n'
@@ -253,14 +249,14 @@ class SkillCandidateGenerator:
             '- UUID 生成や Skill の保存はしない。\n'
             '- 1件だけ生成し、前置きや追記を付けない。\n\n'
             '接続部分の例（with 行はこの形のまま使う。接続関数は connect_duckdb、duck の綴り）:\n'
-            'from geo_voyager.control_primitives import connect_duckdb, load_admin_units, load_stations\n'
+            'from geo_voyager.control_primitives import connect_duckdb, read_table\n'
             'def <何をするかが分かる名前>():\n'
             '    """<何をするか>"""\n'
             '    with connect_duckdb() as connection:\n'
-            '        wards = load_admin_units(connection, area="東京都23区")\n'
-            '        stations = load_stations(connection)\n'
+            '        wards = read_table(connection, "yuiseki/jp-admin-2026-09", "municipalities").filter("pref_code = \'13\' AND name LIKE \'%区\'")\n'
+            '        stations = read_table(connection, "yuiseki/ekidata-jp", "station").filter("e_status = 0")\n'
             '        rows = connection.sql("SELECT w.name, count(DISTINCT s.station_g_cd) AS stations FROM wards w "\n'
-            '                              "JOIN stations s ON ST_Contains(w.geometry, s.geometry) GROUP BY w.name").fetchall()\n'
+            '                              "JOIN stations s ON ST_Within(s.geometry, w.geometry) GROUP BY w.name").fetchall()\n'
             '        # Intent に必要な操作をして、結果を return する（この例は区ごとの駅の数）\n\n'
             + skill_rules(intent) +
             f'Intent:\n{intent.text}\n\n利用する Dataset ids:\n{datasets}\n\n'

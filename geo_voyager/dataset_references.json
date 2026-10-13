@@ -101,7 +101,117 @@
        "name": "geometry",
        "meaning": "市区町村の面 (EPSG:4612)。海を含まない"
       }
-     ]
+     ],
+     "schema": {
+      "measured_by": "Geo-Voyager",
+      "measured_on": "2026-10-13",
+      "columns": [
+       [
+        "lg_code",
+        "VARCHAR"
+       ],
+       [
+        "code5",
+        "VARCHAR"
+       ],
+       [
+        "pref_code",
+        "VARCHAR"
+       ],
+       [
+        "pref",
+        "VARCHAR"
+       ],
+       [
+        "pref_kana",
+        "VARCHAR"
+       ],
+       [
+        "pref_roma",
+        "VARCHAR"
+       ],
+       [
+        "county",
+        "VARCHAR"
+       ],
+       [
+        "county_kana",
+        "VARCHAR"
+       ],
+       [
+        "county_roma",
+        "VARCHAR"
+       ],
+       [
+        "city",
+        "VARCHAR"
+       ],
+       [
+        "city_kana",
+        "VARCHAR"
+       ],
+       [
+        "city_roma",
+        "VARCHAR"
+       ],
+       [
+        "ward",
+        "VARCHAR"
+       ],
+       [
+        "ward_kana",
+        "VARCHAR"
+       ],
+       [
+        "ward_roma",
+        "VARCHAR"
+       ],
+       [
+        "name",
+        "VARCHAR"
+       ],
+       [
+        "name_roma",
+        "VARCHAR"
+       ],
+       [
+        "efct_date",
+        "VARCHAR"
+       ],
+       [
+        "rep_lon",
+        "DOUBLE"
+       ],
+       [
+        "rep_lat",
+        "DOUBLE"
+       ],
+       [
+        "population",
+        "BIGINT"
+       ],
+       [
+        "households",
+        "BIGINT"
+       ],
+       [
+        "small_areas",
+        "BIGINT"
+       ],
+       [
+        "geometry_source",
+        "VARCHAR"
+       ],
+       [
+        "geometry",
+        "GEOMETRY('EPSG:4612')"
+       ],
+       [
+        "bbox",
+        "STRUCT(xmin DOUBLE, ymin DOUBLE, xmax DOUBLE, ymax DOUBLE)"
+       ]
+      ]
+     }
     },
     {
      "name": "prefectures",
@@ -116,7 +226,57 @@
        "name": "population",
        "meaning": "2020 年国勢調査の人口。市区町村の ward is null の行の合計と一致する"
       }
-     ]
+     ],
+     "schema": {
+      "measured_by": "Geo-Voyager",
+      "measured_on": "2026-10-13",
+      "columns": [
+       [
+        "pref_code",
+        "VARCHAR"
+       ],
+       [
+        "pref",
+        "VARCHAR"
+       ],
+       [
+        "pref_kana",
+        "VARCHAR"
+       ],
+       [
+        "pref_roma",
+        "VARCHAR"
+       ],
+       [
+        "municipalities",
+        "BIGINT"
+       ],
+       [
+        "rep_lon",
+        "DOUBLE"
+       ],
+       [
+        "rep_lat",
+        "DOUBLE"
+       ],
+       [
+        "population",
+        "BIGINT"
+       ],
+       [
+        "households",
+        "BIGINT"
+       ],
+       [
+        "geometry",
+        "GEOMETRY('EPSG:4612')"
+       ],
+       [
+        "bbox",
+        "STRUCT(xmin DOUBLE, ymin DOUBLE, xmax DOUBLE, ymax DOUBLE)"
+       ]
+      ]
+     }
     }
    ]
   },
@@ -209,7 +369,77 @@
        "name": "geometry",
        "meaning": "lon と lat から作った点 (OGC:CRS84)"
       }
-     ]
+     ],
+     "schema": {
+      "measured_by": "Geo-Voyager",
+      "measured_on": "2026-10-13",
+      "columns": [
+       [
+        "station_cd",
+        "INTEGER"
+       ],
+       [
+        "station_g_cd",
+        "INTEGER"
+       ],
+       [
+        "station_name",
+        "VARCHAR"
+       ],
+       [
+        "station_name_k",
+        "VARCHAR"
+       ],
+       [
+        "station_name_r",
+        "VARCHAR"
+       ],
+       [
+        "line_cd",
+        "INTEGER"
+       ],
+       [
+        "pref_cd",
+        "INTEGER"
+       ],
+       [
+        "post",
+        "VARCHAR"
+       ],
+       [
+        "address",
+        "VARCHAR"
+       ],
+       [
+        "lon",
+        "DOUBLE"
+       ],
+       [
+        "lat",
+        "DOUBLE"
+       ],
+       [
+        "open_ymd",
+        "VARCHAR"
+       ],
+       [
+        "close_ymd",
+        "VARCHAR"
+       ],
+       [
+        "e_status",
+        "INTEGER"
+       ],
+       [
+        "e_sort",
+        "INTEGER"
+       ],
+       [
+        "geometry",
+        "GEOMETRY('OGC:CRS84')"
+       ]
+      ]
+     }
     },
     {
      "name": "line",
@@ -233,7 +463,65 @@
        "name": "lon",
        "meaning": "路線全体を地図に収める中心の経度であって、路線の位置ではない。lat、zoom も同じ"
       }
-     ]
+     ],
+     "schema": {
+      "measured_by": "Geo-Voyager",
+      "measured_on": "2026-10-13",
+      "columns": [
+       [
+        "line_cd",
+        "INTEGER"
+       ],
+       [
+        "company_cd",
+        "INTEGER"
+       ],
+       [
+        "line_name",
+        "VARCHAR"
+       ],
+       [
+        "line_name_k",
+        "VARCHAR"
+       ],
+       [
+        "line_name_h",
+        "VARCHAR"
+       ],
+       [
+        "line_color_c",
+        "VARCHAR"
+       ],
+       [
+        "line_color_t",
+        "VARCHAR"
+       ],
+       [
+        "line_type",
+        "INTEGER"
+       ],
+       [
+        "lon",
+        "DOUBLE"
+       ],
+       [
+        "lat",
+        "DOUBLE"
+       ],
+       [
+        "zoom",
+        "INTEGER"
+       ],
+       [
+        "e_status",
+        "INTEGER"
+       ],
+       [
+        "e_sort",
+        "INTEGER"
+       ]
+      ]
+     }
     },
     {
      "name": "company",
@@ -248,7 +536,53 @@
        "name": "company_type",
        "meaning": "0 がその他、1 が JR、2 が大手私鉄、3 が準大手私鉄"
       }
-     ]
+     ],
+     "schema": {
+      "measured_by": "Geo-Voyager",
+      "measured_on": "2026-10-13",
+      "columns": [
+       [
+        "company_cd",
+        "INTEGER"
+       ],
+       [
+        "rr_cd",
+        "INTEGER"
+       ],
+       [
+        "company_name",
+        "VARCHAR"
+       ],
+       [
+        "company_name_k",
+        "VARCHAR"
+       ],
+       [
+        "company_name_h",
+        "VARCHAR"
+       ],
+       [
+        "company_name_r",
+        "VARCHAR"
+       ],
+       [
+        "company_url",
+        "VARCHAR"
+       ],
+       [
+        "company_type",
+        "INTEGER"
+       ],
+       [
+        "e_status",
+        "INTEGER"
+       ],
+       [
+        "e_sort",
+        "INTEGER"
+       ]
+      ]
+     }
     },
     {
      "name": "join",
@@ -268,7 +602,25 @@
         "station.station_cd"
        ]
       }
-     ]
+     ],
+     "schema": {
+      "measured_by": "Geo-Voyager",
+      "measured_on": "2026-10-13",
+      "columns": [
+       [
+        "line_cd",
+        "INTEGER"
+       ],
+       [
+        "station_cd1",
+        "INTEGER"
+       ],
+       [
+        "station_cd2",
+        "INTEGER"
+       ]
+      ]
+     }
     },
     {
      "name": "pref",
@@ -277,7 +629,21 @@
      "rows": 48,
      "id": [
       "pref_cd"
-     ]
+     ],
+     "schema": {
+      "measured_by": "Geo-Voyager",
+      "measured_on": "2026-10-13",
+      "columns": [
+       [
+        "pref_cd",
+        "INTEGER"
+       ],
+       [
+        "pref_name",
+        "VARCHAR"
+       ]
+      ]
+     }
     }
    ]
   },
@@ -347,7 +713,105 @@
        "name": "sum",
        "meaning": "そのラスターの画素の合計 (人数の推計)。解像度と性別で絞らないと重なる"
       }
-     ]
+     ],
+     "schema": {
+      "measured_by": "Geo-Voyager",
+      "measured_on": "2026-10-13",
+      "columns": [
+       [
+        "project",
+        "VARCHAR"
+       ],
+       [
+        "year",
+        "BIGINT"
+       ],
+       [
+        "resolution",
+        "VARCHAR"
+       ],
+       [
+        "sex",
+        "VARCHAR"
+       ],
+       [
+        "age_from",
+        "BIGINT"
+       ],
+       [
+        "level",
+        "BIGINT"
+       ],
+       [
+        "raw_path",
+        "VARCHAR"
+       ],
+       [
+        "raw_bytes",
+        "BIGINT"
+       ],
+       [
+        "raw_sha256",
+        "VARCHAR"
+       ],
+       [
+        "cog_path",
+        "VARCHAR"
+       ],
+       [
+        "cog_bytes",
+        "BIGINT"
+       ],
+       [
+        "cog_sha256",
+        "VARCHAR"
+       ],
+       [
+        "width",
+        "BIGINT"
+       ],
+       [
+        "height",
+        "BIGINT"
+       ],
+       [
+        "data_type",
+        "VARCHAR"
+       ],
+       [
+        "nodata",
+        "DOUBLE"
+       ],
+       [
+        "valid_pixels",
+        "BIGINT"
+       ],
+       [
+        "sum",
+        "DOUBLE"
+       ],
+       [
+        "source_url",
+        "VARCHAR"
+       ],
+       [
+        "source_last_modified",
+        "VARCHAR"
+       ],
+       [
+        "release",
+        "VARCHAR"
+       ],
+       [
+        "version",
+        "VARCHAR"
+       ],
+       [
+        "doi",
+        "VARCHAR"
+       ]
+      ]
+     }
     },
     {
      "name": "population_100m_2020",

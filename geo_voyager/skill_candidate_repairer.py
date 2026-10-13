@@ -12,6 +12,7 @@ from .repair_context import attempt_history_text, failing_line_excerpt
 from .llama_client import LlamaClient
 from .services import load_service_graph
 from .skill_candidate import SkillCandidate
+from .contracts import primitive_contract
 from .skill_candidate_generator import _parse_candidate, named_inputs
 
 
@@ -60,14 +61,7 @@ class SkillCandidateRepairer:
             'API/service を勝手に追加しない。hardcoded answer を入れない。\n'
             '完全な Candidate を再出力する。explanation/chat は不要。\n'
             '標準 Python と登録済み Primitive のみ使用。外部 URL へ直接アクセスしない。\n'
-            'Control Primitive contract（geo_voyager.control_primitives から明示的に import）:\n'
-            'connect_duckdb(): DuckDB connection。\n'
-            'load_admin_units(connection, area=None): relation(code5,name,population,geometry)。area="東京都23区" 対応。\n'
-            'load_stations(connection): relation(station_cd,station_g_cd,line_cd,name,status,latitude,longitude,geometry)。1駅が路線ごとに1行。\n'
-            'sum_population_grid(connection, zones): zones の geometry 以外の列と estimated_population（WorldPop の2020年100m推計人口）。\n'
-            'geometry は OGC:CRS84。relation どうしの結合は connection.sql で、変数名を表として書く。geometry は返り値に入れない。\n'
-            'call_service(service_id, *, path="", params=None, body=None, content_type=None) -> str。'
-            'params は dict[str,str]、body=None は GET、それ以外は POST。body は str のまま渡す。encode して bytes にしてはいけない。返答は text。JSON は json.loads。\n'
+            + primitive_contract(intent) +
             '元のコードが関数だけでできていれば、その形を保つ: import と関数の定義だけを書き、関数を呼ぶ行や print は書かない（実行環境が最後の関数を呼び、戻り値を JSON で出力する）。'
             '結果は return で返す。関数名と引数は変えない。環境変数・秘密情報を出力しない。\n'
             '出力形式のみ:\n説明:\n<description>\n---\nコード:\n```python\n<complete code>\n```\n\n'
