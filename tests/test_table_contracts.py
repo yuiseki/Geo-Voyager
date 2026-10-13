@@ -34,3 +34,9 @@ def test_a_raster_is_read_by_the_zonal_sum_not_by_read_table():
 
 def test_the_contract_fits_beside_the_rest_of_the_prompt():
     assert len(table_contract(('yuiseki/jp-admin-2026-09', 'yuiseki/ekidata-jp'))) < 4500
+
+
+def test_a_join_key_says_how_to_cast_it_and_a_column_how_a_value_is_missing():
+    text = table_contract(('yuiseki/ekidata-jp',))
+    assert 'cast(pref_cd as integer)' in text                                   # pref_code is a 2-digit string there
+    assert "'0000-00-00'" in text                                                 # open_ymd with no date

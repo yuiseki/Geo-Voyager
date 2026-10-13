@@ -19,12 +19,14 @@ _SHORT_TYPES = {'VARCHAR': 'VARCHAR', 'INTEGER': 'INTEGER', 'BIGINT': 'BIGINT', 
 
 def _table_text(dataset_id: str, table: dict) -> str:
     meanings = {key['column']: key['meaning'] for key in table.get('join_keys', [])}
-    meanings.update({column['name']: column['meaning'] for column in table.get('columns', [])})
+    meanings.update({column['name']: column['meaning'] + (f"。欠損: {column['missing']}" if column.get('missing') else '')
+                     for column in table.get('columns', [])})
     lines = [f'read_table(connection, "{dataset_id}", "{table["name"]}"): 1 行は{table["grain"]}。']
     if table.get('id'):
         lines[0] += f'ID: {", ".join(table["id"])}。'
     if table.get('join_keys'):
-        lines.append('  結合キー: ' + '、'.join(f'{key["column"]}（→ {", ".join(key.get("joins", []))}）'
+        lines.append('  結合キー: ' + '、'.join(f'{key["column"]}（→ {", ".join(key.get("joins", []))}'
+                                               + (f'。{key["cast"]}' if key.get('cast') else '') + '）'
                                                for key in table['join_keys']))
     if table.get('no_key'):
         lines.append('  持たないキー: ' + '、'.join(f'{key["name"]}（{key["note"]}）' for key in table['no_key']))

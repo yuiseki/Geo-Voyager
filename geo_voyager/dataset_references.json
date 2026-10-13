@@ -1,7 +1,7 @@
 {
  "source": {
   "repository": "https://github.com/yuiseki/GeoAI-skills",
-  "commit": "d8ad17f58c47bb01a7909a0e4688b22ef4244b3d",
+  "commit": "4e6c446b0d5704e6d857bca53737bcf69c4d92e7",
   "paths": {
    "yuiseki/jp-admin-2026-09": ".agents/skills/dataset-discovery/references/jp-admin-2026-09.md",
    "yuiseki/ekidata-jp": ".agents/skills/dataset-discovery/references/ekidata-jp.md",
@@ -46,20 +46,22 @@
      "join_keys": [
       {
        "column": "code5",
+       "type": "VARCHAR",
        "meaning": "5 桁の市区町村コード。区は区のコードを持つ",
        "unique": true,
        "joins": [
         "mlit-toshi-keikaku-jp:*.Citycode"
        ],
-       "note": 1,
-       "918 行で重複が無い (実測)。全国の合計を取るときは、親と区が重なるので ward is null に絞る": null
+       "note": "1,918 行で重複が無い (実測)。全国の合計を取るときは、親と区が重なるので ward is null に絞る"
       },
       {
        "column": "pref_code",
+       "type": "VARCHAR",
        "meaning": "2 桁の都道府県コード (文字列)",
        "joins": [
         "ekidata-jp:station.pref_cd (整数。型を揃える)"
-       ]
+       ],
+       "cast": "ekidata-jp の pref_cd は整数。cast(pref_code as integer) で揃える"
       }
      ],
      "no_key": [
@@ -71,35 +73,46 @@
      "columns": [
       {
        "name": "lg_code",
+       "type": "VARCHAR",
        "meaning": "地方公共団体コード 6 桁 (住所基盤登録簿)"
       },
       {
        "name": "name",
+       "type": "VARCHAR",
        "meaning": "市区町村名。区は 浜松市中央区 のように市名つき"
       },
       {
        "name": "ward",
+       "type": "VARCHAR",
        "meaning": "政令指定都市の区の名前。親の市の行では空"
       },
       {
        "name": "population",
-       "meaning": "2020 年国勢調査の人口 (小地域の合計)。推計ではない。空は調べていないこと"
+       "type": "BIGINT",
+       "meaning": "2020 年国勢調査の人口 (小地域の合計)。推計ではない。空は調べていないこと",
+       "missing": "NULL は調べていない (9 行。北方領土の 6 村と浜松市の新しい 3 区)。0 ではない"
       },
       {
        "name": "households",
-       "meaning": "2020 年国勢調査の世帯数"
+       "type": "BIGINT",
+       "meaning": "2020 年国勢調査の世帯数",
+       "missing": "NULL は調べていない (9 行)"
       },
       {
        "name": "geometry_source",
+       "type": "VARCHAR",
        "meaning": "面の出所。census small areas、union of its wards、none"
       },
       {
        "name": "rep_lon",
+       "type": "DOUBLE",
        "meaning": "住所基盤登録簿の代表点の経度。rep_lat が緯度"
       },
       {
        "name": "geometry",
-       "meaning": "市区町村の面 (EPSG:4612)。海を含まない"
+       "type": "geometry:EPSG:4612",
+       "meaning": "市区町村の面 (EPSG:4612)。海を含まない",
+       "missing": "NULL は面が無い (9 行)"
       }
      ],
      "schema": {
@@ -224,7 +237,9 @@
      "columns": [
       {
        "name": "population",
-       "meaning": "2020 年国勢調査の人口。市区町村の ward is null の行の合計と一致する"
+       "type": "BIGINT",
+       "meaning": "2020 年国勢調査の人口。市区町村の ward is null の行の合計と一致する",
+       "missing": "欠損なし (47 行すべてに値がある)"
       }
      ],
      "schema": {
@@ -318,6 +333,7 @@
      "join_keys": [
       {
        "column": "station_g_cd",
+       "type": "INTEGER",
        "meaning": "路線が違っても同じ駅とみなす駅のグループ",
        "unique": false,
        "joins": [
@@ -326,6 +342,7 @@
       },
       {
        "column": "line_cd",
+       "type": "INTEGER",
        "meaning": "路線のコード",
        "joins": [
         "line.line_cd",
@@ -334,11 +351,13 @@
       },
       {
        "column": "pref_cd",
+       "type": "INTEGER",
        "meaning": "都道府県コード (整数 1 から 47)",
        "joins": [
         "pref.pref_cd",
         "jp-admin-2026-09:municipalities.pref_code (型を揃える)"
-       ]
+       ],
+       "cast": "jp-admin-2026-09 の pref_code は 2 桁の文字列。cast(pref_cd as integer) と、cast(pref_code as integer) で揃える"
       }
      ],
      "no_key": [
@@ -354,19 +373,23 @@
      "columns": [
       {
        "name": "e_status",
+       "type": "INTEGER",
        "meaning": "0 が運行中、1 が未開業、2 が廃止"
       },
       {
        "name": "lon",
+       "type": "DOUBLE",
        "meaning": "経度 (世界測地系。WGS 84 として読む)。lat が緯度"
       },
       {
        "name": "open_ymd",
-       "meaning": "開業日。0000-00-00 は日付なし (10",
-       "584 駅)": null
+       "type": "VARCHAR",
+       "meaning": "開業日。0000-00-00 は日付なし (10,584 駅)",
+       "missing": "'0000-00-00' は日付なし (10,962 駅のうち 10,584 駅)"
       },
       {
        "name": "geometry",
+       "type": "geometry:OGC:CRS84",
        "meaning": "lon と lat から作った点 (OGC:CRS84)"
       }
      ],
@@ -452,6 +475,7 @@
      "join_keys": [
       {
        "column": "company_cd",
+       "type": "INTEGER",
        "meaning": "事業者のコード",
        "joins": [
         "company.company_cd"
@@ -461,6 +485,7 @@
      "columns": [
       {
        "name": "lon",
+       "type": "DOUBLE",
        "meaning": "路線全体を地図に収める中心の経度であって、路線の位置ではない。lat、zoom も同じ"
       }
      ],
@@ -534,6 +559,7 @@
      "columns": [
       {
        "name": "company_type",
+       "type": "INTEGER",
        "meaning": "0 がその他、1 が JR、2 が大手私鉄、3 が準大手私鉄"
       }
      ],
@@ -597,6 +623,7 @@
      "join_keys": [
       {
        "column": "station_cd1",
+       "type": "INTEGER",
        "meaning": "隣り合う駅の片方 (station_cd2 がもう片方)",
        "joins": [
         "station.station_cd"
@@ -684,6 +711,7 @@
      "join_keys": [
       {
        "column": "cog_path",
+       "type": "VARCHAR",
        "meaning": "COG のパス (同じデータセット内の cog/ 以下)",
        "joins": [
         "同じデータセットのファイル"
@@ -699,18 +727,24 @@
      "columns": [
       {
        "name": "project",
+       "type": "VARCHAR",
        "meaning": "製品。Population、Age and Sex Structures、Degree of Urbanisation"
       },
       {
        "name": "resolution",
-       "meaning": "解像度 (100m か 1km)。都市化度は空"
+       "type": "VARCHAR",
+       "meaning": "解像度 (100m か 1km)。都市化度は空",
+       "missing": "NULL は解像度を持たない製品 (都市化度の 32 行)"
       },
       {
        "name": "sex",
-       "meaning": "female、male、total。年齢性別の製品だけ。足すときは total だけにする"
+       "type": "VARCHAR",
+       "meaning": "female、male、total。年齢性別の製品だけ。足すときは total だけにする",
+       "missing": "NULL は性別を持たない製品 (総人口 32 行と都市化度 32 行)"
       },
       {
        "name": "sum",
+       "type": "DOUBLE",
        "meaning": "そのラスターの画素の合計 (人数の推計)。解像度と性別で絞らないと重なる"
       }
      ],
@@ -818,7 +852,15 @@
      "read": "https://huggingface.co/datasets/yuiseki/worldpop-jp-2026-01/resolve/main/cog/GIS/Population/Global_2015_2030/R2025A/2020/JPN/v1/100m/constrained/jpn_pop_2020_CN_100m_R2025A_v1.tif",
      "grain": "1 画素 (約 100 m) の推計人口。float32、欠損値は -99999",
      "rows": null,
-     "id": []
+     "id": [],
+     "columns": [
+      {
+       "name": "value",
+       "type": "float32",
+       "meaning": "1 画素 (約 100 m) の推計人口 (人数)",
+       "missing": -99999
+      }
+     ]
     }
    ]
   }
