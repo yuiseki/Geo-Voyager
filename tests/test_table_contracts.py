@@ -46,3 +46,10 @@ def test_a_table_split_by_a_column_says_to_filter_on_it():
     text = table_contract(('yuiseki/jp-admin-2026-09',))
     assert 'pref_code ごとに 47 の塊' in text
     assert '30 秒' in text
+
+
+def test_a_column_note_is_shown_even_for_the_geometry():
+    # Measured in GeoAI-skills (2026-10-14): neighbouring boundaries overlap, and ST_Touches misses 8 in 10 pairs.
+    text = table_contract(('yuiseki/jp-admin-2026-09',))
+    assert 'geometry（' in text
+    assert 'ST_Intersects' in text

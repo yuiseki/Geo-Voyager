@@ -20,7 +20,10 @@ _SHORT_TYPES = {'VARCHAR': 'VARCHAR', 'INTEGER': 'INTEGER', 'BIGINT': 'BIGINT', 
 def _table_text(dataset_id: str, table: dict) -> str:
     meanings = {key['column']: key['meaning'] for key in table.get('join_keys', [])}
     meanings.update({column['name']: column['meaning'] + (f"。欠損: {column['missing']}" if column.get('missing') else '')
+                     + (f"。注意: {column['note']}" if column.get('note') else '')
                      for column in table.get('columns', [])})
+    # A geometry column's meaning is left out (the type says it), unless it carries a note on how to use it.
+    noted = {column['name'] for column in table.get('columns', []) if column.get('note')}
     lines = [f'read_table(connection, "{dataset_id}", "{table["name"]}"): 1 行は{table["grain"]}。']
     if table.get('id'):
         lines[0] += f'ID: {", ".join(table["id"])}。'
@@ -33,7 +36,7 @@ def _table_text(dataset_id: str, table: dict) -> str:
     columns = table['schema']['columns']
     lines.append('  列: ' + ', '.join(f'{name} {"GEOMETRY" if kind.startswith("GEOMETRY") else kind}'
                                      for name, kind in columns))
-    described = [f'{name}（{meanings[name]}）' for name, kind in columns if name in meanings and not kind.startswith('GEOMETRY')]
+    described = [f'{name}（{meanings[name]}）' for name, kind in columns if name in meanings and (not kind.startswith('GEOMETRY') or name in noted)]
     if described:
         lines.append('  列の意味: ' + '、'.join(described))
     split_by = table['schema'].get('split_by')
