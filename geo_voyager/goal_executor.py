@@ -69,7 +69,8 @@ class GoalExecutor:
     def execute_adaptive(self, goal: str, *, max_steps: int = DEFAULT_MAX_STEPS,
                          max_attempts_per_intent: int = DEFAULT_MAX_ATTEMPTS_PER_INTENT,
                          max_planner_failures: int = DEFAULT_MAX_PLANNER_FAILURES,
-                         max_final_critic_failures: int = DEFAULT_MAX_FINAL_CRITIC_FAILURES) -> AdaptiveGoalExecution:
+                         max_final_critic_failures: int = DEFAULT_MAX_FINAL_CRITIC_FAILURES,
+                         memory: str | None = None) -> AdaptiveGoalExecution:
         """Run a Goal one step at a time. After each step the Planner decides the next Intent, or DONE.
 
         The full plan is not used. Three kinds of setback do not end the Goal; each is recorded in the history so
@@ -90,7 +91,7 @@ class GoalExecutor:
             # is taken: a last step that printed the answer should not end the Goal as max_steps.
             last_call = len(history) >= max_steps
             try:
-                decision = self.planner.next(goal, history)
+                decision = self.planner.next(goal, history, **({'memory': memory} if memory else {}))
             except PlannerRejected as rejected:
                 history.append(PlannerFailure(rejected.reason, rejected.reply, len(history)))
                 if last_call:

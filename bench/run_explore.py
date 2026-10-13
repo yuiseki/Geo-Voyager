@@ -21,6 +21,7 @@ import sys
 import time
 
 from bench.adaptive_trace import trace_events, trace_steps
+from bench.exploration_memory import memories_from
 from bench.infra import benchmark_environment, environment_problem
 from bench.run_goals import logged_llm
 from geo_voyager.critic import Critic
@@ -54,7 +55,7 @@ def propose(curriculum: Curriculum, findings: list[dict], attempts: list[dict]):
 
 
 def explore_one(number: int, out: Path, names, library: SkillLibrary, embedding: EmbeddingClient,
-                world: WorldGraph, exploration: Path, given: ProposedGoal | None = None) -> dict | None:
+                world: WorldGraph, exploration: Path, given: ProposedGoal | None = None, memory: str | None = None) -> dict | None:
     directory = out / f'{number:03d}'
     directory.mkdir(parents=True, exist_ok=False)
     llm = logged_llm(directory)
@@ -66,7 +67,7 @@ def explore_one(number: int, out: Path, names, library: SkillLibrary, embedding:
                               SkillCandidateGenerator(llm), critic, library, SkillCandidateRepairer(llm))
     started = time.time()
     try:
-        result = GoalExecutor(Planner(llm), executor, critic).execute_adaptive(proposed.goal)
+        result = GoalExecutor(Planner(llm), executor, critic).execute_adaptive(proposed.goal, memory=memory)
     except Exception as problem:
         # One Goal that breaks (a model call that times out, say) is recorded as tried and the exploration goes on.
         result = None
@@ -77,7 +78,7 @@ def explore_one(number: int, out: Path, names, library: SkillLibrary, embedding:
                'stop_reason': result.stop_reason if result is not None else 'error',
                'reason': result.critique.reason if result is not None else error,
                'steps': len(result.history) if result is not None else None,
-               'elapsed': round(time.time() - started, 1), 'explored_at': at}
+               'elapsed': round(time.time() - started, 1), 'explored_at': at, 'memory': memory is not None}
     with exploration.open('a') as file:
         file.write(json.dumps(attempt, ensure_ascii=False) + '\n')
     if result is None:
@@ -108,7 +109,9 @@ def main() -> None:
     which = parser.add_mutually_exclusive_group(required=True)
     which.add_argument('--goals', type=int, help='how many Goals to explore in this run')
     which.add_argument('--replay', help='a file of Goals, one per line, explored in order instead of asking the curriculum')
+    parser.add_argument('--remember', help="an earlier run's --out: a Goal it did not answer is given the record of that try")
     args = parser.parse_args()
+    memories = memories_from(args.remember) if args.remember else {}
     replayed = ([ProposedGoal(line.strip(), 'replay') for line in Path(args.replay).read_text().splitlines() if line.strip()]
                 if args.replay else None)
     out = Path(args.out).expanduser()
@@ -130,8 +133,9 @@ def main() -> None:
             if problem:
                 print(number, f'| stopped: the environment is gone: {problem}', flush=True)
                 sys.exit(1)
+            given = replayed[index] if replayed else None
             attempt = explore_one(number, out, names, SkillLibrary(shared), embedding, world, exploration,
-                                  replayed[index] if replayed else None)
+                                  given, memories.get(given.goal) if given else None)
             if attempt is None:
                 print(number, '| the curriculum gave no usable Goal', flush=True)
                 continue
