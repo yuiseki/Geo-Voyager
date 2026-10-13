@@ -70,31 +70,15 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -q -W error
 
 ## Goal 全体の計画（plan_goal）
 
-`Planner.plan(goal: str)` (or `plan_goal`) decomposes a Goal into ordered,
-strictly parsed Intents using registered Dataset/Service metadata. The original
-`plan(Question)` API still returns Hypotheses. `GoalExecutor` executes the plan
-sequentially, stops on a failed step, and applies final Critic to all accumulated measurements and the final answer.
-Each later Intent receives earlier Observations as `previous_observations`;
-Worker exposes their text as `list[str]` and the current `intent_text` in the
-container. Generated/reused code reads these runtime values, rather than fixing
-previous answers into its source. No geographic decomposition is hardcoded.
-
-
-Goal plans contain only `調査項目`, `利用データセット`, and `利用サービス`.
-Lists accept registered IDs or `[]`; unknown IDs and extra fields fail explicitly.
-Blocks are separated by `---` or by the next unambiguous `調査項目:` header.
-A local aggregation can declare both lists empty, but is valid only after an
-external step. Such an Intent has `requires_context=True`; Worker and Executor
-require actual previous Observations before execution. External reads still
-require registered resources. The original Intent validation stays unchanged
-for Intents without that explicit context requirement.
-
-Generator/Repairer see the shape of previous JSON outputs, not answer values.
-The sandbox supplies the actual `previous_observations` and `intent_text` at
-runtime. A collection-measurement Skill chooses its target from these runtime
-inputs, so later positional Intents can reuse the same saved code. Critic receives
-the prior data and a mechanically resolved list-position reference, so it does
-not have to recount a long JSON list to identify the requested target. Required
-entity IDs and expected collection cardinality must be verified rather than
-replaced by placeholder values. Protocol/schema contracts stay in Service
-metadata; `call_service` remains a generic Gateway client.
+- `Planner.plan(goal: str)`（または `plan_goal`）は、登録した Dataset とサービスの説明を使って、Goal を順番つきの Intent に分ける。応答は厳密に読む。`plan(Question)` は、今も Hypothesis を返す。
+- `GoalExecutor.execute` は計画を順に実行し、失敗した step で止まる。最後に、集めた測定と最後の答えのすべてに最終 Critic をかける。
+- 後の Intent は、前の Observation を `previous_observations` として受け取る。Worker はその本文を `list[str]` として、今の `intent_text` と一緒にコンテナに渡す。生成したコードや再利用するコードは、前の答えをソースに書き込まず、この実行時の値を読む。地理的な分け方はコードに書き込んでいない。
+- 計画に書けるのは `調査項目`、`利用データセット`、`利用サービス` だけ。
+  - 一覧には登録した ID か `[]` を書く。未知の ID と余分な欄は、明示的に失敗にする。
+  - ブロックは `---` か、次の `調査項目:` で区切る。
+- ローカル集計（外部を読まず、前の結果だけを使う Intent）は、両方の一覧を空にできる。ただし、外部を読む step の後でなければならない。
+  - この Intent は `requires_context=True` を持ち、Worker と Executor は実行の前に、実際の前の Observation があることを求める。
+  - 外部を読む Intent には、今までどおり登録したリソースが要る。
+- Generator と repair が見るのは、前の JSON 出力の形で、答えの値は見せない。
+- 前の結果の中の対象は、一覧の位置ではなく、名前と安定 ID で選ぶ（[pipeline.md](pipeline.md) の「対象の識別」）。必須の ID や一覧の件数は確かめ、仮の値で埋めない。
+- プロトコルとスキーマの契約はサービスの説明に置き、`call_service` は汎用の Gateway クライアントのままにする。
