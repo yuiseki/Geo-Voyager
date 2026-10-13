@@ -13,6 +13,7 @@ from .verdict import Verdict
 from .services import load_service_graph
 from .target_identity import resolve_reference
 from .target_ref import TargetRef
+from .dataset_references import planner_text
 from .datasets import load_dataset_graph, load_readable_dataset_graph
 
 
@@ -278,14 +279,18 @@ class Planner:
         return Verdict("仮説はまだ十分に検証されていない")
 
     @staticmethod
-    def _resource_text(datasets, services, *, full: bool = False) -> str:
+    def _resource_text(datasets, services, *, full: bool = False, measured: bool = False) -> str:
         """The resources as the prompt lists them. The first-plan prompt shows the first two sentences of a service.
 
         With full the whole description is shown, so the Planner knows what each service can do. It does not need the
         endpoint or the parameters to write an Intent, but a model that sees only a piece of the description makes the
         rest up.
         """
-        resources = '\n'.join(f'Dataset {item.id}: {item.description}' for item in datasets.all())
+        # With measured, a dataset is described by its measured reference (dataset_references); the step-by-step
+        # route and the curriculum, which see only the datasets the sandbox can read, use it. The first-plan route
+        # keeps the catalog's description.
+        resources = '\n'.join(f'Dataset {item.id}: {planner_text(item.id) if measured else item.description}'
+                               for item in datasets.all())
         resources += '\n' + '\n'.join(
             f'Service {item.id}: {item.protocol}: ' + (item.description if full else '。'.join(item.description.split('。')[:2]))
             for item in services.all())
@@ -325,7 +330,7 @@ class Planner:
             + 'DONE とだけ返すか、次の Intent を以下の形式で1件だけ返す。複数返さない。前置き、番号、コードフェンス禁止。\n'
             + '調査項目: 調査内容\n結果名: 結果の名前\n入力:\n  - 使う結果名\n利用データセット: []\n利用サービス:\n  - 登録済みid\n対象: 名前\n'
             + '入力、利用データセット、利用サービスは空なら []、非空なら半角2空白の - の行を続ける。「対象:」は対象を測る Intent だけが付ける。\n'
-            + f'INPUT: 利用可能リソース:\n{self._resource_text(datasets, services, full=True)}\nGoal:\n{goal}\n履歴:\n{render_history(history)}\n'
+            + f'INPUT: 利用可能リソース:\n{self._resource_text(datasets, services, full=True, measured=True)}\nGoal:\n{goal}\n履歴:\n{render_history(history)}\n'
             + 'OUTPUT: DONE、または調査項目、結果名、入力、利用データセット、利用サービス、必要なら対象の行だけ。INPUT のメタデータを繰り返さない。'
         )
         text = self.llm_client.generate(

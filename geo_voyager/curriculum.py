@@ -63,7 +63,7 @@ class Curriculum:
             'Goal には何を知りたいかだけを書く。API のパスやパラメータ、コードは書かない。\n'
             + (f'{note}\n' if note else '')
             + '返答は次の2行だけ。前置き、番号、コードフェンス禁止。\nGoal: 問いの本文\n理由: この問いを選んだ理由（これまでの発見とのつながり）\n'
-            + f'INPUT: 利用可能リソース:\n{Planner._resource_text(load_readable_dataset_graph(), load_service_graph(), full=True)}\n'
+            + f'INPUT: 利用可能リソース:\n{Planner._resource_text(load_readable_dataset_graph(), load_service_graph(), full=True, measured=True)}\n'
             + f'リソースを使った発見の数: {_usage(findings)}\n'
             + f'まだ使っていないリソース: {_unused(findings)}\n'
             + f'これまでの発見:\n{known}'

@@ -1,0 +1,362 @@
+{
+ "source": {
+  "repository": "https://github.com/yuiseki/GeoAI-skills",
+  "commit": "d8ad17f58c47bb01a7909a0e4688b22ef4244b3d",
+  "paths": {
+   "yuiseki/jp-admin-2026-09": ".agents/skills/dataset-discovery/references/jp-admin-2026-09.md",
+   "yuiseki/ekidata-jp": ".agents/skills/dataset-discovery/references/ekidata-jp.md",
+   "yuiseki/worldpop-jp-2026-01": ".agents/skills/dataset-discovery/references/worldpop/japan.md"
+  }
+ },
+ "datasets": {
+  "yuiseki/jp-admin-2026-09": {
+   "kind": "dataset",
+   "id": "yuiseki/jp-admin-2026-09",
+   "description": "日本の 47 都道府県と 1,918 市区町村の名前、コード、面、2020 年国勢調査の人口と世帯数を結んだもの。市区町村より細かい単位は無い。",
+   "url": "https://huggingface.co/datasets/yuiseki/jp-admin-2026-09",
+   "card_revision": "e6c87b1d7095c17422147962185071a986e13135",
+   "license": "CC-BY-4.0",
+   "formats": [
+    "GeoParquet 1.1"
+   ],
+   "crs": "EPSG:4612",
+   "spatial_coverage": "日本 47 都道府県、1,918 市区町村。面、人口、世帯数が空の自治体が 9 ある",
+   "temporal_coverage": "名前とコードは 2026-09、面と人口と世帯数は 2020 年国勢調査",
+   "as_of": {
+    "names_and_codes": "2026-09",
+    "boundaries_and_counts": "2020-10-01"
+   },
+   "contents": [
+    "行政区域の名前とコード",
+    "代表点",
+    "行政区域の面",
+    "人口",
+    "世帯数"
+   ],
+   "tables": [
+    {
+     "name": "municipalities",
+     "read": "hf://datasets/yuiseki/jp-admin-2026-09/municipalities.parquet",
+     "grain": "1 つの市区町村。政令指定都市は、親の市と、その区が別の行になる (171 区)",
+     "rows": 1918,
+     "id": [
+      "lg_code",
+      "code5"
+     ],
+     "join_keys": [
+      {
+       "column": "code5",
+       "meaning": "5 桁の市区町村コード。区は区のコードを持つ",
+       "unique": true,
+       "joins": [
+        "mlit-toshi-keikaku-jp:*.Citycode"
+       ],
+       "note": 1,
+       "918 行で重複が無い (実測)。全国の合計を取るときは、親と区が重なるので ward is null に絞る": null
+      },
+      {
+       "column": "pref_code",
+       "meaning": "2 桁の都道府県コード (文字列)",
+       "joins": [
+        "ekidata-jp:station.pref_cd (整数。型を揃える)"
+       ]
+      }
+     ],
+     "no_key": [
+      {
+       "name": "osm_id",
+       "note": "OpenStreetMap とは ID で結べない。コードか空間結合で結ぶ"
+      }
+     ],
+     "columns": [
+      {
+       "name": "lg_code",
+       "meaning": "地方公共団体コード 6 桁 (住所基盤登録簿)"
+      },
+      {
+       "name": "name",
+       "meaning": "市区町村名。区は 浜松市中央区 のように市名つき"
+      },
+      {
+       "name": "ward",
+       "meaning": "政令指定都市の区の名前。親の市の行では空"
+      },
+      {
+       "name": "population",
+       "meaning": "2020 年国勢調査の人口 (小地域の合計)。推計ではない。空は調べていないこと"
+      },
+      {
+       "name": "households",
+       "meaning": "2020 年国勢調査の世帯数"
+      },
+      {
+       "name": "geometry_source",
+       "meaning": "面の出所。census small areas、union of its wards、none"
+      },
+      {
+       "name": "rep_lon",
+       "meaning": "住所基盤登録簿の代表点の経度。rep_lat が緯度"
+      },
+      {
+       "name": "geometry",
+       "meaning": "市区町村の面 (EPSG:4612)。海を含まない"
+      }
+     ]
+    },
+    {
+     "name": "prefectures",
+     "read": "hf://datasets/yuiseki/jp-admin-2026-09/prefectures.parquet",
+     "grain": "1 つの都道府県",
+     "rows": 47,
+     "id": [
+      "pref_code"
+     ],
+     "columns": [
+      {
+       "name": "population",
+       "meaning": "2020 年国勢調査の人口。市区町村の ward is null の行の合計と一致する"
+      }
+     ]
+    }
+   ]
+  },
+  "yuiseki/ekidata-jp": {
+   "kind": "dataset",
+   "id": "yuiseki/ekidata-jp",
+   "description": "駅データ.jp 無料版の、鉄道事業者、路線、駅 (座標つき)、路線上の隣り合う駅、都道府県の表。日付ごとの版に分けた型つき Parquet。",
+   "url": "https://huggingface.co/datasets/yuiseki/ekidata-jp",
+   "card_revision": "a33321099406b47338be0d03a4887059473fde0c",
+   "license": "駅データ.jp の利用規約 (https://ekidata.jp/agreement.php)。改変しない再配布は無償のときだけ",
+   "formats": [
+    "CSV",
+    "Parquet",
+    "GeoParquet 1.0"
+   ],
+   "crs": "OGC:CRS84",
+   "spatial_coverage": "日本全国。無料版は新幹線の駅を含まない",
+   "temporal_coverage": "取得は 2026-10-05。収録版は 2025-05-23 から 2026-09-14。最新の駅の版は 2026-07-31。都道府県の表は日付なし",
+   "as_of": {
+    "fetched": "2026-10-05",
+    "latest_station_edition": "2026-07-31"
+   },
+   "contents": [
+    "鉄道事業者",
+    "路線",
+    "駅と座標",
+    "路線上の隣り合う駅",
+    "都道府県の表"
+   ],
+   "tables": [
+    {
+     "name": "station",
+     "read": "hf://datasets/yuiseki/ekidata-jp/parquet/2026-10-05/station.2026-07-31.parquet",
+     "grain": "路線ごとの 1 駅。乗換駅は路線の数だけ行がある",
+     "rows": 10962,
+     "id": [
+      "station_cd"
+     ],
+     "join_keys": [
+      {
+       "column": "station_g_cd",
+       "meaning": "路線が違っても同じ駅とみなす駅のグループ",
+       "unique": false,
+       "joins": [
+        "station.station_g_cd"
+       ]
+      },
+      {
+       "column": "line_cd",
+       "meaning": "路線のコード",
+       "joins": [
+        "line.line_cd",
+        "join.line_cd"
+       ]
+      },
+      {
+       "column": "pref_cd",
+       "meaning": "都道府県コード (整数 1 から 47)",
+       "joins": [
+        "pref.pref_cd",
+        "jp-admin-2026-09:municipalities.pref_code (型を揃える)"
+       ]
+      }
+     ],
+     "no_key": [
+      {
+       "name": "code5",
+       "note": "市区町村コードは持たない。市区町村とは点の空間結合で結ぶ"
+      },
+      {
+       "name": "osm_id",
+       "note": "OpenStreetMap とは ID で結べない"
+      }
+     ],
+     "columns": [
+      {
+       "name": "e_status",
+       "meaning": "0 が運行中、1 が未開業、2 が廃止"
+      },
+      {
+       "name": "lon",
+       "meaning": "経度 (世界測地系。WGS 84 として読む)。lat が緯度"
+      },
+      {
+       "name": "open_ymd",
+       "meaning": "開業日。0000-00-00 は日付なし (10",
+       "584 駅)": null
+      },
+      {
+       "name": "geometry",
+       "meaning": "lon と lat から作った点 (OGC:CRS84)"
+      }
+     ]
+    },
+    {
+     "name": "line",
+     "read": "hf://datasets/yuiseki/ekidata-jp/parquet/2026-10-05/line.2026-06-18.parquet",
+     "grain": "1 路線",
+     "rows": 624,
+     "id": [
+      "line_cd"
+     ],
+     "join_keys": [
+      {
+       "column": "company_cd",
+       "meaning": "事業者のコード",
+       "joins": [
+        "company.company_cd"
+       ]
+      }
+     ],
+     "columns": [
+      {
+       "name": "lon",
+       "meaning": "路線全体を地図に収める中心の経度であって、路線の位置ではない。lat、zoom も同じ"
+      }
+     ]
+    },
+    {
+     "name": "company",
+     "read": "hf://datasets/yuiseki/ekidata-jp/parquet/2026-10-05/company.2026-04-09.parquet",
+     "grain": "1 つの鉄道事業者",
+     "rows": 175,
+     "id": [
+      "company_cd"
+     ],
+     "columns": [
+      {
+       "name": "company_type",
+       "meaning": "0 がその他、1 が JR、2 が大手私鉄、3 が準大手私鉄"
+      }
+     ]
+    },
+    {
+     "name": "join",
+     "read": "hf://datasets/yuiseki/ekidata-jp/parquet/2026-10-05/join.2026-09-14.parquet",
+     "grain": "ある路線の上で隣り合う 2 つの駅の組",
+     "rows": 10188,
+     "id": [
+      "line_cd",
+      "station_cd1",
+      "station_cd2"
+     ],
+     "join_keys": [
+      {
+       "column": "station_cd1",
+       "meaning": "隣り合う駅の片方 (station_cd2 がもう片方)",
+       "joins": [
+        "station.station_cd"
+       ]
+      }
+     ]
+    },
+    {
+     "name": "pref",
+     "read": "hf://datasets/yuiseki/ekidata-jp/parquet/2026-10-05/pref.parquet",
+     "grain": "1 つの都道府県。コード 99 の「その他」を含む",
+     "rows": 48,
+     "id": [
+      "pref_cd"
+     ]
+    }
+   ]
+  },
+  "yuiseki/worldpop-jp-2026-01": {
+   "kind": "dataset",
+   "id": "yuiseki/worldpop-jp-2026-01",
+   "description": "WorldPop R2025A の日本の人口ラスターの原本と、値を変えない COG。国勢調査ではなく推計と予測。",
+   "url": "https://huggingface.co/datasets/yuiseki/worldpop-jp-2026-01",
+   "card_revision": "cb54e5985662c617a235278bc3529cc172e6368c",
+   "license": "CC-BY-4.0 (製品ごとの DOI で引用する)",
+   "formats": [
+    "GeoTIFF",
+    "Cloud Optimized GeoTIFF",
+    "Parquet"
+   ],
+   "crs": "EPSG:4326",
+   "spatial_coverage": "日本全国",
+   "temporal_coverage": "2015 から 2030 年の推計と予測。版 R2025A (原本の更新は 2025-07 から 2026-01)",
+   "as_of": {
+    "release": "R2025A",
+    "fetched": "2026-09-28"
+   },
+   "contents": [
+    "100 m と 1 km の総人口",
+    "1 km の年齢と性別の人口",
+    "都市化度",
+    "ラスターのファイルの一覧"
+   ],
+   "tables": [
+    {
+     "name": "files",
+     "read": "hf://datasets/yuiseki/worldpop-jp-2026-01/parquet/files.parquet",
+     "grain": "1 つのラスターファイル (製品、年、解像度、性別、年齢階級の組)",
+     "rows": 1024,
+     "id": [
+      "raw_path"
+     ],
+     "join_keys": [
+      {
+       "column": "cog_path",
+       "meaning": "COG のパス (同じデータセット内の cog/ 以下)",
+       "joins": [
+        "同じデータセットのファイル"
+       ]
+      }
+     ],
+     "no_key": [
+      {
+       "name": "code5",
+       "note": "市区町村コードは持たない。市区町村へは、画素の合計をゾーナル統計で集める"
+      }
+     ],
+     "columns": [
+      {
+       "name": "project",
+       "meaning": "製品。Population、Age and Sex Structures、Degree of Urbanisation"
+      },
+      {
+       "name": "resolution",
+       "meaning": "解像度 (100m か 1km)。都市化度は空"
+      },
+      {
+       "name": "sex",
+       "meaning": "female、male、total。年齢性別の製品だけ。足すときは total だけにする"
+      },
+      {
+       "name": "sum",
+       "meaning": "そのラスターの画素の合計 (人数の推計)。解像度と性別で絞らないと重なる"
+      }
+     ]
+    },
+    {
+     "name": "population_100m_2020",
+     "read": "https://huggingface.co/datasets/yuiseki/worldpop-jp-2026-01/resolve/main/cog/GIS/Population/Global_2015_2030/R2025A/2020/JPN/v1/100m/constrained/jpn_pop_2020_CN_100m_R2025A_v1.tif",
+     "grain": "1 画素 (約 100 m) の推計人口。float32、欠損値は -99999",
+     "rows": null,
+     "id": []
+    }
+   ]
+  }
+ }
+}
