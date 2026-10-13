@@ -159,3 +159,19 @@ def test_a_census_population_is_read_from_the_boundaries_and_an_estimate_only_wh
     by_id = {item.id: item.description for item in CATALOG}
     assert 'population は2020年国勢調査の人口' in by_id['yuiseki/jp-admin-2026-09']
     assert 'WorldPop・推計を名指ししない人口は' in by_id['yuiseki/worldpop-jp-2026-01']
+
+
+def test_the_boundaries_say_the_23_wards_are_read_at_once():
+    # Stage 1 on the development Goals: only the GeoSPARQL description said it held all 23 wards, and the first step of
+    # Goals on the census population or on stations in each ward was a GeoSPARQL list the boundaries make needless.
+    from geo_voyager.datasets import CATALOG
+    by_id = {item.id: item.description for item in CATALOG}
+    assert '東京23区の23区の名前・人口・境界は、この Dataset から1回で読める' in by_id['yuiseki/jp-admin-2026-09']
+
+
+def test_the_boundaries_say_their_id_is_the_municipal_code_and_not_an_osm_relation():
+    # Stage 1 after the sentence above: four first steps asked the boundaries for each ward's OSM relation_id,
+    # which they do not have.
+    from geo_voyager.datasets import CATALOG
+    by_id = {item.id: item.description for item in CATALOG}
+    assert '区域の ID は行政コード code5 で、OSM の relation_id は持たない' in by_id['yuiseki/jp-admin-2026-09']

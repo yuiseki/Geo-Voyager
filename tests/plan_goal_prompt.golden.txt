@@ -25,7 +25,7 @@ Goal を小さい調査 Intent に分解してください。1 Intent = 1 measur
 INPUT: 利用可能リソース:
 Dataset yuiseki/osm-japan-src-2026-08: OpenStreetMap の2026-08-31 planet から切り出した日本の固定スナップショット。
 Dataset yuiseki/mlit-toshi-keikaku-jp: 国土交通省の都市計画決定GISデータを層別に再形式化。参考情報で、決定範囲は概略。
-Dataset yuiseki/jp-admin-2026-09: デジタル庁のアドレス・ベース・レジストリと e-Stat の2020年国勢調査小地域境界を結合・集約。population は2020年国勢調査の人口。
+Dataset yuiseki/jp-admin-2026-09: デジタル庁のアドレス・ベース・レジストリと e-Stat の2020年国勢調査小地域境界を結合・集約。population は2020年国勢調査の人口。東京23区の23区の名前・人口・境界は、この Dataset から1回で読める。区域の ID は行政コード code5 で、OSM の relation_id は持たない。
 Dataset yuiseki/ekidata-jp: 株式会社バリューアンドビジョンの駅データ.jp無料版CSVと、その型付きParquet・駅位置。
 Dataset yuiseki/worldpop-jp-2026-01: WorldPop R2025A の日本人口ラスター原本と、画素値を保持したCOG変換版。国勢調査値ではなく推計・予測。実行環境で読めるのは2020年の100m総人口（constrained）だけで、sum_population_grid が、渡した区域（load_admin_units の境界など）ごとに画素を足した推計人口を返す。Goal が WorldPop・推計を名指ししない人口は、yuiseki/jp-admin-2026-09 の国勢調査人口を使う。
 Service overpass: overpass: 既存 planet DB の read-only OSM 検索。GET /api/interpreter は params の data に QL、POST text/plain は body に QL

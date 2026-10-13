@@ -37,7 +37,7 @@ CATALOG = (
     Dataset(
         id="yuiseki/jp-admin-2026-09",
         description=("デジタル庁のアドレス・ベース・レジストリと e-Stat の2020年国勢調査小地域境界を結合・集約。"
-                     "population は2020年国勢調査の人口。"),
+                     "population は2020年国勢調査の人口。東京23区の23区の名前・人口・境界は、この Dataset から1回で読める。区域の ID は行政コード code5 で、OSM の relation_id は持たない。"),
         url="https://huggingface.co/datasets/yuiseki/jp-admin-2026-09",
         license="CC-BY-4.0",
         formats=("GeoParquet 1.1",),
