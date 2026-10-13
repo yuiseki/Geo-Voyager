@@ -5,7 +5,7 @@ MineDojo/Voyager の automatic curriculum と Skill library を、地理空間�
 目標は、[study-geoai-algo-py](https://github.com/yuiseki/study-geoai-algo-py) の水準の分析を、ローカル LLM だけで行えるようにすること。
 
 - LLM: 自前の llama.cpp（`gvt-llm`、`http://10.108.45.102:8080/v1/chat/completions`）。structured output は使わない。
-- embedding: 自前の llama.cpp（`granite-embedding`、`http://10.105.167.163:8080`）。
+- embedding: 常駐の EmbeddingGemma 2（`embeddinggemma`、`http://localhost:30194`、768 次元）。Skill の検索に使う。
 - 生成コードは Docker sandbox で実行し、外へは Gateway だけを通す（[ADR 0001](docs/ADR/0001-sandbox-and-gateway.md)）。地理サービスは自前のものだけを使う（[ADR 0002](docs/ADR/0002-self-hosted-services-only.md)）。
 
 ## 仕組み
@@ -46,7 +46,7 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 .venv/bin/python -m pytest tests -q -W error
 ## 探索を流す
 
 ```bash
-GEO_VOYAGER_EMBEDDING_BASE_URL=http://10.105.167.163:8080 GEO_VOYAGER_EMBEDDING_MODEL=granite-embedding \
+GEO_VOYAGER_EMBEDDING_BASE_URL=http://localhost:30194 GEO_VOYAGER_EMBEDDING_MODEL=embeddinggemma \
   PYTHONPATH=. .venv/bin/python -u -m bench.run_explore \
   --out ~/tmp/geo-voyager-bench/NAME --library ~/tmp/geo-voyager-bench/NAME_library --goals 30
 ```

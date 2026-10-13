@@ -18,7 +18,7 @@ Goal
     ├ Planner.next(goal, history) -> Intent | DONE       geo_voyager/planner.py
     │    履歴（GoalHistory）を読んで次の Intent を 1 件決める。対象は「対象:」、出力の名前は「結果名:」、使う前の結果は「入力:」
     ├ IntentExecutor.execute(intent)                     geo_voyager/intent_executor.py
-    │    ├ SkillRetriever                 近い Skill（名前付き関数）を検索（embedding: granite-embedding）
+    │    ├ SkillRetriever                 近い Skill（名前付き関数）を検索（embedding: embeddinggemma）
     │    ├ SkillCandidateGenerator        Skill を呼んでよいコードを生成（新しい関数は 1 つまで）
     │    ├ Worker -> DockerSandbox        呼ぶ Skill をリンクして sandbox で実行（Gateway 経由でのみ外部へ、既定 30 秒）
     │    ├ SkillCandidateRepairer         実行が失敗したら traceback を見て直す（最大 2 回）

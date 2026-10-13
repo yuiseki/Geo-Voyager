@@ -1,5 +1,7 @@
 # 自由な探索
 
+> 2026-10-13 の注記: Skill の検索の embedding は、2 回目までは embeddinggemma、3 回目から 10 回目までは granite-embedding だった（各回の Library に保存された embedding のモデル名で確かめた）。2026-10-10 に embeddinggemma へ切り替えると決めていたのに、3 回目から古い設定で流していた。9 回目と 10 回目は同じ granite-embedding なので、その 2 回の比較はこの取り違えの影響を受けない。
+
 22 Goal のベンチの正解は 19〜21 件で止まった（[2026-10-10_adaptive_shared_library.md](2026-10-10_adaptive_shared_library.md)）。
 そこで、残りの 1〜2 件を追うのはやめ、決まった Goal を解く方式から、モデルが自分で問いを立てて世界を探索する方式に切り替えた。
 Voyager の automatic curriculum に当たるものを足し、答えが出た問いを World Graph に積む（[0003-three-graphs-and-skill-library.md](../ADR/0003-three-graphs-and-skill-library.md)）。

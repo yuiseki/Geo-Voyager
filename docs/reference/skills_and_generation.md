@@ -97,13 +97,15 @@ EmbeddingClient は Skill の説明と Intent の文の embedding に使いま�
 from geo_voyager.embedding_client import EmbeddingClient
 
 client = EmbeddingClient(
-    base_url="http://10.105.167.163:8080",
-    model="granite-embedding",
+    base_url="http://localhost:30194",
+    model="embeddinggemma",
 )
 vectors = client.embed(["人口が最も多い区を調べる。", "人口が最も少ない区を調べる。"])
 ```
 
-2026-10-08に既存 `default/embedding-server` を読み取り専用で確認しました。
+検索に使うのは、2026-10-10 から常駐の EmbeddingGemma 2（`default/embeddinggemma`、NodePort 30194、model `embeddinggemma`、768 次元）です。granite-embedding より、地物を数える Skill を上位 4 件に入れる率が高かった（3 周目の記録で 9 / 10 と 4 / 10。[2026-10-10_adaptive_shared_library.md](../reports/2026-10-10_adaptive_shared_library.md)）。Skill の embedding はモデル名と一緒に保存し、モデルが違えば作り直します（`skill_retriever.py`）。
+
+以下は、それ以前に使っていた granite-embedding の確認の記録です。2026-10-08に既存 `default/embedding-server` を読み取り専用で確認しました。
 model alias は `granite-embedding`、モデル実体は
 `granite-embedding-97m-multilingual-r2.f16.gguf`（pooling cls）です。
 実 endpoint は `http://10.105.167.163:8080/v1/embeddings` でした。
@@ -113,8 +115,8 @@ unit test は HTTP を mock にします。integration は明示実行し、
 次の環境変数がない場合は skip します。環境変数はテストが constructor に渡すためのものです。
 
 ```bash
-GEO_VOYAGER_EMBEDDING_BASE_URL=http://10.105.167.163:8080 \
-GEO_VOYAGER_EMBEDDING_MODEL=granite-embedding \
+GEO_VOYAGER_EMBEDDING_BASE_URL=http://localhost:30194 \
+GEO_VOYAGER_EMBEDDING_MODEL=embeddinggemma \
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest integration/test_embedding_llama.py -q -s -W error
 ```
 
