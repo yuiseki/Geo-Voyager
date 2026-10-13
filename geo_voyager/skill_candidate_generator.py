@@ -2,6 +2,7 @@
 from .id_type_literals import id_type_comparisons
 from .intent import Intent
 from .local_aggregation_contract import local_aggregation_violations
+from .background_facts import facts_section
 from .table_contracts import table_contract
 from .skill_candidate import entry_problems, main_function_name, rewritten_skills, service_calls, skill_shape_problems, unpassed_runtime_reads, called_service_ids, intent_element_type, overpass_element_mismatch, read_datasets, calls_any, DATASET_READERS_NOTE
 from .place_names import place_words_in
@@ -259,6 +260,7 @@ class SkillCandidateGenerator:
             '                              "JOIN stations s ON ST_Within(s.geometry, w.geometry) GROUP BY w.name").fetchall()\n'
             '        # Intent に必要な操作をして、結果を return する（この例は区ごとの駅の数）\n\n'
             + skill_rules(intent) +
+            facts_section(intent.text) +
             f'Intent:\n{intent.text}\n\n利用する Dataset ids:\n{datasets}\n\n'
             + RESPONSE_FORMAT
         )
