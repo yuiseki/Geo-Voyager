@@ -25,6 +25,7 @@ def test_client_posts_free_text_prompt_and_returns_content():
         "messages": [
             {"role": "user", "content": "疑問から仮説を提案してください"}
         ],
+        "cache_prompt": False,
     }
 
 
@@ -114,3 +115,15 @@ def test_a_finished_reply_is_returned_when_truncation_is_refused():
     with patch('geo_voyager.llama_client.urlopen') as opened:
         opened.return_value.__enter__.return_value = _replying('stop')
         assert LlamaClient().generate('p', refuse_truncated=True) == 'def f('
+
+
+def test_the_prompt_cache_is_never_reused():
+    # Measured 2026-10-14 on gvt-llm: the same prompt at temperature 0 gave the same reply twice, then a different one
+    # after another prompt with the same prefix had been served. With cache_prompt false it gave the same reply all
+    # three times. Reusing part of a cached prompt changes how the rest is batched, and so the numbers.
+    response = MagicMock()
+    response.read.return_value = b'{"choices":[{"message":{"content":"code"}}]}'
+    with patch('geo_voyager.llama_client.urlopen') as opened:
+        opened.return_value.__enter__.return_value = response
+        LlamaClient().generate('code please', temperature=0.0)
+        assert json.loads(opened.call_args.args[0].data)['cache_prompt'] is False

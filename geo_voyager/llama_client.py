@@ -4,6 +4,9 @@ from urllib.request import Request, urlopen
 # Code generation has a long tail with Qwen3.8-27B: median 19 s, p99 107 s, and some calls over 120 s, which ended
 # the whole Goal. Measured from the exploration logs of 2026-10-11.
 TIMEOUT_SECONDS = 300
+# Temperature 0 repeats only when the server does not reuse a cached prompt prefix: after another prompt with the same
+# prefix, the same prompt got a different reply (measured on gvt-llm, 2026-10-14). The cost is the prefix's prefill.
+CACHE_PROMPT = False
 
 
 class LlamaTruncated(ValueError):
@@ -22,6 +25,7 @@ class LlamaClient:
             payload['messages'].insert(0, {'role': 'system', 'content': system_prompt})
         if assistant_prefix is not None:
             payload['messages'].append({'role': 'assistant', 'content': assistant_prefix})
+        payload['cache_prompt'] = CACHE_PROMPT
         if temperature is not None:
             payload['temperature'] = temperature
         if enable_thinking is not None:
