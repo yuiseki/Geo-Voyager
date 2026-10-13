@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from .dataset_graph import DatasetGraph
 from .goal_history import GoalHistory, render_history
 from .intent_text import api_details_in
+from .reference_checks import lacked_keys, unsourced_codes
 from .hypothesis import Hypothesis
 from .intent import Intent
 from .llama_client import LlamaClient
@@ -353,6 +354,15 @@ class Planner:
             if details:
                 raise ValueError(f'Intent の調査項目に API の詳細が書かれている: {", ".join(details)}。'
                                  '何を調べるかだけを書き、API のパスやパラメータは書かない。サービスの呼び方は実行側が決める')
+            lacked = lacked_keys(intent)
+            if lacked:
+                raise ValueError(f'{"。".join(lacked)}。その ID が要るなら、それを返すサービスを利用サービスに宣言するか、'
+                                 '前の結果を入力にする。要らないなら調査項目から外す')
+            sources = ' '.join([entry.intent.text for entry in history] + [observation.text for observation in history.observations()])
+            invented = unsourced_codes(intent, goal, sources)
+            if invented:
+                raise ValueError(f'Goal にも履歴にも無いコードや ID を書いた: {", ".join(invented)}。'
+                                 '地域や対象は名前か条件で書き、コードはデータから求める')
             return intent
         except (ValueError, KeyError) as problem:
             raise PlannerRejected(f'{type(problem).__name__}: {problem}', text) from problem
