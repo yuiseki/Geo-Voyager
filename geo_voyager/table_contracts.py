@@ -36,6 +36,10 @@ def _table_text(dataset_id: str, table: dict) -> str:
     described = [f'{name}（{meanings[name]}）' for name, kind in columns if name in meanings and not kind.startswith('GEOMETRY')]
     if described:
         lines.append('  列の意味: ' + '、'.join(described))
+    split_by = table['schema'].get('split_by')
+    if split_by:
+        lines.append(f'  読み方: 行は {split_by[0]} ごとに {table["schema"]["row_groups"]} の塊に分けて保存されている。'
+                     f'{split_by[0]} の条件を付けると、その塊だけを読む。付けないと全部を読み、実行の上限 30 秒を超えうる')
     area_table, areas = _AREAS_OF.get(dataset_id, (None, {}))
     if table['name'] == area_table:
         lines.append('  名前のついた地域: ' + '、'.join(f'{name}: filter("{condition}")' for name, condition in areas.items()))

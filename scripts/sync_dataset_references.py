@@ -9,7 +9,8 @@ sandbox can read, so that a run does not depend on another checkout and the comm
 
 A reference lists the main columns; the code needs every column's name and type. Those are measured here, from the
 Parquet footer of each table at the revision the sandbox reads (geo_voyager.dataset_tables), and kept as the
-table's "schema" with the date: not a fact of the reference, so it is marked as Geo-Voyager's measurement.
+table's "schema" with the date: not a fact of the reference, so it is marked as Geo-Voyager's measurement. So are
+the row groups and the columns the file is split by (geo_voyager.parquet_layout).
 """
 import datetime
 import json
@@ -48,6 +49,7 @@ def main() -> None:
             raise ValueError(f'{path} is about {datasets[dataset_id]["id"]}, not {dataset_id}')
     OUT.write_text(json.dumps({'source': {}, 'datasets': datasets}, ensure_ascii=False, default=str))
     from geo_voyager import dataset_tables
+    from geo_voyager.parquet_layout import split_columns
     import importlib
     import duckdb
     importlib.reload(dataset_tables)
@@ -58,8 +60,10 @@ def main() -> None:
         if url.endswith('.parquet'):
             table = next(t for t in datasets[dataset_id]['tables'] if t['name'] == table_name)
             columns = connection.execute(f"DESCRIBE SELECT * FROM read_parquet('{url}')").fetchall()
+            row_groups, split_by = split_columns(connection, url)
             table['schema'] = {'measured_by': 'Geo-Voyager', 'measured_on': measured,
-                               'columns': [[name, kind] for name, kind, *_ in columns]}
+                               'columns': [[name, kind] for name, kind, *_ in columns],
+                               'row_groups': row_groups, 'split_by': split_by}
     source = {'repository': 'https://github.com/yuiseki/GeoAI-skills', 'commit': commit,
               'paths': {dataset_id: DIRECTORY + path for dataset_id, path in REFERENCES.items()}}
     OUT.write_text(json.dumps({'source': source, 'datasets': datasets}, ensure_ascii=False, indent=1, default=str) + '\n')

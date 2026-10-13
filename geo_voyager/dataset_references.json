@@ -117,7 +117,7 @@
      ],
      "schema": {
       "measured_by": "Geo-Voyager",
-      "measured_on": "2026-10-13",
+      "measured_on": "2026-10-14",
       "columns": [
        [
         "lg_code",
@@ -223,6 +223,13 @@
         "bbox",
         "STRUCT(xmin DOUBLE, ymin DOUBLE, xmax DOUBLE, ymax DOUBLE)"
        ]
+      ],
+      "row_groups": 47,
+      "split_by": [
+       "pref_code",
+       "pref",
+       "pref_kana",
+       "pref_roma"
       ]
      }
     },
@@ -244,7 +251,7 @@
      ],
      "schema": {
       "measured_by": "Geo-Voyager",
-      "measured_on": "2026-10-13",
+      "measured_on": "2026-10-14",
       "columns": [
        [
         "pref_code",
@@ -290,6 +297,22 @@
         "bbox",
         "STRUCT(xmin DOUBLE, ymin DOUBLE, xmax DOUBLE, ymax DOUBLE)"
        ]
+      ],
+      "row_groups": 47,
+      "split_by": [
+       "pref_code",
+       "pref",
+       "pref_kana",
+       "pref_roma",
+       "municipalities",
+       "rep_lon",
+       "rep_lat",
+       "population",
+       "households",
+       "bbox, xmin",
+       "bbox, ymin",
+       "bbox, xmax",
+       "bbox, ymax"
       ]
      }
     }
@@ -395,7 +418,7 @@
      ],
      "schema": {
       "measured_by": "Geo-Voyager",
-      "measured_on": "2026-10-13",
+      "measured_on": "2026-10-14",
       "columns": [
        [
         "station_cd",
@@ -461,7 +484,9 @@
         "geometry",
         "GEOMETRY('OGC:CRS84')"
        ]
-      ]
+      ],
+      "row_groups": 1,
+      "split_by": []
      }
     },
     {
@@ -491,7 +516,7 @@
      ],
      "schema": {
       "measured_by": "Geo-Voyager",
-      "measured_on": "2026-10-13",
+      "measured_on": "2026-10-14",
       "columns": [
        [
         "line_cd",
@@ -545,7 +570,9 @@
         "e_sort",
         "INTEGER"
        ]
-      ]
+      ],
+      "row_groups": 1,
+      "split_by": []
      }
     },
     {
@@ -565,7 +592,7 @@
      ],
      "schema": {
       "measured_by": "Geo-Voyager",
-      "measured_on": "2026-10-13",
+      "measured_on": "2026-10-14",
       "columns": [
        [
         "company_cd",
@@ -607,7 +634,9 @@
         "e_sort",
         "INTEGER"
        ]
-      ]
+      ],
+      "row_groups": 1,
+      "split_by": []
      }
     },
     {
@@ -632,7 +661,7 @@
      ],
      "schema": {
       "measured_by": "Geo-Voyager",
-      "measured_on": "2026-10-13",
+      "measured_on": "2026-10-14",
       "columns": [
        [
         "line_cd",
@@ -646,7 +675,9 @@
         "station_cd2",
         "INTEGER"
        ]
-      ]
+      ],
+      "row_groups": 1,
+      "split_by": []
      }
     },
     {
@@ -659,7 +690,7 @@
      ],
      "schema": {
       "measured_by": "Geo-Voyager",
-      "measured_on": "2026-10-13",
+      "measured_on": "2026-10-14",
       "columns": [
        [
         "pref_cd",
@@ -669,7 +700,9 @@
         "pref_name",
         "VARCHAR"
        ]
-      ]
+      ],
+      "row_groups": 1,
+      "split_by": []
      }
     }
    ]
@@ -750,7 +783,7 @@
      ],
      "schema": {
       "measured_by": "Geo-Voyager",
-      "measured_on": "2026-10-13",
+      "measured_on": "2026-10-14",
       "columns": [
        [
         "project",
@@ -844,7 +877,9 @@
         "doi",
         "VARCHAR"
        ]
-      ]
+      ],
+      "row_groups": 1,
+      "split_by": []
      }
     },
     {
