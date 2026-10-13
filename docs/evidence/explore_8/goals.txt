@@ -1,0 +1,30 @@
+東京23区の2020年総人口は何人か
+東京23区の境界内にある railway=station の要素はいくつか
+東京駅と渋谷駅を pedestrian として Valhalla で結ぶ経路の距離は何 km か
+東京23区の2020年総人口と、東京23区境界内にある railway=station の要素数から、1駅あたり何人の2020年住民を平均で抱えるか何人か
+東京23区境界内にある railway=station の要素数と、OSMで highway の最も使用数多い value の使用数を比較し、その差は何件か
+東京23区内にある railway=station の駅名一覧を ekidata-jp から取得し、そのうち千代田区・中央区・港区・新宿区・渋谷区・品川区・大田区・世田谷区・中野区・杉並区・豊島区・目黒区・文京区・北区・荒川区・板橋区・練馬区・足立区・葛飾区・江戸川区・江東区・墨田区・台東区それぞれに何駅があるか数
+東京23区境界で geo:sfTouches により直接隣接する区対の合計数は何個か
+東京23区境界内にある railway=station の要素数を、OSMで railway=station の世界全体での使用総数に対する割合（%）として何%か
+東京23区境界内にある駅（ekidata-jp の駅位置情報で境界内）は何駅か
+東京23区境界で直接隣接する区対のうち、2020年総人口の合計が最大区対の合計人口は何人か
+東京23区境界内にある highway=footway の要素数は何件か
+東京23区境界で直接隣接する区対のうち2020年総人口の合計最大区対の両区の中心点を auto として結ぶ最短道路距離は何 km か
+東京23区境界で直接隣接する区対のうち、両区にある ekidata-jp 駅数の合計が最大区対の合計駅数は何駅か
+東京23区境界で直接隣接する区対のうち、2020年総人口の合計最大区対の両区中心点を pedestrian として結ぶ最短道路距離は何 km か
+東京23区境界内にある highway=cycleway の要素数を、東京23区境界内にある highway=footway の要素数に対する割合（%）として何%か
+東京23区境界内にある highway=cycleway の要素数と highway=footway の要素数の合計は何件か
+東京23区境界内にある amenity=pharmacy の要素数と amenity=clinic の要素数の合計は何件か
+東京23区境界で直接隣接する区対のうち、2020年総人口の合計が最大区対の両区の2020年総人口の差は何人か
+東京23区境界で直接隣接する区対のうち、2020年総人口の差が最大区対の両区中心点を pedestrian として結ぶ最短道路距離は何kmか
+東京23区境界内にある amenity=pharmacy の要素数と amenity=clinic の要素数の合計を、東京23区境界内にある railway=station の要素数に対する割合（%）として何%か
+東京23区境界内にある amenity=library の要素数と amenity=community_centre の要素数の合計は何件か
+東京23区境界内にある amenity=library の要素数と amenity=community_centre の要素数の合計を、東京23区境界内にある amenity=pharmacy の要素数と amenity=clinic の要素数の合計に対する割合（%）として何%か
+東京23区境界内にある railway=station の要素数と amenity=school の要素数の合計を、東京23区境界内にある amenity=library の要素数と amenity=community_centre の要素数の合計に対する割合（%）として何%か
+東京23区境界で直接隣接する区対のうち2020年総人口の合計が最大区対の両区にある railway=station 要素数の合計は何駅か
+東京23区のうち2020年総人口が最大の区について、その区境界内にある railway=station 要素数を10,000人当たり何駅か
+東京23区のうち2020年総人口が最大の区で，ekidata-jp 駅データに登録された駅数は何駅か
+東京23区境界で直接隣接する区対のうち2020年総人口の合計最大区対の両区中心点を pedestrian として結ぶ最短道路所要時間は何秒か
+東京23区内の東京駅と東京23区内の渋谷駅を pedestrian として結ぶ最短道路距離は何kmか
+東京23区境界内にある amenity=restaurant の要素数と amenity=cafe の要素数を、東京23区境界内にある railway=station 要素数に対する割合（%）として何%か
+東京23区境界内にある railway=station 要素のうち、amenity=cafe の要素数に対する割合（%）は何%か
