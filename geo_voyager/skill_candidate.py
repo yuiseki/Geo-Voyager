@@ -343,7 +343,7 @@ def service_calls(code: str) -> set[tuple[str, str]]:
 def rewritten_skills(code: str, skills) -> list:
     """The shown Skills the code does again instead of calling: it makes all of their service calls itself and
     does not call them. A local model shown get_relation_id wrote get_osm_relation_id_for_target, with the same
-    Nominatim search (docs/adaptive_shared_library.md)."""
+    Nominatim search (docs/reports/2026-10-10_adaptive_shared_library.md)."""
     mine = service_calls(code)
     if not mine:
         return []

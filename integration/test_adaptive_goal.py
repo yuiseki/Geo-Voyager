@@ -3,7 +3,7 @@
 The LLM is not deterministic, so this asserts what the route has to guarantee, not an exact plan: a target an
 earlier step made known is known to the Planner at a later step, and the Goal reaches DONE with an answer the
 independent oracle agrees with. It can still fail when the model writes a wrong candidate that the Critic
-accepts (once in the runs recorded in docs/observation_driven_recovery.md).
+accepts (once in the runs recorded in docs/reports/2026-10-09_observation_driven_recovery.md).
 """
 import os
 

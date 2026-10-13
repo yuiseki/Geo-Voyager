@@ -105,7 +105,7 @@ def passed_runtime_values(intent: Intent) -> tuple[str, ...]:
 def harness_section(intent: Intent) -> str:
     """What the environment does with the function, shown first. A probe of the local model found that it knew how
     its function is called and that a shown Skill can be called by name, but not that its function is saved and
-    called again by later Intents, nor how conditions reach a function (docs/harness_understanding.md)."""
+    called again by later Intents, nor how conditions reach a function (docs/reports/2026-10-10_harness_understanding.md)."""
     runtime = passed_runtime_values(intent)
     passed = ('実行環境が引数として渡すのは、この Intent では ' + '、'.join(runtime) + ' だけ。それ以外の引数には既定値を付ける。'
               if runtime else '実行環境はこの Intent では値を何も渡さない。引数には全て既定値を付ける。')
