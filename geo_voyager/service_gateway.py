@@ -25,8 +25,9 @@ def allowed_request(protocol: str, path: str, method: str) -> bool:
     return protocol == 'sparql' and path in ('/geo/sparql', '/geo/query')
 
 
-def make_handler(graph: ServiceGraph, datasets: DatasetGraph | None = None):
-    class ServiceHandler(dataset_handler(datasets if datasets is not None else DatasetGraph())):
+def make_handler(graph: ServiceGraph, datasets: DatasetGraph | None = None,
+                 tables: dict[tuple[str, str], str] | None = None):
+    class ServiceHandler(dataset_handler(datasets if datasets is not None else DatasetGraph(), tables)):
         def do_GET(self):
             if self.path.startswith('/datasets/'):
                 super().do_GET()

@@ -11,6 +11,10 @@ from geo_voyager.dataset_graph import DatasetGraph
 from geo_voyager.fetch_gateway import HubRedirect, make_handler
 
 
+TABLES = {("test/fixed", "rows"): "https://huggingface.co/datasets/test/fixed/resolve/abc/rows.parquet",
+          ("other/set", "lines"): "https://huggingface.co/datasets/other/set/resolve/def/lines.parquet"}
+
+
 @pytest.fixture
 def gateway():
     graph = DatasetGraph()
@@ -27,7 +31,7 @@ def gateway():
         upstream = build.return_value.open
         upstream.return_value.__enter__.return_value = response
         with patch.object(graph, "get", wraps=graph.get) as get:
-            server = HTTPServer(("127.0.0.1", 0), make_handler(graph))
+            server = HTTPServer(("127.0.0.1", 0), make_handler(graph, TABLES))
             thread = Thread(target=lambda: server.serve_forever(poll_interval=0.01), daemon=True)
             thread.start()
             try:
@@ -144,3 +148,21 @@ def test_gateway_prefers_registered_data_url_over_card_url(gateway):
     gateway[3].return_value = replace(graph_dataset, data_url="http://origin:8000/fixed.txt")
     assert request(gateway)[0] == 200
     assert gateway[1].call_args.args[0].full_url == "http://origin:8000/fixed.txt"
+
+
+def test_a_table_of_a_reference_is_read_from_its_pinned_url(gateway):
+    # ADR 0010: every table a dataset reference lists, not only the dataset's one data_url.
+    assert request(gateway, path="/datasets/test/fixed/rows")[::2] == (200, b"0123456789")
+    assert gateway[1].call_args.args[0].full_url == "https://huggingface.co/datasets/test/fixed/resolve/abc/rows.parquet"
+
+
+def test_a_table_of_a_dataset_that_is_not_in_the_catalog_is_served_too(gateway):
+    assert request(gateway, "HEAD", path="/datasets/other/set/lines")[0] == 200
+    assert gateway[1].call_args.args[0].full_url.endswith("/resolve/def/lines.parquet")
+
+
+@pytest.mark.parametrize("path", ["/datasets/test/fixed/missing", "/datasets/test/fixed/rows/../../x",
+                                  "/datasets/test/fixed/../other/set/lines", "/datasets/test/fixed/rows%2F..%2Fx"])
+def test_only_a_listed_table_is_served(gateway, path):
+    assert request(gateway, path=path)[0] == 404
+    gateway[1].assert_not_called()

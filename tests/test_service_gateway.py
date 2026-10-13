@@ -123,3 +123,19 @@ def test_registered_upstream_query_error_returns_bounded_diagnostic_without_redi
     assert status == 400 and b'Unknown output format count' in body
     assert len(body) <= 8192 and b'TOKEN=secret' not in body
     assert 'Location' not in headers
+
+
+def test_the_service_gateway_serves_the_tables_it_is_given():
+    from geo_voyager.dataset_tables import TABLE_URLS
+    response = MagicMock(status=200, headers={'Content-Length': '3'})
+    response.read.return_value = b'abc'
+    with patch('geo_voyager.fetch_gateway.build_opener') as opener:
+        opener.return_value.open.return_value.__enter__.return_value = response
+        server = HTTPServer(('127.0.0.1', 0), make_handler(load_service_graph(), tables=TABLE_URLS))
+        thread = Thread(target=lambda: server.serve_forever(poll_interval=0.01), daemon=True)
+        thread.start()
+        try:
+            assert request((server.server_port,), '/datasets/yuiseki/ekidata-jp/line')[::2] == (200, b'abc')
+            assert opener.return_value.open.call_args.args[0].full_url == TABLE_URLS[('yuiseki/ekidata-jp', 'line')]
+        finally:
+            server.shutdown(); thread.join(); server.server_close()

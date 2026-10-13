@@ -15,7 +15,7 @@ def gateway_code(*, with_datasets=False):
     names = ['__init__.py', 'dataset.py', 'dataset_graph.py', 'fetch_gateway.py',
              'service.py', 'service_graph.py', 'services.py', 'service_gateway.py', 'execution_failure.py']
     if with_datasets:
-        names.append('datasets.py')
+        names += ['datasets.py', 'dataset_tables.py', 'dataset_references.json']
     files = {name: (root / name).read_text() for name in names}
     return f'''
 from pathlib import Path
@@ -29,7 +29,7 @@ import time
 from geo_voyager.services import load_service_graph
 from geo_voyager.service_gateway import make_handler
 from http.server import HTTPServer
-datasets = None
+datasets, tables = None, None
 if {with_datasets!r}:
     while not Path('/tmp/start').exists():
         time.sleep(0.05)
@@ -37,7 +37,9 @@ if {with_datasets!r}:
     # The gateway follows the Hub's resolve/ redirect on every request: a signed CDN URL
     # fixed at start expires after an hour, which a slow round outlives.
     datasets = load_dataset_graph()
-class LoggedHandler(make_handler(load_service_graph(), datasets)):
+    # Every table the dataset references list, at its pinned revision (ADR 0010).
+    from geo_voyager.dataset_tables import TABLE_URLS as tables
+class LoggedHandler(make_handler(load_service_graph(), datasets, tables)):
     def send_response(self, code, message=None):
         print(self.command, self.path, code, flush=True)
         super().send_response(code, message)

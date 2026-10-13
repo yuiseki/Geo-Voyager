@@ -29,7 +29,11 @@ class HubRedirect(HTTPRedirectHandler):
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
-def make_handler(graph: DatasetGraph):
+def make_handler(graph: DatasetGraph, tables: dict[tuple[str, str], str] | None = None):
+    """GET and HEAD of /datasets/<dataset id> (the dataset's data_url) and of /datasets/<dataset id>/<table> (a table
+    the dataset references list, at its pinned URL: geo_voyager.dataset_tables.TABLE_URLS). Nothing else."""
+    tables = tables or {}
+
     class DatasetHandler(BaseHTTPRequestHandler):
         def do_GET(self):
             self._fetch("GET")
@@ -51,15 +55,18 @@ def make_handler(graph: DatasetGraph):
                 self.send_error(404)
                 return
             dataset_id = unquote(path.path.removeprefix("/datasets/"))
-            try:
-                dataset = graph.get(dataset_id)
-            except KeyError:
-                self.send_error(404, "Dataset is not registered")
-                return
+            url = tables.get(tuple(dataset_id.rsplit("/", 1))) if dataset_id.count("/") >= 2 else None
+            if url is None:
+                try:
+                    dataset = graph.get(dataset_id)
+                except KeyError:
+                    self.send_error(404, "Dataset or table is not registered")
+                    return
+                url = dataset.data_url or dataset.url
             headers = {}
             if method == "GET" and "Range" in self.headers:
                 headers["Range"] = self.headers["Range"]
-            request = Request(dataset.data_url or dataset.url, headers=headers, method=method)
+            request = Request(url, headers=headers, method=method)
             opener = build_opener(ProxyHandler({}), HubRedirect())
             try:
                 with opener.open(request, timeout=10) as response:
