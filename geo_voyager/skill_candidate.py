@@ -298,24 +298,45 @@ PRIMITIVE_DATASETS = {
 DATASET_READERS_NOTE = 'read_table（表）か sum_population_grid（人口格子）'
 
 
-def read_datasets(code: str) -> set[str] | None:
-    """The Datasets the code reads, by the primitives it calls. None if the code does not parse."""
+def read_datasets(code: str, passed_dataset: str | None = None) -> set[str] | None:
+    """The Datasets the code reads, by the primitives it calls. None if the code does not parse.
+
+    A Dataset is named by a string, by a module constant, or by a parameter: the dataset_id the environment passes
+    (passed_dataset) when there is one, else the parameter's default."""
     try:
         tree = ast.parse(code)
     except SyntaxError:
         return None
+    names = {target.id: node.value.value for node in tree.body if isinstance(node, ast.Assign)
+             and isinstance(node.value, ast.Constant) and isinstance(node.value.value, str)
+             for target in node.targets if isinstance(target, ast.Name)}
+    for function in ast.walk(tree):
+        if isinstance(function, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            arguments = function.args.args + function.args.kwonlyargs
+            defaults = [None] * (len(function.args.args) - len(function.args.defaults)) + function.args.defaults + function.args.kw_defaults
+            for argument, default in zip(arguments, defaults):
+                if argument.arg == 'dataset_id' and passed_dataset is not None:
+                    names[argument.arg] = passed_dataset
+                elif isinstance(default, ast.Constant) and isinstance(default.value, str):
+                    names[argument.arg] = default.value
+
+    def value(node):
+        if isinstance(node, ast.Constant):
+            return node.value
+        return names.get(node.id) if isinstance(node, ast.Name) else None
+
     read = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
             if node.func.id in PRIMITIVE_DATASETS:
                 read.add(PRIMITIVE_DATASETS[node.func.id])
-            elif node.func.id == 'dataset_url' and node.args and isinstance(node.args[0], ast.Constant):
-                read.add(node.args[0].value)
+            elif node.func.id == 'dataset_url' and node.args and value(node.args[0]) is not None:
+                read.add(value(node.args[0]))
             elif node.func.id == 'read_table':
                 named = {keyword.arg: keyword.value for keyword in node.keywords}
                 dataset = node.args[1] if len(node.args) > 1 else named.get('dataset_id')
-                if isinstance(dataset, ast.Constant):
-                    read.add(dataset.value)
+                if dataset is not None and value(dataset) is not None:
+                    read.add(value(dataset))
     return read
 
 

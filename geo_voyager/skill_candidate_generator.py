@@ -158,7 +158,7 @@ def dataset_problems(intent: Intent, code: str, shown: tuple[str, ...] = ()) -> 
     read. A saved Skill the code calls may be what reads a declared one.
 
     Round 7 on 27B: asked for the ekidata-jp stations in a ward, the code counted OSM nodes from Overpass instead."""
-    read = read_datasets(code)
+    read = read_datasets(code, intent.dataset_ids[0] if 'dataset_id' in passed_runtime_values(intent) else None)
     if read is None:
         return []
     problems = []

@@ -688,3 +688,38 @@ def test_the_datasets_read_through_read_table_are_those_it_names():
             'def lines():\n    """路線。"""\n    with connect_duckdb() as connection:\n'
             '        return read_table(connection, "yuiseki/ekidata-jp", "line").count("*").fetchone()[0]\n')
     assert read_datasets(code) == {'yuiseki/ekidata-jp'}
+
+
+# Memory run 1, goal 6: correct code that read the table through the dataset_id argument was refused five times as
+# "not reading the Dataset", because only a string written in the call counted.
+READ_BY_ARGUMENT = ('from geo_voyager.control_primitives import connect_duckdb, read_table\n\n'
+                    'def ward_population(dataset_id="yuiseki/jp-admin-2026-09", previous_observations=None, intent_text=None, results=None):\n'
+                    '    """区の人口。"""\n    with connect_duckdb() as connection:\n'
+                    '        return read_table(connection, dataset_id, "municipalities").fetchall()\n')
+
+
+def test_a_dataset_named_by_an_argument_default_is_read():
+    from geo_voyager.skill_candidate import read_datasets
+    assert read_datasets(READ_BY_ARGUMENT) == {'yuiseki/jp-admin-2026-09'}
+
+
+def test_the_dataset_id_the_environment_passes_wins_over_the_default():
+    from geo_voyager.skill_candidate import read_datasets
+    code = READ_BY_ARGUMENT.replace('dataset_id="yuiseki/jp-admin-2026-09"', 'dataset_id=None')
+    assert read_datasets(code) == set()
+    assert read_datasets(code, passed_dataset='yuiseki/jp-admin-2026-09') == {'yuiseki/jp-admin-2026-09'}
+
+
+def test_a_dataset_named_by_a_module_constant_is_read():
+    from geo_voyager.skill_candidate import read_datasets
+    code = READ_BY_ARGUMENT.replace('def ward_population(dataset_id="yuiseki/jp-admin-2026-09", ',
+                                    'ADMIN = "yuiseki/jp-admin-2026-09"\n\ndef ward_population(').replace(
+        'read_table(connection, dataset_id,', 'read_table(connection, ADMIN,')
+    assert read_datasets(code) == {'yuiseki/jp-admin-2026-09'}
+
+
+def test_contract_accepts_a_declared_dataset_read_through_the_passed_argument():
+    from geo_voyager.skill_candidate_generator import contract_problems
+    intent = Intent('23区の各区の人口', ('yuiseki/jp-admin-2026-09',))
+    for code in (READ_BY_ARGUMENT, READ_BY_ARGUMENT.replace('dataset_id="yuiseki/jp-admin-2026-09"', 'dataset_id=None')):
+        assert not any('Dataset' in found for found, _ in contract_problems(intent, code)), code
