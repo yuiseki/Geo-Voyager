@@ -15,7 +15,9 @@ from .skill_candidate import SkillCandidate
 from .skill_candidate_generator import _parse_candidate, named_inputs
 
 
-RESAMPLE_BASE_TEMPERATURE = 0.2
+# Zero, as everywhere in the loop: the same failure gets the same repair, so a run can be replayed and two runs
+# compared. A resample differs from the first ask by its note, not by chance.
+TEMPERATURE = 0.0
 UNCHANGED_NOTE = ('\n前回の出力は元のコードと同一だった。同一のコードは同じエラーを再現するだけである。'
                   '失敗した行を必ず書き換えること。\n')
 
@@ -81,12 +83,13 @@ class SkillCandidateRepairer:
             '最後の制約: 説明本文は元 description と同じ分析操作・対象範囲・出力を保つ。'
             '説明に SyntaxError やバグ修正の説明を書かない。元の分析を行う完全なコードを返す。空の結果を自分で raise した場合は直前の JSON の取り出し方を API contract と照合する。失敗の根本原因の行を実際に変更し、壊れた元コードをそのまま返さない。'
         )
-        repaired = self._generate(prompt, RESAMPLE_BASE_TEMPERATURE)
+        sent: dict[str, SkillCandidate] = {}
+        repaired = self._generate(prompt, sent)
         resamples = retries = 0
         while True:
             if resamples < self.max_resamples and _normalized(repaired.code) == _normalized(candidate.code):
                 resamples += 1
-                repaired = self._generate(prompt + UNCHANGED_NOTE, RESAMPLE_BASE_TEMPERATURE + 0.2 * resamples)
+                repaired = self._generate(prompt + UNCHANGED_NOTE, sent)
                 continue
             hidden = introduced_fallbacks(candidate.code, repaired.code, failure.stderr)
             guesses = id_type_comparisons(repaired.code) if intent.target is not None and intent.target.resolved else []
@@ -102,11 +105,18 @@ class SkillCandidateRepairer:
                 return candidate
             retries += 1
             repaired = self._generate(prompt + (_default_note(hidden) if hidden else '') + (_id_type_note(guesses) if guesses else ''),
-                                      RESAMPLE_BASE_TEMPERATURE + 0.2 * retries)
+                                      sent)
 
-    def _generate(self, prompt: str, temperature: float) -> SkillCandidate:
+    def _generate(self, prompt: str, sent: dict[str, SkillCandidate]) -> SkillCandidate:
+        """The repair for this prompt. A prompt already sent in this repair is not sent again: at temperature zero
+        the reply would be the same."""
+        if prompt not in sent:
+            sent[prompt] = self._ask(prompt)
+        return sent[prompt]
+
+    def _ask(self, prompt: str) -> SkillCandidate:
         return _parse_candidate(self.llm_client.generate(
-            prompt, temperature=temperature, enable_thinking=True, max_tokens=3072,
+            prompt, temperature=TEMPERATURE, enable_thinking=True, max_tokens=3072,
             reasoning_budget_tokens=1024, assistant_prefix='説明:\n', refuse_truncated=True,
             system_prompt=(
                 'You repair Python code. Fix the direct failure and preserve unrelated working code. '

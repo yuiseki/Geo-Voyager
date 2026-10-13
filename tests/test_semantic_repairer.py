@@ -107,3 +107,8 @@ def test_primitive_contract_is_the_same_text_the_runtime_repairer_uses():
     SkillCandidateRepairer(client).repair(Intent('件数', service_ids=('overpass',)), ORIGINAL,
                                           ExecutionFailure('failed', '', 'KeyError: 0', 73))
     assert PRIMITIVE_CONTRACT in client.generate.call_args.args[0]
+
+
+def test_the_repair_is_asked_at_zero_temperature():
+    _, client = repair()
+    assert client.generate.call_args.kwargs['temperature'] == 0.0

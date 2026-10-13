@@ -187,12 +187,12 @@ def test_service_generator_requires_explicit_primitive_import_and_discovery_outp
     assert 'Return discovered keys/values' in prompt
 
 
-def test_service_candidate_generation_uses_low_temperature_sampling():
+def test_service_candidate_generation_uses_zero_temperature():
     client = Mock()
     client.generate.return_value = VALID
     SkillCandidateGenerator(client).generate(Intent('サービスを調べる', service_ids=('taginfo',)))
     kwargs = client.generate.call_args.kwargs
-    assert kwargs['temperature'] == 0.2 and kwargs['enable_thinking'] is True
+    assert kwargs['temperature'] == 0.0 and kwargs['enable_thinking'] is True
     assert kwargs['system_prompt'].startswith('You are a precise Python programmer')
 
 
@@ -670,3 +670,11 @@ def test_contract_refuses_code_that_does_not_read_a_declared_dataset_even_withou
             '        return load_stations(connection).count("*").fetchone()[0]\n')
     both = Intent('区ごとの駅の数', ('yuiseki/ekidata-jp', 'yuiseki/jp-admin-2026-09'))
     assert any('yuiseki/jp-admin-2026-09' in found for found, _ in contract_problems(both, code))
+
+
+def test_dataset_candidate_generation_uses_zero_temperature_too():
+    # Without one the server's default (0.8) applied, and the same Intent was written differently on each run.
+    client = Mock()
+    client.generate.return_value = VALID_ADMIN
+    SkillCandidateGenerator(client).generate(Intent('23区の人口の合計', ('yuiseki/jp-admin-2026-09',)))
+    assert client.generate.call_args.kwargs['temperature'] == 0.0

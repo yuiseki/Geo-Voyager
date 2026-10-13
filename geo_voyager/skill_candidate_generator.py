@@ -14,6 +14,10 @@ from .observation_context import describe_observations
 # Without a limit, a model that never emits a stop token writes until the context is full: three calls on
 # Qwen3.8-Flash-Next wrote 23,757 to 26,384 tokens and were cut by the client timeout. Other calls reach 3,954 at most.
 CODE_MAX_TOKENS = 8192
+# Zero on both routes: the same Intent with the same Skills is written the same way on every run, so a change to
+# the harness can be measured without running each Goal several times. The Dataset route had none, so the server's
+# default (0.8) applied.
+TEMPERATURE = 0.0
 
 
 def _parse_candidate(text: str) -> SkillCandidate:
@@ -399,7 +403,7 @@ class SkillCandidateGenerator:
                            'その実測値を用いて Intent の集計・選択を実行する。')
             def generate_once(extra: str = '') -> SkillCandidate:
                 return _parse_candidate(self.llm_client.generate(
-                harness_section(intent) + skills_section(skills) + service_contract + prompt + extra, temperature=0.2, enable_thinking=True,
+                harness_section(intent) + skills_section(skills) + service_contract + prompt + extra, temperature=TEMPERATURE, enable_thinking=True,
                 max_tokens=3072, reasoning_budget_tokens=1024, assistant_prefix="説明:\n", refuse_truncated=True,
                 system_prompt=(
                     'You are a precise Python programmer. Return exactly one description, a short plan and one Python function '
@@ -420,7 +424,7 @@ class SkillCandidateGenerator:
         return self._reuse_once(
             intent, lambda extra='': _parse_candidate(self.llm_client.generate(
                 harness_section(intent) + skills_section(skills) + service_contract + prompt + extra,
-                max_tokens=CODE_MAX_TOKENS, refuse_truncated=True)), shown, skills)
+                temperature=TEMPERATURE, max_tokens=CODE_MAX_TOKENS, refuse_truncated=True)), shown, skills)
 
     def _reuse_once(self, intent: Intent, generate_once, shown: tuple[str, ...], skills) -> SkillCandidate:
         """Point out, once, a shown Skill the code does again instead of calling it (Voyager: reuse, do not reinvent).

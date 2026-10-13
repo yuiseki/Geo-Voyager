@@ -38,7 +38,7 @@ def test_repair_is_direct_code_correction_with_short_description():
     SkillCandidateRepairer(llm).repair(Intent('調査', service_ids=('overpass',)), SkillCandidate('bad', '操作'), FAILURE)
     options = llm.generate.call_args.kwargs
     assert 'one sentence' in options['system_prompt']
-    assert options['temperature'] > 0
+    assert options['temperature'] == 0.0                                     # the same failure gets the same repair
 
 
 def test_repair_preserves_description_scope():
@@ -95,21 +95,30 @@ def reply(code: str) -> str:
     return f'説明:\n修正した調査\n---\nコード:\n```python\n{code}\n```'
 
 
-def test_unchanged_repair_is_resampled_with_a_note_and_a_higher_temperature():
-    llm = Mock(); llm.generate.side_effect = [reply('broken'), reply('broken'), reply('fixed')]
+def test_unchanged_repair_is_resampled_with_a_note_at_the_same_zero_temperature():
+    llm = Mock(); llm.generate.side_effect = [reply('broken'), reply('fixed')]
     repaired = SkillCandidateRepairer(llm, max_resamples=2).repair(
         Intent('対象を数える', service_ids=('overpass',)), SkillCandidate('broken', '元'), FAILURE)
-    assert repaired.code == 'fixed' and llm.generate.call_count == 3
+    assert repaired.code == 'fixed' and llm.generate.call_count == 2
     first, second = llm.generate.call_args_list[0], llm.generate.call_args_list[1]
     assert '元のコードと同一' not in first.args[0] and '元のコードと同一' in second.args[0]
-    assert second.kwargs['temperature'] > first.kwargs['temperature']
+    assert first.kwargs['temperature'] == second.kwargs['temperature'] == 0.0
 
 
 def test_resampling_is_bounded_and_returns_the_last_candidate():
     llm = Mock(); llm.generate.return_value = reply('broken')
     repaired = SkillCandidateRepairer(llm, max_resamples=2).repair(
         Intent('対象を数える', service_ids=('overpass',)), SkillCandidate('broken', '元'), FAILURE)
-    assert repaired.code == 'broken' and llm.generate.call_count == 3
+    assert repaired.code == 'broken' and llm.generate.call_count == 2
+
+
+def test_a_prompt_already_sent_in_this_repair_is_not_sent_again():
+    # At temperature zero the second resample asks the same thing with the same note and would get the same reply.
+    llm = Mock(); llm.generate.return_value = reply('broken')
+    SkillCandidateRepairer(llm, max_resamples=3).repair(
+        Intent('対象を数える', service_ids=('overpass',)), SkillCandidate('broken', '元'), FAILURE)
+    prompts = [call.args[0] for call in llm.generate.call_args_list]
+    assert len(prompts) == len(set(prompts)) == 2
 
 
 def test_blank_lines_and_comments_do_not_count_as_a_change():
@@ -161,7 +170,7 @@ def test_a_default_in_place_of_a_required_key_is_asked_again_and_the_right_key_i
     assert 'i["count"]' in result.code and llm.generate.call_count == 2
     note = llm.generate.call_args_list[1].args[0]
     assert "i.get('count_all', 0)" in note and '既定値' in note and '例外のまま' in note
-    assert llm.generate.call_args_list[1].kwargs['temperature'] > llm.generate.call_args_list[0].kwargs['temperature']
+    assert llm.generate.call_args_list[1].kwargs['temperature'] == 0.0
     assert repairer.rejected_fallbacks == [["i.get('count_all', 0)"]]                  # the rejection is kept
 
 
@@ -244,7 +253,7 @@ def test_a_repair_that_keeps_the_id_type_guess_is_asked_again_and_the_plain_id_i
 def test_a_repair_that_keeps_the_guess_gets_the_original_back_so_the_failure_stays():
     from geo_voyager.target_ref import TargetRef
     result, _, llm = repair_area([code_reply(GUESS)] * 3, TargetRef('渋谷区', 'relation_id', '1759477'))
-    assert result.code == GUESS and llm.generate.call_count == 3
+    assert result.code == GUESS and llm.generate.call_count == 2           # the second note is the first: not sent again
 
 
 def test_a_target_without_an_id_is_not_checked_for_the_id_type():
@@ -277,7 +286,7 @@ def test_a_repair_of_a_local_aggregation_that_still_picks_by_position_is_asked_a
 
 def test_a_repair_that_keeps_the_position_gets_the_original_back():
     result, _, llm = repair_local([code_reply(POSITIONAL_CODE.replace('count_all', 'count'))] * 3)
-    assert result.code == POSITIONAL_CODE and llm.generate.call_count == 3
+    assert result.code == POSITIONAL_CODE and llm.generate.call_count == 2    # the second note is the first: not sent again
 
 
 def test_a_step_that_is_not_a_local_aggregation_is_not_checked_for_position():

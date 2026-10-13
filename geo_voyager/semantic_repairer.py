@@ -48,7 +48,7 @@ class SemanticRepairer:
         previous = [observation.text for observation in intent.previous_observations]
         try:
             proposed = _parse_candidate(self.llm_client.generate(
-                self._prompt(intent, candidate, current, previous, reason), temperature=0.2, enable_thinking=True,
+                self._prompt(intent, candidate, current, previous, reason), temperature=0.0, enable_thinking=True,
                 max_tokens=3072, reasoning_budget_tokens=1024, assistant_prefix='説明:\n', refuse_truncated=True,
                 system_prompt=(
                     'You repair Python code whose run succeeded but whose answer was judged wrong. '
