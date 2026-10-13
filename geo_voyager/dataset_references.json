@@ -1,7 +1,7 @@
 {
  "source": {
   "repository": "https://github.com/yuiseki/GeoAI-skills",
-  "commit": "c5334fcc9973920d745d8f01af01ae83d6e70791",
+  "commit": "677825db0db7a87554c5b5c06f412460f4110fdd",
   "paths": {
    "yuiseki/jp-admin-2026-09": ".agents/skills/dataset-discovery/references/jp-admin-2026-09.md",
    "yuiseki/ekidata-jp": ".agents/skills/dataset-discovery/references/ekidata-jp.md",
@@ -113,7 +113,7 @@
        "type": "geometry:EPSG:4612",
        "meaning": "市区町村の面 (EPSG:4612)。海を含まない",
        "missing": "NULL は面が無い (9 行)",
-       "note": "隣の市区町村の面と、境界で重なっている。隣接は ST_Intersects で取る。ST_Touches は重なった組を隣として数えない (8 割を取り逃がす。2026-10-14 実測)"
+       "note": "隣の市区町村の面と、境界で重なっている。「接する」「隣接する」組は、ST_Touches ではなく ST_Intersects で取る。ST_Touches は重なった組を数えず、8 割の組を取り逃がす (2026-10-14 実測)"
       }
      ],
      "schema": {
