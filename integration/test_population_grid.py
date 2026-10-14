@@ -44,3 +44,31 @@ def test_the_worker_sums_the_grid_per_ward_and_puts_stations_in_wards_through_th
     assert round(by_name['台東区']) == 214562
     assert round(by_name['世田谷区']) == 961312
     assert abs(sum(by_name.values()) - 9653022.28) < 1  # the census's 23 wards: 9,733,276
+
+
+# All the municipalities, and a circle of 1 km around each operating station, each in one call within the sandbox's
+# limits (2 GB, 180 s). Read by Range through the Gateway, 1,000 circles took 166 s; with the grid fetched to /tmp
+# once and each part of a zone cut on its own, the municipalities took 45 s and 1,101 MB, the circles 25 s and
+# 312 MB (2026-10-15). The municipalities hold 126,547,111 of the grid's 126,574,853.
+ALL_JAPAN = '''
+import json
+from geo_voyager.control_primitives import connect_duckdb, read_table, sum_population_grid
+with connect_duckdb() as connection:
+    stations = read_table(connection, "yuiseki/ekidata-jp", "station").filter("e_status = 0")
+    zones = ZONES
+    print(json.dumps(sum_population_grid(connection, zones).aggregate("count(*), sum(estimated_population)").fetchone()))
+'''
+MUNICIPALITIES = 'read_table(connection, "yuiseki/jp-admin-2026-09", "municipalities").filter("ward IS NULL AND geometry IS NOT NULL").project("code5, geometry")'
+CIRCLES = '''connection.sql("""
+        WITH p AS (SELECT station_g_cd, any_value(geometry) AS geometry FROM stations GROUP BY station_g_cd),
+        z AS (SELECT *, 'EPSG:' || (32601 + CAST(floor((ST_X(geometry) + 180) / 6) AS INTEGER)) AS utm FROM p)
+        SELECT station_g_cd, ST_Transform(ST_Buffer(ST_Transform(geometry, 'OGC:CRS84', utm), 1000), utm, 'OGC:CRS84') AS geometry FROM z""")'''
+
+
+def test_the_grid_over_all_municipalities_and_every_stations_circle_fits_the_sandbox():
+    with benchmark_environment() as names:
+        sandbox = DockerSandbox(image=WORKER_IMAGE, network=names['internal'])
+        municipalities = json.loads(sandbox.run(ALL_JAPAN.replace('ZONES', MUNICIPALITIES)))
+        circles = json.loads(sandbox.run(ALL_JAPAN.replace('ZONES', CIRCLES)))
+    assert municipalities[0] == 1741 and round(municipalities[1]) == 126547111
+    assert circles[0] == 8766 and round(circles[1]) == 118634044       # the circles overlap: people counted again

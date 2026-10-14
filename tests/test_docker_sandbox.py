@@ -21,7 +21,7 @@ def test_sandbox_returns_stdout_with_required_constraints():
         "--tmpfs": "/tmp:rw,noexec,nosuid,size=256m",
         "--cap-drop": "ALL",
         "--security-opt": "no-new-privileges",
-        "--memory": "1g",
+        "--memory": "2g",
         "--cpus": "2",
         "--pids-limit": "128",
         "--network": "none",
@@ -127,8 +127,9 @@ def test_a_missing_data_directory_is_refused(tmp_path):
 
 def test_the_default_profile_is_unchanged():
     # Relaxed for GeoAI-skills' small tasks (2026-10-14): the share of people within 1 km of a station, read from the
-    # 100 m grid of all Japan block by block, took 10 s and 176 MB.
+    # 100 m grid of all Japan block by block, took 10 s and 176 MB. 2 GB on 2026-10-15: the population grid over the
+    # 1,741 municipalities peaked at 1,154 MB beside the grid's 131 MB in /tmp.
     from geo_voyager.docker_sandbox import DEFAULT_PROFILE
     assert (DEFAULT_PROFILE.memory, DEFAULT_PROFILE.cpus, DEFAULT_PROFILE.timeout, DEFAULT_PROFILE.tmpfs) == \
-        ("1g", "2", 180, "/tmp:rw,noexec,nosuid,size=256m")
+        ("2g", "2", 180, "/tmp:rw,noexec,nosuid,size=256m")
     assert DEFAULT_PROFILE.data_dir is None and DEFAULT_PROFILE.out_dir is None

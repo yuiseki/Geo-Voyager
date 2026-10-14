@@ -36,7 +36,7 @@ _RASTER_NOTES = {
         "sex = 'total' で絞ると 0 行。その行の sum が全国の画素の合計 126,574,853）。"
         "画素を自分で読むときは rasterio.open('/vsicurl/' + dataset_url('yuiseki/worldpop-jp-2026-01'))"
         '（EPSG:4326、37,258 × 25,773 画素、512 画素の塊、欠損値 -99999）。全体を一度に読むと 3.8 GB で、'
-        'メモリの上限 1 GB を超えて止められる。窓（rasterio.windows）で、塊ごとか区域ごとに読む。'),
+        'メモリの上限 2 GB を超えて止められる。窓（rasterio.windows）で、塊ごとか区域ごとに読む。'),
 }
 _SHORT_TYPES = {'VARCHAR': 'VARCHAR', 'INTEGER': 'INTEGER', 'BIGINT': 'BIGINT', 'DOUBLE': 'DOUBLE'}
 

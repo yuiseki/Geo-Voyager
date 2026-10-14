@@ -89,3 +89,66 @@ def test_the_generator_is_told_the_limit_of_zones_the_primitive_has():
         pass
     prompt = client.generate.call_args.args[0]
     assert f'一度に{MAX_ZONES:,}区域まで' in prompt and '一度に100区域まで' not in prompt
+
+
+def test_the_grid_is_fetched_once_to_the_sandboxs_tmp_and_read_there(tmp_path, monkeypatch):
+    # Read by Range through the Gateway, 1,000 circles of 1 km took 166 s (0.17 s a zone); fetched whole (131 MB,
+    # 17 s) and read from /tmp, the 8,766 stations' circles took 6.8 s (measured in the sandbox, 2026-10-15).
+    import io
+    from geo_voyager.control_primitives import population_grid
+    small_grid(tmp_path / 'source.tif')
+    fetched = []
+
+    def urlopen(url, timeout):
+        fetched.append(url)
+        return io.BytesIO((tmp_path / 'source.tif').read_bytes())
+
+    monkeypatch.setattr(population_grid, 'urlopen', urlopen)
+    monkeypatch.setattr(population_grid, 'LOCAL_GRID', tmp_path / 'grid.tif')
+    url = 'http://gateway:8000/datasets/yuiseki/worldpop-jp-2026-01'
+    assert population_grid.local_grid(url) == tmp_path / 'grid.tif'
+    assert population_grid.local_grid(url) == tmp_path / 'grid.tif'
+    assert fetched == [url]                                            # once
+    assert (tmp_path / 'grid.tif').read_bytes() == (tmp_path / 'source.tif').read_bytes()
+
+
+def test_the_limit_of_zones_holds_the_stations_of_japan():
+    from geo_voyager.control_primitives.population_grid import MAX_ZONES
+    assert MAX_ZONES >= 9281                                           # the operating stations' circles, one a station
+
+
+def test_a_zone_of_parts_far_apart_is_summed_part_by_part(tmp_path, monkeypatch):
+    # The 1,741 municipalities went over the sandbox's 1 GB: a municipality of islands far apart (Ogasawara spans
+    # some 17 by 7 degrees) was cut from the grid as one window of its whole extent. Each part is cut on its own.
+    import duckdb
+    from geo_voyager.control_primitives import population_grid
+    small_grid(tmp_path / 'grid.tif')
+    monkeypatch.setattr(population_grid, 'dataset_url', lambda dataset_id: str(tmp_path / 'grid.tif'))
+    windows = []
+    real_mask = population_grid.rasterio_mask
+
+    def mask(source, shapes, **kwargs):
+        windows.append(shapes)
+        return real_mask(source, shapes, **kwargs)
+
+    monkeypatch.setattr(population_grid, 'rasterio_mask', mask)
+    connection = duckdb.connect()
+    connection.execute('INSTALL spatial; LOAD spatial')
+    zones = connection.sql("SELECT 'islands' AS name, ST_GeomFromText('MULTIPOLYGON(((139.0 35.98, 139.01 35.98, 139.01 36.0, "
+                           "139.0 36.0, 139.0 35.98)), ((139.03 35.96, 139.04 35.96, 139.04 35.97, 139.03 35.97, 139.03 35.96)))') AS geometry")
+    sums = population_grid.sum_population_grid(connection, zones)
+    assert sums.fetchall() == [('islands', 2.0)]                        # 1 of the first part's 2 is missing; 1 in the second
+    assert len(windows) == 2 and all(len(shapes) == 1 and shapes[0]['type'] == 'Polygon' for shapes in windows)
+
+
+def test_a_zone_wholly_outside_the_grid_is_an_error_not_no_one(tmp_path, monkeypatch):
+    import duckdb
+    import pytest
+    from geo_voyager.control_primitives import population_grid
+    small_grid(tmp_path / 'grid.tif')
+    monkeypatch.setattr(population_grid, 'dataset_url', lambda dataset_id: str(tmp_path / 'grid.tif'))
+    connection = duckdb.connect()
+    connection.execute('INSTALL spatial; LOAD spatial')
+    zones = connection.sql("SELECT 'sea' AS name, ST_GeomFromText('POLYGON((150 20, 151 20, 151 21, 150 21, 150 20))') AS geometry")
+    with pytest.raises(ValueError, match='outside the grid'):
+        population_grid.sum_population_grid(connection, zones)
