@@ -341,3 +341,19 @@ def test_a_repair_without_named_inputs_keeps_the_previous_observations_advice():
     SkillCandidateRepairer(llm).repair(intent, SkillCandidate('x', 'x'), FAILURE)
     prompt = llm.generate.call_args.args[0]
     assert 'json.loads(previous_observations[index])' in prompt and 'results["' not in prompt
+
+
+# ---- a repair on the WDI writes indicator codes the WDI has (geo_voyager.indicator_codes)
+
+WRONG_INDICATOR = 'print(json.dumps({"rows": "SP.POP.DNST"}))'
+RIGHT_INDICATOR = 'print(json.dumps({"rows": "EN.POP.DNST"}))'
+
+
+def test_a_repair_that_writes_an_indicator_code_the_wdi_lacks_is_asked_again():
+    llm = Mock(); llm.generate.side_effect = [code_reply(WRONG_INDICATOR), code_reply(RIGHT_INDICATOR)]
+    repairer = SkillCandidateRepairer(llm)
+    failure = ExecutionFailure('failed', '', 'Traceback (most recent call last):\n  File "<candidate>", line 1, in <module>\nNameError: x', 73)
+    result = repairer.repair(Intent('2020 年の人口密度', dataset_ids=('yuiseki/worldbank-wdi',)),
+                             SkillCandidate('print(x)', '人口密度'), failure)
+    assert result.code == RIGHT_INDICATOR and llm.generate.call_count == 2
+    assert 'EN.POP.DNST' in llm.generate.call_args_list[1].args[0]

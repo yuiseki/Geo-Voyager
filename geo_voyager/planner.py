@@ -1,6 +1,7 @@
 import re
 from dataclasses import dataclass
 
+from .indicator_codes import DATASET as INDICATOR_DATASET, unknown_indicator_text, unknown_indicators
 from .dataset_graph import DatasetGraph
 from .goal_history import GoalHistory, render_history
 from .background_facts import facts_section
@@ -359,6 +360,10 @@ class Planner:
             if lacked:
                 raise ValueError(f'{"。".join(lacked)}。その ID が要るなら、それを返すサービスを利用サービスに宣言するか、'
                                  '前の結果を入力にする。要らないなら調査項目から外す')
+            if INDICATOR_DATASET in intent.dataset_ids:
+                wrong = unknown_indicators(intent.text)
+                if wrong:
+                    raise ValueError(unknown_indicator_text(wrong))
             sources = ' '.join([entry.intent.text for entry in history] + [observation.text for observation in history.observations()])
             invented = unsourced_codes(intent, goal, sources)
             if invented:

@@ -4,6 +4,7 @@ from .id_type_literals import id_type_comparisons
 from .intent import Intent
 from .contracts.code import local_aggregation_violations, positional_input_picks
 from .control_primitives.population_grid import MAX_ZONES
+from .indicator_codes import DATASET as INDICATOR_DATASET, unknown_indicator_text, unknown_indicators
 from .background_facts import facts_section
 from .contracts.tables import table_contract
 from .skill_candidate import entry_problems, main_function_name, rewritten_skills, service_calls, skill_shape_problems, unpassed_runtime_reads, called_service_ids, intent_element_type, overpass_element_mismatch, read_datasets, calls_any, DATASET_READERS_NOTE
@@ -216,6 +217,9 @@ def contract_problems(intent: Intent, code: str, shown: tuple[str, ...] = ()) ->
         shape = shape + [f'この Intent に無い Service（{", ".join(undeclared)}）を呼んでいる。この Intent が使えるのは {allowed} だけなので、'
                          'そこから値を得る']
     shape = shape + dataset_problems(intent, code, shown)
+    if INDICATOR_DATASET in intent.dataset_ids:
+        wrong = unknown_indicators(code)
+        shape = shape + ([unknown_indicator_text(wrong)] if wrong else [])
     shape = shape + overpass_element_mismatch(intent.text, code)
     if shape:
         problems.append(('skill shape: ' + '; '.join(shape), _shape_note(shape)))
