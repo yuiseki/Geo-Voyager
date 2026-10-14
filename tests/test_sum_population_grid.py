@@ -152,3 +152,18 @@ def test_a_zone_wholly_outside_the_grid_is_an_error_not_no_one(tmp_path, monkeyp
     zones = connection.sql("SELECT 'sea' AS name, ST_GeomFromText('POLYGON((150 20, 151 20, 151 21, 150 21, 150 20))') AS geometry")
     with pytest.raises(ValueError, match='outside the grid'):
         population_grid.sum_population_grid(connection, zones)
+
+
+def test_a_zone_without_a_geometry_is_named(tmp_path, monkeypatch):
+    # GeoAI-skills' small task 11 (2026-10-15): a zone with a NULL geometry (jp-admin has 9 municipalities without a
+    # face) failed inside the primitive as "the JSON object must be str ... not NoneType", twice.
+    import duckdb
+    import pytest
+    from geo_voyager.control_primitives import population_grid
+    small_grid(tmp_path / 'grid.tif')
+    monkeypatch.setattr(population_grid, 'dataset_url', lambda dataset_id: str(tmp_path / 'grid.tif'))
+    connection = duckdb.connect()
+    connection.execute('INSTALL spatial; LOAD spatial')
+    zones = connection.sql("SELECT '歯舞群島' AS name, NULL::GEOMETRY AS geometry")
+    with pytest.raises(ValueError, match='no geometry.*geometry IS NOT NULL'):
+        population_grid.sum_population_grid(connection, zones)

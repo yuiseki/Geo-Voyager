@@ -64,6 +64,8 @@ def sum_population_grid(*args):
     with rasterio.Env(GDAL_DISABLE_READDIR_ON_OPEN='EMPTY_DIR'), rasterio.open(path) as source:
         while batch := cursor.fetchmany(BATCH):
             for *values, geojson in batch:
+                if geojson is None:
+                    raise ValueError(f'A zone has no geometry: {values}. Leave such zones out (geometry IS NOT NULL)')
                 total, overlapped = 0.0, False
                 for part in _parts(json.loads(geojson)):
                     try:
