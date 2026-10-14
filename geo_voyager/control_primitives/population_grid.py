@@ -4,9 +4,9 @@ from .dataset_arguments import dataset_arguments
 from .dataset_url import dataset_url
 
 WORLDPOP = 'yuiseki/worldpop-jp-2026-01'
-# Each zone is a window read by Range through the Gateway. All of Japan is the whole 131 MB file, which the
-# sandbox's time limit does not allow; the 23 wards read in about 30 seconds.
-MAX_ZONES = 100
+# Each zone is a window read by Range through the Gateway, from the local mirror of the 131 MB file. Read from the
+# Hub, the 23 wards took about 30 seconds and the limit was 100; the 1,741 municipalities of Japan must fit at once.
+MAX_ZONES = 2000
 
 
 def sum_population_grid(*args):

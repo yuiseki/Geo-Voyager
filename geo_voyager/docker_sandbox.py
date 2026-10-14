@@ -20,9 +20,11 @@ class SandboxProfile:
     out_dir: str | None = None
 
 
-# 60 s: a filtered read of the 23 wards took 15 to 40 s through the Hub (2026-10-14), so 30 s failed code that was right.
-DEFAULT_PROFILE = SandboxProfile(memory="128m", cpus="1", pids="128", timeout=60,
-                                 tmpfs="/tmp:rw,noexec,nosuid,size=16m")
+# Relaxed for GeoAI-skills' small tasks (2026-10-14), now that the tables are read from a local mirror: the share of
+# people within 1 km of a station, read from the 100 m grid of all Japan block by block (3.8 GB as float32), took 10 s
+# and 176 MB in the worker; 128 MB could not hold it. Earlier, 30 s had failed right code reading through the Hub.
+DEFAULT_PROFILE = SandboxProfile(memory="1g", cpus="2", pids="128", timeout=180,
+                                 tmpfs="/tmp:rw,noexec,nosuid,size=256m")
 # For the analyses of study-geoai-algo-py (scikit-learn, LightGBM, OR-Tools, ...): it caps its heavy runs at 8G.
 ANALYSIS_PROFILE = SandboxProfile(memory="8g", cpus="4", pids="512", timeout=600,
                                   tmpfs="/tmp:rw,noexec,nosuid,size=2g")

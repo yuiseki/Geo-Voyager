@@ -18,11 +18,11 @@ def test_sandbox_returns_stdout_with_required_constraints():
     assert command[:2] == ["docker", "run"]
     for flag, value in {
         "--user": "65534:65534",
-        "--tmpfs": "/tmp:rw,noexec,nosuid,size=16m",
+        "--tmpfs": "/tmp:rw,noexec,nosuid,size=256m",
         "--cap-drop": "ALL",
         "--security-opt": "no-new-privileges",
-        "--memory": "128m",
-        "--cpus": "1",
+        "--memory": "1g",
+        "--cpus": "2",
         "--pids-limit": "128",
         "--network": "none",
         "--pull": "never",
@@ -33,7 +33,7 @@ def test_sandbox_returns_stdout_with_required_constraints():
     assert command[-5:] == ["python:3.12-slim", "python", "-I", "-B", "-"]
     assert not {"-v", "--volume", "--mount", "--privileged"}.intersection(command)
     assert run.call_args.kwargs == {
-        "input": code, "text": True, "capture_output": True, "check": True, "timeout": 60,
+        "input": code, "text": True, "capture_output": True, "check": True, "timeout": 180,
     }
 
 
@@ -126,7 +126,9 @@ def test_a_missing_data_directory_is_refused(tmp_path):
 
 
 def test_the_default_profile_is_unchanged():
+    # Relaxed for GeoAI-skills' small tasks (2026-10-14): the share of people within 1 km of a station, read from the
+    # 100 m grid of all Japan block by block, took 10 s and 176 MB.
     from geo_voyager.docker_sandbox import DEFAULT_PROFILE
     assert (DEFAULT_PROFILE.memory, DEFAULT_PROFILE.cpus, DEFAULT_PROFILE.timeout, DEFAULT_PROFILE.tmpfs) == \
-        ("128m", "1", 60, "/tmp:rw,noexec,nosuid,size=16m")
+        ("1g", "2", 180, "/tmp:rw,noexec,nosuid,size=256m")
     assert DEFAULT_PROFILE.data_dir is None and DEFAULT_PROFILE.out_dir is None

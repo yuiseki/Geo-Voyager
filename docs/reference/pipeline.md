@@ -23,7 +23,7 @@ Goal
     ├ IntentExecutor.execute(intent)                     geo_voyager/intent_executor.py
     │    ├ SkillRetriever                 近い Skill（名前付き関数）を検索（embedding: embeddinggemma）
     │    ├ SkillCandidateGenerator        Skill を呼んでよいコードを生成（新しい関数は 1 つまで）
-    │    ├ Worker -> DockerSandbox        呼ぶ Skill をリンクして sandbox で実行（Gateway 経由でのみ外部へ、既定 60 秒）
+    │    ├ Worker -> DockerSandbox        呼ぶ Skill をリンクして sandbox で実行（Gateway 経由でのみ外部へ、既定 180 秒、1 GB、2 CPU。DuckDB は 512 MB と 2 スレッド）
     │    ├ SkillCandidateRepairer         実行が失敗したら traceback を見て直す（最大 2 回）
     │    ├ Critic.check                   Observation が Intent に答えたか判定
     │    └ （Critic が成功なら）新しい関数を Skill として名前と版で保存
