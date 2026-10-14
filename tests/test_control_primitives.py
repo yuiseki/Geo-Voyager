@@ -2,7 +2,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from geo_voyager.control_primitives import connect_duckdb, dataset_url, load_admin_units
+from geo_voyager.control_primitives import connect_duckdb, dataset_url
 
 
 def test_connect_duckdb_loads_local_extensions_without_install():
@@ -21,30 +21,3 @@ def test_dataset_url_resolves_only_the_supported_dataset_to_gateway():
     assert dataset_url('yuiseki/jp-admin-2026-09') == 'http://gateway:8000/datasets/yuiseki/jp-admin-2026-09'
     with pytest.raises(ValueError):
         dataset_url('https://other.example/file.parquet')
-
-
-@pytest.mark.parametrize('kwargs', [{}, {'area': None}])
-def test_load_admin_units_returns_relation_without_population_analysis(kwargs):
-    connection = Mock()
-    relation = load_admin_units('yuiseki/jp-admin-2026-09', connection, **kwargs)
-    connection.read_parquet.assert_called_once_with(dataset_url('yuiseki/jp-admin-2026-09'))
-    assert relation is connection.read_parquet.return_value.project.return_value
-    connection.read_parquet.return_value.project.assert_called_once_with(
-        "code5, name, population, ST_SetCRS(geometry, 'OGC:CRS84') AS geometry")
-    relation.filter.assert_not_called()
-    relation.order.assert_not_called()
-
-
-def test_tokyo23_area_is_resolved_inside_primitive():
-    connection = Mock()
-    relation = load_admin_units('yuiseki/jp-admin-2026-09', connection, area='東京都23区')
-    units = connection.read_parquet.return_value.project.return_value
-    units.filter.assert_called_once_with("code5 BETWEEN '13101' AND '13123'")
-    assert relation is units.filter.return_value
-
-
-def test_unknown_area_fails_before_reading_dataset():
-    connection = Mock()
-    with pytest.raises(ValueError, match='area'):
-        load_admin_units('yuiseki/jp-admin-2026-09', connection, area='未対応地域')
-    connection.read_parquet.assert_not_called()

@@ -70,7 +70,7 @@ CATALOG = (
         id="yuiseki/worldpop-jp-2026-01",
         description=("WorldPop R2025A の日本人口ラスター原本と、画素値を保持したCOG変換版。国勢調査値ではなく推計・予測。"
                      "実行環境で読めるのは2020年の100m総人口（constrained）だけで、"
-                     "sum_population_grid が、渡した区域（load_admin_units の境界など）ごとに画素を足した推計人口を返す。"
+                     "sum_population_grid が、渡した区域（read_table で読んだ jp-admin-2026-09 の境界など）ごとに画素を足した推計人口を返す。"
                      "Goal が WorldPop・推計を名指ししない人口は、yuiseki/jp-admin-2026-09 の国勢調査人口を使う。"),
         url="https://huggingface.co/datasets/yuiseki/worldpop-jp-2026-01",
         license="CC-BY-4.0（各製品の DOI による引用）",

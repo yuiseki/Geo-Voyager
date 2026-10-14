@@ -38,6 +38,7 @@ frontmatter を、sandbox で読める表の正本にする。
 6. 移行
    - `load_admin_units` と `load_stations` は、保存済みの Skill（seed を含む）が呼んでいる。そのため、`read_table` の上の薄い包みとして残し、プロンプトには出さない。
    - seed の Skill は `read_table` で書き直す。
+   - 2026-10-14: seed の Skill もベンチの正解のコードも `read_table` に移ったので、`load_admin_units` と `load_stations` を削除した。ベンチの正解のうち `ward_pop_max` は、`load_admin_units` の列が 4 つに増えたあと 3 つで受けていて、すでに壊れていた。
 
 ## 結果
 

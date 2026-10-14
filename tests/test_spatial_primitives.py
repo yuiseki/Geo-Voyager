@@ -1,4 +1,4 @@
-"""The Dataset primitives return tables with a geometry, so a step joins them in space (a station in a ward) with
+"""read_table returns tables with a geometry, so a step joins them in space (a station in a ward) with
 DuckDB instead of a primitive made for each question.
 
 The data here is small and fixed, written in the forms of the real files: the boundaries carry the JGD2000 label
@@ -14,7 +14,7 @@ import pytest
 import rasterio
 from rasterio.transform import from_origin
 
-from geo_voyager.control_primitives import load_admin_units, load_stations, sum_population_grid
+from geo_voyager.control_primitives import read_table, sum_population_grid
 
 # rasterio multiplies an Affine with `*`, which affine 3 warns about; -W error must not turn their warning into ours.
 pytestmark = pytest.mark.filterwarnings("ignore:Use `@` matmul instead of `\\*` mul operator:PendingDeprecationWarning")
@@ -25,6 +25,10 @@ WORLDPOP = 'yuiseki/worldpop-jp-2026-01'
 NODATA = -99999.0
 
 
+def wards(connection):
+    return read_table(connection, ADMIN, 'municipalities').filter("pref_code = '13' AND name LIKE '%区'")
+
+
 @pytest.fixture
 def connection(tmp_path, monkeypatch):
     """Two wards side by side (13101 west, 13102 east) and Sapporo. Three station records: two lines at one
@@ -32,11 +36,11 @@ def connection(tmp_path, monkeypatch):
     db = duckdb.connect()
     db.execute('LOAD spatial')
     admin, stations, grid = tmp_path / 'admin.parquet', tmp_path / 'stations.parquet', tmp_path / 'pop.tif'
-    db.execute(f"""COPY (SELECT code5, name, population, ST_SetCRS(ST_GeomFromText(wkt), 'EPSG:4612') AS geometry FROM (VALUES
-        ('13101', '千代田区', 66680, 'POLYGON((139.0 35.8, 139.2 35.8, 139.2 36.0, 139.0 36.0, 139.0 35.8))'),
-        ('13102', '中央区', 169179, 'POLYGON((139.2 35.8, 139.4 35.8, 139.4 36.0, 139.2 36.0, 139.2 35.8))'),
-        ('01100', '札幌市', 1973395, 'POLYGON((141.2 43.0, 141.4 43.0, 141.4 43.1, 141.2 43.1, 141.2 43.0))'))
-        AS t(code5, name, population, wkt)) TO '{admin}' (FORMAT parquet)""")
+    db.execute(f"""COPY (SELECT code5, pref_code, name, population, ST_SetCRS(ST_GeomFromText(wkt), 'EPSG:4612') AS geometry FROM (VALUES
+        ('13101', '13', '千代田区', 66680, 'POLYGON((139.0 35.8, 139.2 35.8, 139.2 36.0, 139.0 36.0, 139.0 35.8))'),
+        ('13102', '13', '中央区', 169179, 'POLYGON((139.2 35.8, 139.4 35.8, 139.4 36.0, 139.2 36.0, 139.2 35.8))'),
+        ('01100', '01', '札幌市', 1973395, 'POLYGON((141.2 43.0, 141.4 43.0, 141.4 43.1, 141.2 43.1, 141.2 43.0))'))
+        AS t(code5, pref_code, name, population, wkt)) TO '{admin}' (FORMAT parquet)""")
     db.execute(f"""COPY (SELECT station_cd, station_g_cd, line_cd, station_name, e_status, lon, lat,
                                ST_SetCRS(ST_Point(lon, lat), 'OGC:CRS84') AS geometry FROM (VALUES
         (1, 1, 11, '東京', 0, 139.1, 35.9),
@@ -47,61 +51,42 @@ def connection(tmp_path, monkeypatch):
     with rasterio.open(grid, 'w', driver='GTiff', width=4, height=2, count=1, dtype='float32', crs='EPSG:4326',
                        transform=from_origin(139.0, 36.0, 0.1, 0.1), nodata=NODATA) as dst:
         dst.write(values, 1)
-    paths = {ADMIN: str(admin), STATIONS: str(stations), WORLDPOP: str(grid)}
-    for module in ('load_admin_units', 'load_stations', 'population_grid'):
-        monkeypatch.setattr(sys.modules[f'geo_voyager.control_primitives.{module}'], 'dataset_url', paths.__getitem__)
+    tables = {(ADMIN, 'municipalities'): str(admin), (STATIONS, 'station'): str(stations)}
+    monkeypatch.setattr(sys.modules['geo_voyager.control_primitives.read_table'], 'dataset_url', lambda d, t: tables[(d, t)])
+    monkeypatch.setattr(sys.modules['geo_voyager.control_primitives.population_grid'], 'dataset_url', {WORLDPOP: str(grid)}.__getitem__)
     yield db
     db.close()
 
 
-def test_admin_units_carry_their_boundary(connection):
-    units = load_admin_units(connection, area='東京都23区')
-    assert units.columns == ['code5', 'name', 'population', 'geometry']
-    assert units.order('code5').project('code5, name, population').fetchall() == [
-        ('13101', '千代田区', 66680), ('13102', '中央区', 169179)]
-
-
-def test_stations_carry_their_ids_line_status_and_point(connection):
-    stations = load_stations(connection)
-    assert stations.columns == ['station_cd', 'station_g_cd', 'line_cd', 'name', 'status',
-                                'latitude', 'longitude', 'geometry']
-    assert stations.count('*').fetchone()[0] == 3
-
 
 def test_a_station_is_put_in_its_ward_by_a_spatial_join(connection):
     # The relational API drops the aliases after a join; SQL over the relations, named by their variables, keeps them.
-    wards = load_admin_units(connection, area='東京都23区')
-    stations = load_stations(connection)
+    wards_ = wards(connection)
+    stations = read_table(connection, STATIONS, 'station')
     rows = connection.sql("""SELECT w.name, count(*) AS records, count(DISTINCT s.station_g_cd) AS stations
-                             FROM wards w JOIN stations s ON ST_Contains(w.geometry, s.geometry)
+                             FROM wards_ w JOIN stations s ON ST_Contains(w.geometry, s.geometry)
                              GROUP BY w.name ORDER BY w.name""").fetchall()
     assert rows == [('中央区', 1, 1), ('千代田区', 2, 1)]
-    open_now = connection.sql("""SELECT count(DISTINCT s.station_g_cd) FROM wards w JOIN stations s
-                                 ON ST_Contains(w.geometry, s.geometry) WHERE s.status = 0""").fetchone()[0]
+    open_now = connection.sql("""SELECT count(DISTINCT s.station_g_cd) FROM wards_ w JOIN stations s
+                                 ON ST_Contains(w.geometry, s.geometry) WHERE s.e_status = 0""").fetchone()[0]
     assert open_now == 1
 
 
 def test_the_grid_is_summed_over_the_zones_it_is_given(connection):
-    zones = load_admin_units(connection, area='東京都23区')
-    sums = sum_population_grid(connection, zones)
-    assert sums.columns == ['code5', 'name', 'population', 'estimated_population']
+    sums = sum_population_grid(connection, wards(connection))
+    assert sums.columns == ['code5', 'pref_code', 'name', 'population', 'estimated_population']
     assert sums.order('code5').project('code5, estimated_population').fetchall() == [('13101', 7.0), ('13102', 100.0)]
 
 
-def test_the_older_calls_that_name_the_dataset_still_work(connection):
-    assert load_admin_units(ADMIN, connection, area='東京都23区').count('*').fetchone()[0] == 2
-    assert load_stations(STATIONS, connection).count('*').fetchone()[0] == 3
-    zones = load_admin_units(connection, area='東京都23区')
-    assert sum_population_grid(WORLDPOP, connection, zones).count('*').fetchone()[0] == 2
+def test_the_older_call_that_names_the_dataset_still_works(connection):
+    assert sum_population_grid(WORLDPOP, connection, wards(connection)).count('*').fetchone()[0] == 2
 
 
 @pytest.mark.parametrize('call', [
-    lambda c: load_admin_units(STATIONS, c),
-    lambda c: load_stations(ADMIN, c),
     lambda c: sum_population_grid(ADMIN, c, Mock()),
-    lambda c: load_admin_units(c, area='未対応地域'),
+    lambda c: read_table(c, ADMIN, 'stations'),
 ])
-def test_a_wrong_dataset_or_area_fails_before_reading(call):
+def test_a_wrong_dataset_or_table_fails_before_reading(call):
     connection = Mock()
     with pytest.raises(ValueError):
         call(connection)
@@ -110,14 +95,14 @@ def test_a_wrong_dataset_or_area_fails_before_reading(call):
 
 def test_zones_without_a_geometry_are_refused(connection):
     with pytest.raises(ValueError, match='geometry'):
-        sum_population_grid(connection, load_admin_units(connection).project('code5, name'))
+        sum_population_grid(connection, read_table(connection, ADMIN, 'municipalities').project('code5, name'))
 
 
 def test_too_many_zones_are_refused_before_the_grid_is_read(connection, monkeypatch):
     monkeypatch.setattr('geo_voyager.control_primitives.population_grid.MAX_ZONES', 1)
     monkeypatch.setattr('rasterio.open', Mock(side_effect=AssertionError('read')))
     with pytest.raises(ValueError, match='1'):
-        sum_population_grid(connection, load_admin_units(connection, area='東京都23区'))
+        sum_population_grid(connection, wards(connection))
 
 
 def test_a_missing_value_read_as_none_by_a_foreign_gdal_is_still_skipped(connection, monkeypatch):
@@ -138,7 +123,7 @@ def test_a_missing_value_read_as_none_by_a_foreign_gdal_is_still_skipped(connect
             return None if name == 'nodata' else getattr(self.source, name)
 
     monkeypatch.setattr('rasterio.open', NoNodata)
-    sums = sum_population_grid(connection, load_admin_units(connection, area='東京都23区'))
+    sums = sum_population_grid(connection, wards(connection))
     assert sums.order('code5').project('estimated_population').fetchall()[0] == (7.0,)
 
 
@@ -154,10 +139,7 @@ def test_the_seed_skills_still_read_the_wider_tables(connection, monkeypatch):
         return db
 
     monkeypatch.setattr(module, 'connect_duckdb', fresh)
-    # The seeds read through read_table (ADR 0010): its tables are the fixture's files.
-    paths = {(ADMIN, 'municipalities'): sys.modules['geo_voyager.control_primitives.load_admin_units'].dataset_url(ADMIN),
-             (STATIONS, 'station'): sys.modules['geo_voyager.control_primitives.load_stations'].dataset_url(STATIONS)}
-    monkeypatch.setattr(sys.modules['geo_voyager.control_primitives.read_table'], 'dataset_url', lambda d, t: paths[(d, t)])
+    # The seeds read through read_table (ADR 0010): the fixture already points it at its files.
     library = SkillLibrary(Path(__file__).resolve().parents[1] / 'skill_library')
 
     def run(call):

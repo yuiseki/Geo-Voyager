@@ -23,7 +23,7 @@
 | 書ける場所 | `/tmp` の tmpfs 16MB（noexec） | `/tmp/study-geoai/` にキャッシュ（今は 395MB）、DuckDB の spill、`output/` に地図の PNG | `aoi.CACHE_DIR`、`db.SPILL_DIR` |
 | ネットワーク | 外へ出られない。Gateway 経由で、登録した 5 サービスと 2 つの Dataset（Range の中継あり）だけ | Hugging Face（コミット固定の Parquet）、Overture の S3（STAC で絞る）、z.yuiseki.net/static/ のミラー、source.coop の PMTiles、FAO FERSPAS の COG、nominatim.yuiseki.net。すべて Range 要求で必要な行と列だけ読む（CNG） | study-geoai `docs/setup.md` の「使った出どころ」 |
 | 結果の受け渡し | stdout の JSON 1 行（8,192 バイトまで） | 表、係数、スコア、地図の PNG、ソルバーの解 | |
-| 共通のコード | Control Primitives 6 つ（`call_service`、`connect_duckdb`、`load_admin_units` など） | `study_geoai` パッケージ（範囲、読み込み、特徴量、メッシュ、Dijkstra と A*、被覆、施設配置、スケジュール、地図） | study-geoai `src/study_geoai/` |
+| 共通のコード | Control Primitives 5 つ（`call_service`、`connect_duckdb`、`read_table` など） | `study_geoai` パッケージ（範囲、読み込み、特徴量、メッシュ、Dijkstra と A*、被覆、施設配置、スケジュール、地図） | study-geoai `src/study_geoai/` |
 
 ホストは 32 コア、メモリ 94GB（swap なし。常駐の LLM などで約 43GB 使用中、利用可能は約 50GB）。swap が無いので、メモリが尽きると機械ごと止まる。コンテナのメモリ上限は必須。
 

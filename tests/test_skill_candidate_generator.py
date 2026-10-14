@@ -13,7 +13,7 @@ VALID = '''説明:
 ---
 コード:
 ```python
-from geo_voyager.control_primitives import connect_duckdb, load_admin_units
+from geo_voyager.control_primitives import connect_duckdb, read_table
 
 
 def least_populous():
@@ -23,9 +23,9 @@ def least_populous():
 
 
 # A candidate for a Dataset Intent reads its Dataset; the contract refuses one that does not.
-ADMIN_BODY = '    with connect_duckdb() as connection:\n        return load_admin_units(connection).count("*").fetchone()[0]'
+ADMIN_BODY = '    with connect_duckdb() as connection:\n        return read_table(connection, "yuiseki/jp-admin-2026-09", "municipalities").count("*").fetchone()[0]'
 VALID_ADMIN = VALID.replace('    return "result"', ADMIN_BODY)
-VALID_STATIONS = VALID_ADMIN.replace('load_admin_units', 'load_stations')
+VALID_STATIONS = VALID_ADMIN.replace('"yuiseki/jp-admin-2026-09", "municipalities"', '"yuiseki/ekidata-jp", "station"')
 
 
 @pytest.mark.parametrize('reply', [VALID_ADMIN, VALID_ADMIN.replace('---\nコード:\n', '---\n\nコード:\n\n')])
@@ -35,7 +35,7 @@ def test_generator_passes_intent_and_primitive_contracts_and_parses_candidate(re
     intent = Intent('東京都23区で人口が最も少ない区と人口を求める', ('yuiseki/jp-admin-2026-09',))
     candidate = SkillCandidateGenerator(client).generate(intent)
     assert candidate == SkillCandidate(
-        code=('from geo_voyager.control_primitives import connect_duckdb, load_admin_units\n\n\n'
+        code=('from geo_voyager.control_primitives import connect_duckdb, read_table\n\n\n'
               'def least_populous():\n    \"\"\"Find it.\"\"\"\n' + ADMIN_BODY),
         description='行政区域から人口最小の区域を求める',
     )
@@ -652,8 +652,8 @@ def test_contract_refuses_code_that_does_not_read_the_dataset_the_intent_declare
     intent = Intent('世田谷区内の ekidata-jp の駅', ('yuiseki/ekidata-jp',), service_ids=('overpass',))
     problems = contract_problems(intent, code)
     assert any('yuiseki/ekidata-jp' in found for found, _ in problems)
-    reads = code.replace('import call_service', 'import call_service, connect_duckdb, load_stations').replace(
-        '    return json', '    with connect_duckdb() as connection:\n        load_stations(dataset_id, connection)\n    return json')
+    reads = code.replace('import call_service', 'import call_service, connect_duckdb, read_table').replace(
+        '    return json', '    with connect_duckdb() as connection:\n        read_table(connection, dataset_id, "station")\n    return json')
     assert not any('yuiseki/ekidata-jp' in found for found, _ in contract_problems(intent, reads))
 
 
@@ -673,18 +673,18 @@ def test_the_dataset_id_is_passed_only_when_the_intent_reads_one_dataset():
 
 def test_the_datasets_a_code_reads_are_those_of_the_primitives_it_calls():
     from geo_voyager.skill_candidate import read_datasets
-    code = ('from geo_voyager.control_primitives import connect_duckdb, load_admin_units, load_stations\n\n'
+    code = ('from geo_voyager.control_primitives import connect_duckdb, read_table\n\n'
             'def stations_per_ward():\n    """駅。"""\n    with connect_duckdb() as connection:\n'
-            '        wards = load_admin_units(connection, area="東京都23区")\n        stations = load_stations(connection)\n'
+            '        wards = read_table(connection, "yuiseki/jp-admin-2026-09", "municipalities").filter("pref_code = \'13\' AND name LIKE \'%区\'")\n        stations = read_table(connection, "yuiseki/ekidata-jp", "station")\n'
             '        return connection.sql("SELECT 1").fetchall()\n')
     assert read_datasets(code) == {'yuiseki/jp-admin-2026-09', 'yuiseki/ekidata-jp'}
 
 
 def test_contract_refuses_code_that_reads_a_dataset_the_intent_did_not_declare():
     from geo_voyager.skill_candidate_generator import contract_problems
-    code = ('from geo_voyager.control_primitives import connect_duckdb, load_admin_units, load_stations\n\n'
+    code = ('from geo_voyager.control_primitives import connect_duckdb, read_table\n\n'
             'def stations_per_ward():\n    """駅。"""\n    with connect_duckdb() as connection:\n'
-            '        load_admin_units(connection)\n        return load_stations(connection).count("*").fetchone()[0]\n')
+            '        read_table(connection, "yuiseki/jp-admin-2026-09", "municipalities")\n        return read_table(connection, "yuiseki/ekidata-jp", "station").count("*").fetchone()[0]\n')
     problems = contract_problems(Intent('駅の数', ('yuiseki/ekidata-jp',)), code)
     assert any('yuiseki/jp-admin-2026-09' in found for found, _ in problems)
     both = Intent('区ごとの駅の数', ('yuiseki/ekidata-jp', 'yuiseki/jp-admin-2026-09'))
@@ -693,9 +693,9 @@ def test_contract_refuses_code_that_reads_a_dataset_the_intent_did_not_declare()
 
 def test_contract_refuses_code_that_does_not_read_a_declared_dataset_even_without_a_service():
     from geo_voyager.skill_candidate_generator import contract_problems
-    code = ('from geo_voyager.control_primitives import connect_duckdb, load_stations\n\n'
+    code = ('from geo_voyager.control_primitives import connect_duckdb, read_table\n\n'
             'def stations_per_ward():\n    """駅。"""\n    with connect_duckdb() as connection:\n'
-            '        return load_stations(connection).count("*").fetchone()[0]\n')
+            '        return read_table(connection, "yuiseki/ekidata-jp", "station").count("*").fetchone()[0]\n')
     both = Intent('区ごとの駅の数', ('yuiseki/ekidata-jp', 'yuiseki/jp-admin-2026-09'))
     assert any('yuiseki/jp-admin-2026-09' in found for found, _ in contract_problems(both, code))
 

@@ -291,8 +291,6 @@ def called_service_ids(code: str) -> set[str]:
 
 # The Dataset each reading primitive reads. dataset_url reads the one its argument names.
 PRIMITIVE_DATASETS = {
-    'load_admin_units': 'yuiseki/jp-admin-2026-09',
-    'load_stations': 'yuiseki/ekidata-jp',
     'sum_population_grid': 'yuiseki/worldpop-jp-2026-01',
 }
 DATASET_READERS_NOTE = 'read_table（表）か sum_population_grid（人口格子）'

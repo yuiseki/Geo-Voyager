@@ -1,9 +1,13 @@
 """固定の東京23区実験。データへの接続先は Gateway だけ。"""
 
-from geo_voyager.control_primitives import connect_duckdb as connect, load_admin_units
+from geo_voyager.control_primitives import connect_duckdb as connect, read_table
+
+# The 23 wards, as geo_voyager.table_contracts.NAMED_AREAS names them.
+TOKYO_23 = "pref_code = '13' AND name LIKE '%区'"
 
 def analyze(connection):
-    rows = load_admin_units('yuiseki/jp-admin-2026-09', connection, area='東京都23区').fetchall()
+    rows = read_table(connection, 'yuiseki/jp-admin-2026-09', 'municipalities').filter(TOKYO_23).project(
+        'code5, name, population').fetchall()
     if len(rows) != 23:
         raise ValueError(f"Expected 23 wards, got {len(rows)}")
     if any(type(population) is not int for _, _, population in rows):

@@ -5,16 +5,13 @@
 `geo_voyager/control_primitives/` は sandbox の中で使う基礎操作を提供します。各機能を 1 ファイルずつに分け、`__init__.py` から再公開しています。
 
 - `connect_duckdb()`: sandbox 用の DuckDB 接続。既存の extension 設定・LOAD を維持します。
-- `dataset_url(dataset_id)`: 登録済み Dataset id を Gateway の URL に変換します。
-- `load_admin_units(connection, *, area=None)`: 行政区域の relation（code5、name、population、geometry）を返します。
-- `load_stations(connection)`: 駅の relation（station_cd、station_g_cd、line_cd、name、status、latitude、longitude、geometry）を返します。
+- `dataset_url(dataset_id, table=None)`: 登録済み Dataset（とその表）を Gateway の URL に変換します。
+- `read_table(connection, dataset_id, table)`: Dataset の reference が挙げる表の全列を、reference の列名のまま relation で返します。経度緯度の geometry は OGC:CRS84 にそろえます（[ADR 0010](../ADR/0010-generic-table-primitives.md)）。
 - `sum_population_grid(connection, zones)`: geometry 列を持つ区域ごとに WorldPop 100m の画素を足し、`estimated_population` を返します（一度に 100 区域まで）。
 - `call_service(service_id, *, path="", params=None, body=None, content_type=None)`: 登録サービスに Gateway 経由で問い合わせます（[services.md](services.md)）。
 
-`load_admin_units` と `load_stations` は、先頭に dataset_id を渡す古い呼び方も受け付けます（`dataset_arguments.py`）。
-Primitive が意味的な AOI を解決します。`area=None`（既定値）は全行政区域、
-`area="東京都23区"` は23区の relation を返します。未対応 area は読み込み前に `ValueError` です。
-東京23区を特定する行政コード知識は `load_admin_units.py` の内部だけに保持しています。
+`sum_population_grid` は、先頭に dataset_id を渡す古い呼び方も受け付けます（`dataset_arguments.py`）。
+地域は Primitive ではなく列の条件で絞ります。名前のついた地域とその条件（東京23区は `pref_code = '13' AND name LIKE '%区'`）は `table_contracts.py` の `NAMED_AREAS` だけに置き、表の契約としてプロンプトに出します。
 DuckDB 接続を引数で渡すことで、Skill が接続の終了まで管理します。
 
 Skill と Skill Library は [下の節](#skill-library名前付き関数voyager-型) にあります。
@@ -55,8 +52,7 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest integration/test_critic_llm.py
 `SkillCandidateGenerator.generate(intent, skills) -> SkillCandidate` は既存のローカル
 `LlamaClient` を使い、Intent.text、dataset_ids と service_ids の説明、Control Primitives の
 名前・シグネチャ・説明、検索した Skill（呼んでよい関数）を渡します。
-AOIには `load_admin_units(connection, area="東京都23区")` を提示し、
-行政コードを推測・生成せず Primitive に地域解決を任せるよう指示します。
+地域は、表の契約に出る名前のついた地域の条件（`NAMED_AREAS`）で絞るよう示し、行政コードを推測・生成させません。
 Dataset の読み込みは Primitive のみに限定するよう指示し、外部 URL の直接利用を禁止します。
 実行環境が定義する変数（`dataset_id`、`intent_target`、`previous_observations`、`results`。[pipeline.md](pipeline.md)）を参照し、最終結果を stdout に出すコードを生成します。
 

@@ -161,12 +161,13 @@ def nominatim_search(query: str, extract: str) -> str:
 
 
 def dataset_oracle(setup: str, query: str, output: str) -> str:
-    return sandbox('from geo_voyager.control_primitives import connect_duckdb, load_admin_units, load_stations',
+    return sandbox('from geo_voyager.control_primitives import connect_duckdb, read_table',
                    'import json', 'con = connect_duckdb()', setup, query, output)
 
 
-ADMIN = "load_admin_units('yuiseki/jp-admin-2026-09', con, area='東京都23区')"
-STATIONS = "load_stations('yuiseki/ekidata-jp', con)"
+# The 23 wards as geo_voyager.table_contracts.NAMED_AREAS names them; a row of station is a station on a line.
+ADMIN = "read_table(con, 'yuiseki/jp-admin-2026-09', 'municipalities').filter(\"pref_code = '13' AND name LIKE '%区'\")"
+STATIONS = "read_table(con, 'yuiseki/ekidata-jp', 'station')"
 
 GOALS = [
     # Overpass
@@ -233,7 +234,7 @@ GOALS = [
               judge_count, required=('yuisekin-geosparql',)),
     # Datasets
     BenchGoal('ward_pop_max', '東京23区のうち人口が最も多い区の名前と人口を求める。',
-              dataset_oracle(f'rel = {ADMIN}', "code, name, population = rel.order('population DESC').limit(1).fetchone()",
+              dataset_oracle(f'rel = {ADMIN}', "name, population = rel.order('population DESC').project('name, population').limit(1).fetchone()",
                              'print(json.dumps({"name": name, "count": int(population)}))'),
               judge_max, required=('yuiseki/jp-admin-2026-09',)),
     BenchGoal('ward_pop_total', '東京23区の人口の合計を求める。',
@@ -245,7 +246,7 @@ GOALS = [
                              'print(json.dumps({"count": int(n)}))'),
               judge_count, required=('yuiseki/ekidata-jp',)),
     BenchGoal('stations_northmost', '駅データのうち最も北（緯度が最大）にある駅の名前を求める。',
-              dataset_oracle(f'rel = {STATIONS}', "name = rel.order('latitude DESC').limit(1).fetchone()[0]",
+              dataset_oracle(f'rel = {STATIONS}', "name = rel.order('lat DESC').project('station_name').limit(1).fetchone()[0]",
                              'print(json.dumps({"values": [name]}))'),
               judge_strings, required=('yuiseki/ekidata-jp',)),
 ]

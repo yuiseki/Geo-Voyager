@@ -10,9 +10,9 @@ from geo_voyager.docker_sandbox import DockerSandbox
 
 CODE = '''
 import json
-from geo_voyager.control_primitives import connect_duckdb, load_admin_units, sum_population_grid
+from geo_voyager.control_primitives import connect_duckdb, read_table, sum_population_grid
 with connect_duckdb() as connection:
-    wards = load_admin_units(connection, area='東京都23区')
+    wards = read_table(connection, 'yuiseki/jp-admin-2026-09', 'municipalities').filter(\"pref_code = '13' AND name LIKE '%区'\")
     rows = sum_population_grid(connection, wards).order('code5').project('code5, name, estimated_population').fetchall()
 print(json.dumps(rows, ensure_ascii=False))
 '''
@@ -21,12 +21,12 @@ print(json.dumps(rows, ensure_ascii=False))
 # whole files with the same join (2026-10-12).
 STATIONS = '''
 import json
-from geo_voyager.control_primitives import connect_duckdb, load_admin_units, load_stations
+from geo_voyager.control_primitives import connect_duckdb, read_table
 with connect_duckdb() as connection:
-    wards = load_admin_units(connection, area='東京都23区')
-    stations = load_stations(connection)
+    wards = read_table(connection, 'yuiseki/jp-admin-2026-09', 'municipalities').filter(\"pref_code = '13' AND name LIKE '%区'\")
+    stations = read_table(connection, 'yuiseki/ekidata-jp', 'station')
     rows = connection.sql("""SELECT w.name, count(*), count(DISTINCT s.station_g_cd) FROM wards w JOIN stations s
-                             ON ST_Contains(w.geometry, s.geometry) WHERE s.status = 0 GROUP BY w.name""").fetchall()
+                             ON ST_Contains(w.geometry, s.geometry) WHERE s.e_status = 0 GROUP BY w.name""").fetchall()
 print(json.dumps(rows, ensure_ascii=False))
 '''
 

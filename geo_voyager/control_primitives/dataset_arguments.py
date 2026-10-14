@@ -1,8 +1,8 @@
 def dataset_arguments(args: tuple, dataset_id: str, minimum: int) -> tuple:
     """The arguments after the Dataset id, which a call may write first or leave out.
 
-    A primitive reads one Dataset, so the id says nothing new: load_stations(connection) and the older
-    load_stations('yuiseki/ekidata-jp', connection) both work. Another Dataset's id fails before anything is read.
+    A primitive reads one Dataset, so the id says nothing new: sum_population_grid(connection, zones) and the older
+    sum_population_grid('yuiseki/worldpop-jp-2026-01', connection, zones) both work. Another Dataset's id fails before anything is read.
     """
     if args and isinstance(args[0], str):
         if args[0] != dataset_id:

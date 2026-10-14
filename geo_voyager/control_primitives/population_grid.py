@@ -17,7 +17,7 @@ def sum_population_grid(*args):
     """
     connection, zones = dataset_arguments(args, WORLDPOP, 2)
     if 'geometry' not in zones.columns:
-        raise ValueError('The zones must have a geometry column (for example load_admin_units(connection))')
+        raise ValueError('The zones must have a geometry column (for example the municipalities of read_table)')
     import rasterio
     import rasterio.mask
 

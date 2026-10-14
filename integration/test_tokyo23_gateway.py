@@ -12,7 +12,8 @@ from integration.test_worker_image import WORKER_IMAGE
 def gateway_code(*, include_stations=False):
     root = Path(__file__).resolve().parents[1]
     files = {name: (root / 'geo_voyager' / name).read_text() for name in (
-        '__init__.py', 'dataset.py', 'dataset_graph.py', 'datasets.py', 'fetch_gateway.py',
+        '__init__.py', 'dataset.py', 'dataset_graph.py', 'datasets.py', 'fetch_gateway.py', 'dataset_tables.py',
+        'dataset_references.json',
     )}
     resolver = (root / 'integration/admin_download.py').read_text()
     return f'''
@@ -35,7 +36,9 @@ register_admin_download(graph)
 if {include_stations!r}:
     register_station_download(graph)
 print('registered administrative parquet download', flush=True)
-class LoggedHandler(make_handler(graph)):
+# read_table reads a table of a dataset reference at its pinned URL (ADR 0010).
+from geo_voyager.dataset_tables import TABLE_URLS
+class LoggedHandler(make_handler(graph, TABLE_URLS)):
     def send_response(self, code, message=None):
         print(self.command, code, 'Range:', self.headers.get('Range', ''), 'Path:', self.path, flush=True)
         super().send_response(code, message)
@@ -74,10 +77,10 @@ def test_tokyo23_parquet_through_gateway():
         total = int(output.split('population_total=')[1].strip())
         assert total > 0
         area_counts = docker('exec', names['worker'], 'python', '-I', '-B', '-c',
-            "from geo_voyager.control_primitives import connect_duckdb, load_admin_units; "
-            "c=connect_duckdb(); "
-            "all_count=load_admin_units('yuiseki/jp-admin-2026-09',c,area=None).count('*').fetchone()[0]; "
-            "tokyo_count=load_admin_units('yuiseki/jp-admin-2026-09',c,area='東京都23区').count('*').fetchone()[0]; "
+            "from geo_voyager.control_primitives import connect_duckdb, read_table; "
+            "c=connect_duckdb(); m=read_table(c,'yuiseki/jp-admin-2026-09','municipalities'); "
+            "all_count=m.count('*').fetchone()[0]; "
+            "tokyo_count=m.filter(\"pref_code = '13' AND name LIKE '%区'\").count('*').fetchone()[0]; "
             "assert all_count>23 and tokyo_count==23; print('all / Tokyo23:',all_count,tokyo_count)",
             timeout=60)
         print(area_counts, end='')
