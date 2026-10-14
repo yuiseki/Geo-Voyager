@@ -3,7 +3,7 @@ registered services and datasets, and the pinned GeoSPARQL server."""
 from contextlib import contextmanager
 import subprocess
 
-from bench.dataset_mirror import ensure_mirror
+from geo_voyager.dataset_mirror import ensure_mirror
 from integration.network_topology import network_topology
 from integration.service_gateway_setup import gateway_code, wait_for_gateway
 from integration.test_service_learning import pinned_geosparql

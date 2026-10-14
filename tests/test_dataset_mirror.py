@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from bench.dataset_mirror import ensure_mirror
+from geo_voyager.dataset_mirror import ensure_mirror
 from geo_voyager.fetch_gateway import mirror_name
 
 URLS = {('a/set', 'rows'): 'https://huggingface.co/datasets/a/set/resolve/abc/rows.parquet'}
@@ -19,7 +19,7 @@ def response(body: bytes, length: int | None = None):
 
 
 def test_a_missing_table_is_copied_once(tmp_path):
-    with patch('bench.dataset_mirror.urlopen', return_value=response(b'parquet')) as urlopen:
+    with patch('geo_voyager.dataset_mirror.urlopen', return_value=response(b'parquet')) as urlopen:
         ensure_mirror(tmp_path, URLS)
         ensure_mirror(tmp_path, URLS)
     assert (tmp_path / mirror_name(URLS[('a/set', 'rows')])).read_bytes() == b'parquet'
@@ -28,7 +28,7 @@ def test_a_missing_table_is_copied_once(tmp_path):
 
 
 def test_a_cut_download_leaves_no_copy(tmp_path):
-    with patch('bench.dataset_mirror.urlopen', return_value=response(b'parq', length=7)):
+    with patch('geo_voyager.dataset_mirror.urlopen', return_value=response(b'parq', length=7)):
         with pytest.raises(OSError):
             ensure_mirror(tmp_path, URLS)
     assert list(tmp_path.iterdir()) == [] or all(path.name.endswith('.partial') for path in tmp_path.iterdir())

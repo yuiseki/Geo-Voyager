@@ -7,9 +7,9 @@ import os
 from pathlib import Path
 from urllib.request import Request, urlopen
 
-from geo_voyager.dataset_tables import TABLE_URLS
-from geo_voyager.fetch_gateway import mirror_name
-from geo_voyager.services import HTTP_USER_AGENT
+from .dataset_tables import TABLE_URLS
+from .fetch_gateway import mirror_name
+from .services import HTTP_USER_AGENT
 
 DEFAULT_DIR = Path(os.environ.get('GEO_VOYAGER_MIRROR_DIR', Path(__file__).resolve().parents[1] / '.cache' / 'datasets'))
 
