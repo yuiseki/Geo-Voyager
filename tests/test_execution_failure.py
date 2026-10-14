@@ -100,21 +100,35 @@ def test_output_over_the_limit_fails_instead_of_being_cut_silently():
     stopped mid-object and could not tell why. Over the limit, the run fails and says what to change."""
     import subprocess
     import sys
-    from geo_voyager.execution_failure import GENERATED_ERROR_EXIT, OUTPUT_LIMIT, sandbox_program
+    from geo_voyager.execution_failure import GENERATED_ERROR_EXIT, RESULT_LIMIT, sandbox_program
 
-    result = subprocess.run([sys.executable, '-I', '-B', '-'], input=sandbox_program(f"print('x' * {OUTPUT_LIMIT + 100})"),
+    result = subprocess.run([sys.executable, '-I', '-B', '-'], input=sandbox_program(f"print('x' * {RESULT_LIMIT + 100})"),
                             capture_output=True, text=True)
     assert result.returncode == GENERATED_ERROR_EXIT
-    assert f'{OUTPUT_LIMIT + 101} bytes' in result.stderr
+    assert f'{RESULT_LIMIT + 101} bytes' in result.stderr
     assert '行か列を減らす' in result.stderr
 
 
 def test_output_at_the_limit_is_kept():
     import subprocess
     import sys
-    from geo_voyager.execution_failure import OUTPUT_LIMIT, sandbox_program
+    from geo_voyager.execution_failure import RESULT_LIMIT, sandbox_program
 
-    result = subprocess.run([sys.executable, '-I', '-B', '-'], input=sandbox_program(f"print('x' * {OUTPUT_LIMIT - 1})"),
+    result = subprocess.run([sys.executable, '-I', '-B', '-'], input=sandbox_program(f"print('x' * {RESULT_LIMIT - 1})"),
                             capture_output=True, text=True)
     assert result.returncode == 0
-    assert len(result.stdout.encode()) == OUTPUT_LIMIT
+    assert len(result.stdout.encode()) == RESULT_LIMIT
+
+
+def test_a_table_of_the_countries_of_the_world_passes_to_the_next_step_while_a_diagnostic_stays_short():
+    # The small tasks of GeoAI-skills (2026-10-14), task 17: the 217 countries' population (10.9 KB) and the
+    # areas of Natural Earth's countries (26.7 KB) could not reach the next step under a limit of 8 KiB. The prompts
+    # show an Observation cut to their budgets; the next step's code reads it whole.
+    import subprocess
+    import sys
+    from geo_voyager.execution_failure import OUTPUT_LIMIT, RESULT_LIMIT, sandbox_program
+    assert RESULT_LIMIT >= 128 * 1024 and OUTPUT_LIMIT == 8192
+    result = subprocess.run([sys.executable, '-I', '-B', '-'],
+                            input=sandbox_program("import sys\nprint('x' * 30000)\nprint('e' * 20000, file=sys.stderr)"),
+                            capture_output=True, text=True)
+    assert result.returncode == 0 and len(result.stdout) == 30001 and len(result.stderr) <= OUTPUT_LIMIT

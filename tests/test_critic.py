@@ -329,3 +329,29 @@ def test_the_names_of_columns_to_read_and_values_carried_from_earlier_steps_are_
     names = prompt.index('読む元の列の名前が出力のキーに無いことを、失敗の理由にしない')
     carried = prompt.index('今回読んだデータやサービスがその種類の ID を持たないことを、失敗の理由にしない')
     assert prompt.index('キー名の違いは失敗の理由にしない') < names < carried < prompt.index('Intent:\n')
+
+
+def test_an_observation_longer_than_its_budget_is_cut_with_how_long_it_was_and_how_many_rows_it_had():
+    # The results of a step can be 256 KiB (execution_failure.RESULT_LIMIT) and reach the next step whole; the
+    # Critic is shown them within a budget, beside the code that made them.
+    import json
+    from geo_voyager.critic import OBSERVED_BUDGET
+    rows = [{'country_code': f'C{index:03d}', 'population': 1000 + index} for index in range(217)]
+    text = json.dumps(rows)
+    client = Mock(); client.generate.return_value = '判定: 成功\n理由: ok'
+    Critic(client).check(Intent('2020 年の国ごとの総人口', ('yuiseki/worldbank-wdi',)), [Observation(text)])
+    shown = client.generate.call_args.args[0].split('Observation:\n', 1)[1]
+    assert len(shown.encode('utf-8')) < OBSERVED_BUDGET + 512
+    assert f'全 {len(text.encode("utf-8"))} バイト、217 行' in shown and 'C000' in shown
+
+
+def test_the_final_check_cuts_every_step_within_the_budget():
+    import json
+    from geo_voyager.critic import OBSERVED_BUDGET
+    big = Observation(json.dumps([{'code': f'C{index:03d}', 'area_km2': index * 10.5} for index in range(400)]))
+    small = Observation('{"median_density": 85.6}')
+    client = Mock(); client.generate.return_value = '判定: 成功\n理由: ok'
+    Critic(client).check(Intent('国の密度の中央値', ('yuiseki/worldbank-wdi',)), [big, small], final=True, asked=('面積', '中央値'))
+    shown = client.generate.call_args.args[0].split('Observation:\n', 1)[1]
+    assert '{"median_density": 85.6}' in shown and '400 行' in shown
+    assert len(shown.encode('utf-8')) < OBSERVED_BUDGET + 1024

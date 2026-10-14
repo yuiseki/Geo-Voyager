@@ -16,3 +16,4 @@
 | [0010](0010-generic-table-primitives.md) | Dataset の読み込みを、データセットの reference から組み立てる汎用の Primitive にする | 2026-10-13 |
 | [0011](0011-exploration-graph-checked-failures.md) | Exploration Graph: 次の試行に渡すのは、モデルを使わずに確かめた失敗だけ | 2026-10-14 |
 | [0012](0012-goal-event-log-and-resume.md) | Goal の出来事の記録を正本にし、途中から再開する | 2026-10-14 |
+| [0013](0013-results-passed-whole-shown-within-budgets.md) | 手の結果は次の手へ丸ごと渡し、プロンプトには予算の中で見せる | 2026-10-14 |

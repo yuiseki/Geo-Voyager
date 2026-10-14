@@ -2,7 +2,11 @@ from dataclasses import dataclass
 import re
 import subprocess
 
+# A diagnostic (stderr, the stdout of a failed run) is shown to a model as it is: 8 KiB.
 OUTPUT_LIMIT = 8192
+# A result is passed whole to the next step's code (results[...]) and cut to a budget where a prompt shows it
+# (goal_history, critic). A table of the 217 countries of the world, or of the 1,741 municipalities of Japan, fits.
+RESULT_LIMIT = 256 * 1024
 GENERATED_ERROR_EXIT = 73
 
 
@@ -51,16 +55,21 @@ def sandbox_program(code: str) -> str:
     # The wrapper runs inside the container. No host environment is copied.
     return '''import io, os, sys, traceback
 class LimitedOutput(io.TextIOBase):
-    def __init__(self):
-        self.text, self.size = '', 0
+    def __init__(self, limit):
+        self.limit, self.kept, self.size = limit, [], 0
     def write(self, text):
-        self.size += len(text.encode('utf-8'))
-        self.text += text.encode('utf-8')[:max(0, 8192 - len(self.text.encode('utf-8')))].decode('utf-8', errors='ignore')
+        data = text.encode('utf-8')
+        if self.size < self.limit:
+            self.kept.append(data[:self.limit - self.size])
+        self.size += len(data)
         return len(text)
+    @property
+    def text(self):
+        return b''.join(self.kept).decode('utf-8', errors='ignore')
     def flush(self):
         pass
 original_out, original_err = sys.stdout, sys.stderr
-out, err = LimitedOutput(), LimitedOutput()
+out, err = LimitedOutput(''' + str(RESULT_LIMIT) + '''), LimitedOutput(''' + str(OUTPUT_LIMIT) + ''')
 sys.stdout, sys.stderr = out, err
 status = 0
 try:
@@ -70,14 +79,16 @@ except BaseException:
     status = 73
 finally:
     # Output cut at the limit would reach the Critic as a list that stops mid-row. It fails, saying what to change.
-    if status == 0 and out.size > 8192:
-        err.write('OutputTooLong: 出力が %d bytes で、上限 8192 bytes を超えた。Intent が求める値だけを残し、返す行か列を減らす\\n' % out.size)
+    if status == 0 and out.size > out.limit:
+        err.write('OutputTooLong: 出力が %d bytes で、上限 %d bytes を超えた。Intent が求める値だけを残し、返す行か列を減らす\\n' % (out.size, out.limit))
         status = 73
     sys.stdout, sys.stderr = original_out, original_err
-    for stream, text in ((original_out, out.text), (original_err, err.text)):
+    for stream, kept in ((original_out, out), (original_err, err)):
+        text = kept.text
         for key, value in os.environ.items():
             if len(value) >= 8 or any(word in key.upper() for word in ('TOKEN', 'SECRET', 'PASSWORD', 'KEY')):
                 text = text.replace(value, '[redacted]')
-        stream.write(text.encode('utf-8')[:8192].decode('utf-8', errors='ignore'))
+        # A failed run's stdout is a diagnostic.
+        stream.write(text.encode('utf-8')[:kept.limit if status == 0 else ''' + str(OUTPUT_LIMIT) + '''].decode('utf-8', errors='ignore'))
 sys.exit(status)
 '''

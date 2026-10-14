@@ -20,6 +20,9 @@ THINKING_BUDGET_TOKENS = 1024
 # The earlier Observations are reference for the identity of a target, not the answer. Shown whole, two lists of
 # 8 KB beside an 8 KB answer were more than the model's 8,192-token context, and the server refused the prompt.
 REFERENCE_BUDGET = 4096
+# The Observations judged, shared the same way. A result reaches the next step whole (up to 256 KiB); the Critic
+# reads the code that made it beside the part shown, and how long it was.
+OBSERVED_BUDGET = 6144
 # The model's knowledge of single places was wrong each time it failed a step on it (港区 and 目黒区 do not touch;
 # 大田区 and 江戸川区 touch at sea in OSM), and its sense of scale was right (no station in the 23 wards is wrong).
 PLACE_FACTS = ('個々の地物についての事実（どの区とどの区が接するか、ある名前が一覧に入るべきか）を、自分の知識で否定・補完して失敗の理由にしない。'
@@ -58,8 +61,17 @@ def _references(observations: tuple[Observation, ...], budget: int = REFERENCE_B
         shares[index] = min(sizes[index], left // (len(sizes) - count))
         left -= shares[index]
     return [observation.text if shares[index] == sizes[index] else
-            observation.text.encode('utf-8')[:shares[index]].decode('utf-8', errors='ignore') + f'…（以下略、全 {sizes[index]} バイト）'
+            observation.text.encode('utf-8')[:shares[index]].decode('utf-8', errors='ignore')
+            + f'…（以下略、全 {sizes[index]} バイト{_rows(observation.text)}）'
             for index, observation in enumerate(observations)]
+
+
+def _rows(text: str) -> str:
+    try:
+        value = json.loads(text)
+    except ValueError:
+        return ''
+    return f'、{len(value)} 行' if isinstance(value, list) else ''
 
 
 class Critic:
@@ -90,11 +102,11 @@ class Critic:
             conflict = identity_conflict(intent.target, tuple(observations))
             if conflict:
                 return Critique(success=False, reason=conflict)
+        shown = _references(tuple(observations), OBSERVED_BUDGET)
         if asked:
-            observation_text = '\n'.join(f'- 調査項目: {step}\n  出力: {observation.text}'
-                                         for step, observation in zip(asked, observations))
+            observation_text = '\n'.join(f'- 調査項目: {step}\n  出力: {text}' for step, text in zip(asked, shown))
         else:
-            observation_text = '\n'.join(f'- {observation.text}' for observation in observations)
+            observation_text = '\n'.join(f'- {text}' for text in shown)
         prompt = (
             'Observation が Intent の要求した調査結果を実際に答えているか判定してください。\n'
             '仮説が正しいか、結果が望ましいかは判定しない。\n'
