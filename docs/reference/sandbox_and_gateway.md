@@ -9,7 +9,7 @@ docker pull python:3.12-slim
 ```
 
 `DockerSandbox().run(code)` は Python をコンテナの stdin に送り、stdout を文字列で返します。
-非0終了は `subprocess.CalledProcessError`、timeout（既定の枠は30秒、分析の枠は600秒）は `subprocess.TimeoutExpired` になります。Worker は timeout をその Candidate の失敗（`TimeoutError`）として返します。
+非0終了は `subprocess.CalledProcessError`、timeout（既定の枠は60秒、分析の枠は600秒）は `subprocess.TimeoutExpired` になります。Worker は timeout をその Candidate の失敗（`TimeoutError`）として返します。
 timeout 時は専用の一意なコンテナ名を指定して強制削除します（削除コマンドは最大5秒）。
 通常終了時は `--rm` でコンテナを削除します。
 
@@ -63,7 +63,7 @@ Docker Engine 29.5.3 で両モードの2件が成功しています。
   Content-Range、Accept-Ranges のみを引き継ぐ。
 - 未登録 id は404、query parameter は400、POST/PUT/PATCH/DELETEは405。
 - redirect は自動追跡せず、Location も返さない。upstream エラーは502。
-- upstream HTTP は同期でtimeout 10秒。retry・cache・authentication はない。
+- upstream HTTP は同期でtimeout 10秒。retry・authentication はない。cache は無いが、表の写し（`mirror_dir` に `mirror_name(url)` の名前で置いたファイル）があれば、Hub へ行かずにそこから GET・HEAD・`Range: bytes=a-b` と `bytes=a-` に応える。
 
 テスト用 topology に実装を載せ、external 側の Origin コンテナが固定文字列
 `0123456789` を返します。ファイル共有や Internet アクセスはしません。

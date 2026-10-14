@@ -166,3 +166,52 @@ def test_a_table_of_a_dataset_that_is_not_in_the_catalog_is_served_too(gateway):
 def test_only_a_listed_table_is_served(gateway, path):
     assert request(gateway, path=path)[0] == 404
     gateway[1].assert_not_called()
+
+
+@pytest.fixture
+def mirrored(tmp_path):
+    """A gateway whose table test/fixed/rows has a local copy of its pinned file."""
+    from geo_voyager.fetch_gateway import mirror_name
+    (tmp_path / mirror_name(TABLES[("test/fixed", "rows")])).write_bytes(b"abcdefghij")
+    with patch("geo_voyager.fetch_gateway.build_opener") as build:
+        server = HTTPServer(("127.0.0.1", 0), make_handler(DatasetGraph(), TABLES, mirror_dir=str(tmp_path)))
+        thread = Thread(target=lambda: server.serve_forever(poll_interval=0.01), daemon=True)
+        thread.start()
+        try:
+            yield server.server_port, build.return_value.open
+        finally:
+            server.shutdown()
+            thread.join()
+            server.server_close()
+
+
+def test_a_range_of_a_mirrored_table_is_read_from_the_copy_without_the_hub(mirrored):
+    # Through the Hub each range read was a new connection to its CDN in the US, about 1 s; a filter on the
+    # 23 wards took 20 s in the sandbox and 5 s from the host.
+    status, headers, body = request(mirrored, path="/datasets/test/fixed/rows", headers={"Range": "bytes=2-5"})
+    assert (status, body) == (206, b"cdef")
+    assert headers["Content-Range"] == "bytes 2-5/10"
+    assert headers["Content-Length"] == "4"
+    mirrored[1].assert_not_called()
+
+
+def test_a_range_past_the_end_of_a_mirrored_table_is_cut_at_the_end(mirrored):
+    status, headers, body = request(mirrored, path="/datasets/test/fixed/rows", headers={"Range": "bytes=8-"})
+    assert (status, body, headers["Content-Range"]) == (206, b"ij", "bytes 8-9/10")
+    status, headers, body = request(mirrored, path="/datasets/test/fixed/rows", headers={"Range": "bytes=8-99"})
+    assert (status, body) == (206, b"ij")
+
+
+def test_head_and_a_whole_get_of_a_mirrored_table(mirrored):
+    status, headers, body = request(mirrored, "HEAD", path="/datasets/test/fixed/rows")
+    assert (status, body, headers["Content-Length"], headers["Accept-Ranges"]) == (200, b"", "10", "bytes")
+    assert request(mirrored, path="/datasets/test/fixed/rows")[::2] == (200, b"abcdefghij")
+    mirrored[1].assert_not_called()
+
+
+def test_a_table_without_a_copy_is_read_from_the_hub(mirrored):
+    response = MagicMock(status=200, headers={"Content-Length": "3"})
+    response.read.return_value = b"hub"
+    mirrored[1].return_value.__enter__.return_value = response
+    assert request(mirrored, path="/datasets/other/set/lines")[::2] == (200, b"hub")
+    assert mirrored[1].call_args.args[0].full_url == TABLES[("other/set", "lines")]

@@ -1,4 +1,7 @@
+import hashlib
 from http.server import BaseHTTPRequestHandler
+import os
+import re
 from urllib.error import HTTPError, URLError
 from urllib.parse import unquote, urlsplit
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
@@ -29,9 +32,20 @@ class HubRedirect(HTTPRedirectHandler):
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
-def make_handler(graph: DatasetGraph, tables: dict[tuple[str, str], str] | None = None):
+def mirror_name(url: str) -> str:
+    """The file name of a local copy of a pinned table URL. The URL names a revision, so the copy never goes stale."""
+    return hashlib.sha256(url.encode('utf-8')).hexdigest()
+
+
+_RANGE = re.compile(r'bytes=(\d+)-(\d*)')
+
+
+def make_handler(graph: DatasetGraph, tables: dict[tuple[str, str], str] | None = None, mirror_dir: str | None = None):
     """GET and HEAD of /datasets/<dataset id> (the dataset's data_url) and of /datasets/<dataset id>/<table> (a table
-    the dataset references list, at its pinned URL: geo_voyager.dataset_tables.TABLE_URLS). Nothing else."""
+    the dataset references list, at its pinned URL: geo_voyager.dataset_tables.TABLE_URLS). Nothing else.
+
+    A table whose pinned file has a copy in mirror_dir (named by mirror_name) is read from the copy. Through the Hub,
+    each range read is a new connection to its CDN, about 1 s from here, and one filtered read takes a dozen."""
     tables = tables or {}
 
     class DatasetHandler(BaseHTTPRequestHandler):
@@ -56,6 +70,10 @@ def make_handler(graph: DatasetGraph, tables: dict[tuple[str, str], str] | None 
                 return
             dataset_id = unquote(path.path.removeprefix("/datasets/"))
             url = tables.get(tuple(dataset_id.rsplit("/", 1))) if dataset_id.count("/") >= 2 else None
+            copy = os.path.join(mirror_dir, mirror_name(url)) if mirror_dir and url else None
+            if copy and os.path.isfile(copy):
+                self._serve_copy(method, copy)
+                return
             if url is None:
                 try:
                     dataset = graph.get(dataset_id)
@@ -83,6 +101,32 @@ def make_handler(graph: DatasetGraph, tables: dict[tuple[str, str], str] | None 
                 self.send_error(502, "Upstream request failed; redirects are not followed")
             except (URLError, TimeoutError):
                 self.send_error(502, "Upstream request failed")
+
+        def _serve_copy(self, method, path):
+            size = os.path.getsize(path)
+            start, end = 0, size - 1
+            match = _RANGE.fullmatch(self.headers.get("Range", "")) if method == "GET" else None
+            if match:
+                start = int(match.group(1))
+                end = min(int(match.group(2)) if match.group(2) else size - 1, size - 1)
+                if start > end:
+                    self.send_error(416)
+                    return
+            self.send_response(206 if match else 200)
+            self.send_header("Content-Type", "application/octet-stream")
+            self.send_header("Accept-Ranges", "bytes")
+            self.send_header("Content-Length", str(end - start + 1))
+            if match:
+                self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
+            self.end_headers()
+            if method == "GET":
+                with open(path, "rb") as file:
+                    file.seek(start)
+                    remaining = end - start + 1
+                    while remaining:
+                        chunk = file.read(min(remaining, 1 << 20))
+                        self.wfile.write(chunk)
+                        remaining -= len(chunk)
 
         def log_message(self, format, *args):
             pass

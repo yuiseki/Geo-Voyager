@@ -26,8 +26,8 @@ def allowed_request(protocol: str, path: str, method: str) -> bool:
 
 
 def make_handler(graph: ServiceGraph, datasets: DatasetGraph | None = None,
-                 tables: dict[tuple[str, str], str] | None = None):
-    class ServiceHandler(dataset_handler(datasets if datasets is not None else DatasetGraph(), tables)):
+                 tables: dict[tuple[str, str], str] | None = None, mirror_dir: str | None = None):
+    class ServiceHandler(dataset_handler(datasets if datasets is not None else DatasetGraph(), tables, mirror_dir)):
         def do_GET(self):
             if self.path.startswith('/datasets/'):
                 super().do_GET()

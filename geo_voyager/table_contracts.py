@@ -8,6 +8,8 @@ prompt has 8192 tokens in all.
 import json
 from pathlib import Path
 
+from .docker_sandbox import DEFAULT_PROFILE
+
 _DATA = json.loads(Path(__file__).with_name('dataset_references.json').read_text(encoding='utf-8'))
 
 # Areas a Goal names, as conditions on the boundaries' columns. Measured on jp-admin-2026-09 (2026-10-13): 23 rows,
@@ -42,7 +44,7 @@ def _table_text(dataset_id: str, table: dict) -> str:
     split_by = table['schema'].get('split_by')
     if split_by:
         lines.append(f'  読み方: 行は {split_by[0]} ごとに {table["schema"]["row_groups"]} の塊に分けて保存されている。'
-                     f'{split_by[0]} の条件を付けると、その塊だけを読む。付けないと全部を読み、実行の上限 30 秒を超えうる')
+                     f'{split_by[0]} の条件を付けると、その塊だけを読む。付けないと全部を読み、実行の上限 {DEFAULT_PROFILE.timeout} 秒を超えうる')
     area_table, areas = _AREAS_OF.get(dataset_id, (None, {}))
     if table['name'] == area_table:
         lines.append('  名前のついた地域: ' + '、'.join(f'{name}: filter("{condition}")' for name, condition in areas.items()))

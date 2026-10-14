@@ -20,7 +20,8 @@ class SandboxProfile:
     out_dir: str | None = None
 
 
-DEFAULT_PROFILE = SandboxProfile(memory="128m", cpus="1", pids="128", timeout=30,
+# 60 s: a filtered read of the 23 wards took 15 to 40 s through the Hub (2026-10-14), so 30 s failed code that was right.
+DEFAULT_PROFILE = SandboxProfile(memory="128m", cpus="1", pids="128", timeout=60,
                                  tmpfs="/tmp:rw,noexec,nosuid,size=16m")
 # For the analyses of study-geoai-algo-py (scikit-learn, LightGBM, OR-Tools, ...): it caps its heavy runs at 8G.
 ANALYSIS_PROFILE = SandboxProfile(memory="8g", cpus="4", pids="512", timeout=600,

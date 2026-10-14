@@ -5,9 +5,10 @@ import time
 from integration.test_tokyo23_gateway import docker
 
 
-def gateway_code(*, with_datasets=False):
+def gateway_code(*, with_datasets=False, mirror_dir=None):
     """Service Gateway. with_datasets also serves the registered Parquet datasets.
 
+    mirror_dir is where the Gateway finds local copies of the tables (bench.dataset_mirror), inside its container.
     Dataset download URLs are resolved at startup, so the gateway waits for /tmp/start,
     which wait_for_gateway(start=True) touches once the external network is attached.
     """
@@ -39,7 +40,7 @@ if {with_datasets!r}:
     datasets = load_dataset_graph()
     # Every table the dataset references list, at its pinned revision (ADR 0010).
     from geo_voyager.dataset_tables import TABLE_URLS as tables
-class LoggedHandler(make_handler(load_service_graph(), datasets, tables)):
+class LoggedHandler(make_handler(load_service_graph(), datasets, tables, {mirror_dir!r})):
     def send_response(self, code, message=None):
         print(self.command, self.path, code, flush=True)
         super().send_response(code, message)

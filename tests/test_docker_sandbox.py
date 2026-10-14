@@ -33,7 +33,7 @@ def test_sandbox_returns_stdout_with_required_constraints():
     assert command[-5:] == ["python:3.12-slim", "python", "-I", "-B", "-"]
     assert not {"-v", "--volume", "--mount", "--privileged"}.intersection(command)
     assert run.call_args.kwargs == {
-        "input": code, "text": True, "capture_output": True, "check": True, "timeout": 30,
+        "input": code, "text": True, "capture_output": True, "check": True, "timeout": 60,
     }
 
 
@@ -128,5 +128,5 @@ def test_a_missing_data_directory_is_refused(tmp_path):
 def test_the_default_profile_is_unchanged():
     from geo_voyager.docker_sandbox import DEFAULT_PROFILE
     assert (DEFAULT_PROFILE.memory, DEFAULT_PROFILE.cpus, DEFAULT_PROFILE.timeout, DEFAULT_PROFILE.tmpfs) == \
-        ("128m", "1", 30, "/tmp:rw,noexec,nosuid,size=16m")
+        ("128m", "1", 60, "/tmp:rw,noexec,nosuid,size=16m")
     assert DEFAULT_PROFILE.data_dir is None and DEFAULT_PROFILE.out_dir is None

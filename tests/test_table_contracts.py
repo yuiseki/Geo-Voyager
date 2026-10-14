@@ -45,7 +45,7 @@ def test_a_join_key_says_how_to_cast_it_and_a_column_how_a_value_is_missing():
 def test_a_table_split_by_a_column_says_to_filter_on_it():
     text = table_contract(('yuiseki/jp-admin-2026-09',))
     assert 'pref_code ごとに 47 の塊' in text
-    assert '30 秒' in text
+    assert '60 秒' in text
 
 
 def test_a_column_note_is_shown_even_for_the_geometry():

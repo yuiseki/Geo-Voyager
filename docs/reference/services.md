@@ -61,7 +61,7 @@ GeoSPARQL への直接接続の拒否と、SPARQL `SERVICE` の無効化も、�
 - 生成した Python の構文エラーや実行時エラーは、Worker が `ExecutionFailure` として返す。
   - コンテナの wrapper は、このエラーのために終了コード 73 を予約している。
   - Docker の起動やデーモンの失敗は、例外のまま外へ出る。
-  - stdout と stderr は、それぞれ 8 KiB まで。コンテナの環境変数の値は伏せ、診断から秘密や環境変数のダンプの行を除く。
+  - stdout と stderr は、それぞれ 8 KiB まで。stdout が 8 KiB を超えたコードは、黙って切らずに失敗（`OutputTooLong`、終了コード 73）にする。切れた一覧を Critic が読んで理由の分からない失敗にしていたため。コンテナの環境変数の値は伏せ、診断から秘密や環境変数のダンプの行を除く。
 - `IntentExecutor` は、生成コードの失敗を `SkillCandidateRepairer` で最大 2 回直す（実行は合わせて 3 回まで）。
   - repair が受け取るのは、元の Intent、登録リソースと Primitive の契約、Candidate、制限した診断。
   - repair は、元の再利用できる操作の説明を保ち、失敗の原因を直す。答えの定数や新しいリソースは持ち込まない。
