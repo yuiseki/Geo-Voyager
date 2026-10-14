@@ -54,3 +54,13 @@ def test_a_column_note_is_shown_even_for_the_geometry():
     text = table_contract(('yuiseki/jp-admin-2026-09',))
     assert 'geometry（' in text
     assert 'ST_Intersects' in text
+
+
+def test_the_population_grid_says_how_its_catalog_and_its_pixels_are_read():
+    # GeoAI-skills' small task 11 (2026-10-15), three runs: the Generator looked for the grid in the files catalog
+    # with sex = 'total' (the total population's sex is NULL), found no row and stopped; another read too much and
+    # was killed at 1 GB. Measured through the Gateway in the sandbox the same day.
+    text = table_contract(('yuiseki/worldpop-jp-2026-01',))
+    assert "sex = 'total' で絞ると 0 行" in text and '126,574,853' in text
+    assert "rasterio.open('/vsicurl/' + dataset_url('yuiseki/worldpop-jp-2026-01'))" in text
+    assert '3.8 GB' in text and '窓' in text

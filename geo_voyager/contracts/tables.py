@@ -24,6 +24,17 @@ MEASURING = ('座標は経度、緯度の度で、面積と距離と円は度の
              'この DuckDB の ST_Distance_Sphere と *_Spheroid は緯度、経度の順を読み、入れ替えないと値が黙って誤る'
              '（東京と大阪の 396 km が 473 km、日本の面積が NaN）。'
              "半径 r m の円は、UTM（EPSG:326NN、NN は経度から決まる帯。日本は 51 から 56）に移して ST_Buffer(…, r) し、OGC:CRS84 に戻す。")
+# The population grid, measured through the Gateway in the sandbox (2026-10-15). On GeoAI-skills' small task 11 the
+# Generator looked for it in the files catalog with sex = 'total' and found no row, three runs out of three.
+_RASTER_NOTES = {
+    'yuiseki/worldpop-jp-2026-01': (
+        'files の表は原本の目録で、cog_path は実行環境からは読めない。読めるのは 2020 年 100 m の総人口だけ'
+        "（files では project = 'Population'、year = 2020、resolution = '100m' の 1 行。総人口の sex は NULL で、"
+        "sex = 'total' で絞ると 0 行。その行の sum が全国の画素の合計 126,574,853）。"
+        "画素を自分で読むときは rasterio.open('/vsicurl/' + dataset_url('yuiseki/worldpop-jp-2026-01'))"
+        '（EPSG:4326、37,258 × 25,773 画素、512 画素の塊、欠損値 -99999）。全体を一度に読むと 3.8 GB で、'
+        'メモリの上限 1 GB を超えて止められる。窓（rasterio.windows）で、塊ごとか区域ごとに読む。'),
+}
 _SHORT_TYPES = {'VARCHAR': 'VARCHAR', 'INTEGER': 'INTEGER', 'BIGINT': 'BIGINT', 'DOUBLE': 'DOUBLE'}
 
 
@@ -71,7 +82,8 @@ def table_contract(dataset_ids) -> str:
                 texts.append(_table_text(dataset_id, table))
             else:
                 texts.append(f'{dataset_id} の {table["name"]} はラスタで、表として読まない（1 画素は{table["grain"]}）。'
-                             'sum_population_grid(connection, zones) が、zones（geometry 列を持つ relation）の区域ごとに画素を足す。')
+                             'sum_population_grid(connection, zones) が、zones（geometry 列を持つ relation）の区域ごとに画素を足す。'
+                             + _RASTER_NOTES.get(dataset_id, ''))
     if texts:
         texts.append('geometry は OGC:CRS84（read_table がそろえる）。2 つの表は ST_Within などで空間結合できる。'
                      + MEASURING)
