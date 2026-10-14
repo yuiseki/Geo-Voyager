@@ -2,7 +2,7 @@ import json
 
 from .id_type_literals import id_type_comparisons
 from .intent import Intent
-from .contracts.code import axis_order_problems, local_aggregation_violations, positional_input_picks
+from .contracts.code import axis_order_problems, catalog_path_problems, local_aggregation_violations, positional_input_picks
 from .control_primitives.population_grid import MAX_ZONES
 from .indicator_codes import DATASET as INDICATOR_DATASET, unknown_indicator_text, unknown_indicators
 from .background_facts import facts_section
@@ -220,7 +220,7 @@ def contract_problems(intent: Intent, code: str, shown: tuple[str, ...] = ()) ->
     if INDICATOR_DATASET in intent.dataset_ids:
         wrong = unknown_indicators(code)
         shape = shape + ([unknown_indicator_text(wrong)] if wrong else [])
-    shape = shape + axis_order_problems(code)
+    shape = shape + axis_order_problems(code) + catalog_path_problems(code)
     shape = shape + overpass_element_mismatch(intent.text, code)
     if shape:
         problems.append(('skill shape: ' + '; '.join(shape), _shape_note(shape)))

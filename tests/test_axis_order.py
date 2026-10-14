@@ -32,7 +32,17 @@ def test_the_generator_is_told_how_to_measure_an_area_a_distance_and_a_circle():
     text = table_contract(('yuiseki/natural-earth',))
     assert "ST_Area(ST_Transform(geometry, 'OGC:CRS84', 'EPSG:6933'))" in text
     assert 'ST_Distance_Sphere(ST_FlipCoordinates(a), ST_FlipCoordinates(b))' in text
-    assert 'EPSG:326' in text and '度のまま' in text
+    assert "'EPSG:' || (32601 + CAST(floor((ST_X(geometry) + 180) / 6) AS INTEGER))" in text and '度のまま' in text
+
+
+def test_the_population_grids_catalog_path_is_refused_as_what_rasterio_opens():
+    # GeoAI-skills' small task 11 (2026-10-15): told that cog_path can not be read, the Generator opened
+    # '/vsicurl/' + cog_path and failed on the host "cog".
+    from geo_voyager.contracts.code import catalog_path_problems
+    bad = "rasterio.open('/vsicurl/' + files.project('cog_path').fetchone()[0])"
+    good = "rasterio.open('/vsicurl/' + dataset_url('yuiseki/worldpop-jp-2026-01'))"
+    assert catalog_path_problems(bad) and 'dataset_url' in catalog_path_problems(bad)[0]
+    assert catalog_path_problems(good) == []
 
 
 def test_the_generator_refuses_code_with_a_sphere_function_on_unflipped_coordinates():

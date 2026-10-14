@@ -33,8 +33,9 @@ def test_a_raster_is_read_by_the_zonal_sum_not_by_read_table():
 
 
 def test_the_contract_fits_beside_the_rest_of_the_prompt():
-    # 4,500 when the context was 8,192 tokens; 16,384 now, and the join keys' notes are told (2026-10-14).
-    assert len(table_contract(('yuiseki/jp-admin-2026-09', 'yuiseki/ekidata-jp'))) < 5000
+    # 4,500 when the context was 8,192 tokens; 16,384 now, with the join keys' notes (2026-10-14) and how to measure
+    # (577 characters, 2026-10-15). The longest code prompt of the small tasks was 9,743 tokens.
+    assert len(table_contract(('yuiseki/jp-admin-2026-09', 'yuiseki/ekidata-jp'))) < 5500
 
 
 def test_a_join_key_says_how_to_cast_it_and_a_column_how_a_value_is_missing():

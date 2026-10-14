@@ -154,3 +154,12 @@ def axis_order_problems(code: str) -> list[str]:
     return [f'{function} は緯度、経度の順の点を読む。read_table の geometry は経度、緯度なので、'
             f'ST_FlipCoordinates で入れ替えてから渡す（入れ替えないと、値は黙って誤る）'
             for function in LATITUDE_FIRST if re.search(rf'\b{function}\s*\(', code)]
+
+
+def catalog_path_problems(code: str) -> list[str]:
+    """The population grid's catalog path (files.cog_path) opened as a raster: it is a path in the dataset's
+    repository, which the sandbox can not reach; the readable grid is behind dataset_url."""
+    if 'cog_path' in code and re.search(r'rasterio\.open\s*\(', code) and 'dataset_url' not in code:
+        return ['files の cog_path は原本の目録のパスで、実行環境からは開けない。画素は '
+                "rasterio.open('/vsicurl/' + dataset_url('yuiseki/worldpop-jp-2026-01')) で開く"]
+    return []

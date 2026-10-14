@@ -23,7 +23,10 @@ MEASURING = ('座標は経度、緯度の度で、面積と距離と円は度の
              '2 点の距離は ST_Distance_Sphere(ST_FlipCoordinates(a), ST_FlipCoordinates(b))（m）。'
              'この DuckDB の ST_Distance_Sphere と *_Spheroid は緯度、経度の順を読み、入れ替えないと値が黙って誤る'
              '（東京と大阪の 396 km が 473 km、日本の面積が NaN）。'
-             "半径 r m の円は、UTM（EPSG:326NN、NN は経度から決まる帯。日本は 51 から 56）に移して ST_Buffer(…, r) し、OGC:CRS84 に戻す。")
+             '半径 r m の円は、点ごとに UTM の帯を決め、移して ST_Buffer し、戻す: '
+             "WITH z AS (SELECT *, 'EPSG:' || (32601 + CAST(floor((ST_X(geometry) + 180) / 6) AS INTEGER)) AS utm FROM 点) "
+             "SELECT ..., ST_Transform(ST_Buffer(ST_Transform(geometry, 'OGC:CRS84', utm), r), utm, 'OGC:CRS84') AS geometry FROM z"
+             '（東京で半径 998 m、面積 3.12 km²）。')
 # The population grid, measured through the Gateway in the sandbox (2026-10-15). On GeoAI-skills' small task 11 the
 # Generator looked for it in the files catalog with sex = 'total' and found no row, three runs out of three.
 _RASTER_NOTES = {
