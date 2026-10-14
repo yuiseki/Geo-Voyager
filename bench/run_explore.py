@@ -21,11 +21,11 @@ import sys
 import time
 
 from bench.adaptive_trace import trace_events, trace_steps
-from bench.exploration_memory import memories_from
 from bench.infra import benchmark_environment, environment_problem
 from bench.run_goals import logged_llm
 from geo_voyager.critic import Critic
 from geo_voyager.curriculum import Curriculum, CurriculumRejected, ProposedGoal
+from geo_voyager.exploration_graph import ExplorationGraph
 from geo_voyager.embedding_client import EmbeddingClient
 from geo_voyager.goal_executor import GoalExecutor
 from geo_voyager.intent_executor import IntentExecutor
@@ -40,10 +40,6 @@ from geo_voyager.world_graph import WorldGraph
 CURRICULUM_TRIES = 3
 
 
-def read_jsonl(path: Path) -> list[dict]:
-    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()] if path.exists() else []
-
-
 def propose(curriculum: Curriculum, findings: list[dict], attempts: list[dict]):
     note = None
     for _ in range(CURRICULUM_TRIES):
@@ -55,11 +51,11 @@ def propose(curriculum: Curriculum, findings: list[dict], attempts: list[dict]):
 
 
 def explore_one(number: int, out: Path, names, library: SkillLibrary, embedding: EmbeddingClient,
-                world: WorldGraph, exploration: Path, given: ProposedGoal | None = None, memory: str | None = None) -> dict | None:
+                world: WorldGraph, exploration: ExplorationGraph, given: ProposedGoal | None = None, memory: str | None = None) -> dict | None:
     directory = out / f'{number:03d}'
     directory.mkdir(parents=True, exist_ok=False)
     llm = logged_llm(directory)
-    proposed = given or propose(Curriculum(llm), world.findings(), read_jsonl(exploration))
+    proposed = given or propose(Curriculum(llm), world.findings(), exploration.attempts())
     if proposed is None:
         return None
     critic = Critic(llm)
@@ -74,13 +70,9 @@ def explore_one(number: int, out: Path, names, library: SkillLibrary, embedding:
         error = f'{type(problem).__name__}: {problem}'
     at = datetime.datetime.now().isoformat(timespec='seconds')
     finding = world.record(result, explored_at=at) if result is not None else None
-    attempt = {'number': number, 'goal': proposed.goal, 'curriculum_reason': proposed.reason, 'success': finding is not None,
-               'stop_reason': result.stop_reason if result is not None else 'error',
-               'reason': result.critique.reason if result is not None else error,
-               'steps': len(result.history) if result is not None else None,
-               'elapsed': round(time.time() - started, 1), 'explored_at': at, 'memory': memory is not None}
-    with exploration.open('a') as file:
-        file.write(json.dumps(attempt, ensure_ascii=False) + '\n')
+    attempt = exploration.record(number, result, goal=proposed.goal, success=finding is not None, explored_at=at,
+                                 elapsed=round(time.time() - started, 1), error=None if result is not None else error,
+                                 curriculum_reason=proposed.reason, memory=memory is not None)
     if result is None:
         return attempt
     (directory / 'trace.json').write_text(json.dumps(
@@ -109,9 +101,10 @@ def main() -> None:
     which = parser.add_mutually_exclusive_group(required=True)
     which.add_argument('--goals', type=int, help='how many Goals to explore in this run')
     which.add_argument('--replay', help='a file of Goals, one per line, explored in order instead of asking the curriculum')
-    parser.add_argument('--remember', help="an earlier run's --out: a Goal it did not answer is given the record of that try")
+    parser.add_argument('--remember', help="an earlier run's --out: a Goal it did not answer is given the failures of that try "
+                                           'checked without a model (ADR 0011)')
     args = parser.parse_args()
-    memories = memories_from(args.remember) if args.remember else {}
+    memories = ExplorationGraph(Path(args.remember).expanduser() / 'exploration.jsonl').memories() if args.remember else {}
     replayed = ([ProposedGoal(line.strip(), 'replay') for line in Path(args.replay).read_text().splitlines() if line.strip()]
                 if args.replay else None)
     out = Path(args.out).expanduser()
@@ -120,7 +113,7 @@ def main() -> None:
     if not shared.exists():
         shutil.copytree(Path(__file__).resolve().parents[1] / 'skill_library', shared,
                         ignore=shutil.ignore_patterns('embedding.json'))
-    world, exploration = WorldGraph(out / 'world.jsonl'), out / 'exploration.jsonl'
+    world, exploration = WorldGraph(out / 'world.jsonl'), ExplorationGraph(out / 'exploration.jsonl')
     embedding = EmbeddingClient(os.environ['GEO_VOYAGER_EMBEDDING_BASE_URL'], os.environ['GEO_VOYAGER_EMBEDDING_MODEL'])
     first = sum(1 for path in out.iterdir() if path.is_dir() and path.name.isdigit()) + 1
     exit_on_sigterm()

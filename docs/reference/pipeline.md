@@ -8,6 +8,7 @@
 
 - `geo_voyager/curriculum.py`: 次の Goal を 1 件だけ決める。読むのは、利用できるリソース、これまでの発見（新しいものから 20 件）、試した Goal とその結果（新しいものから 15 件）。
 - `geo_voyager/world_graph.py`: 答えが出た Goal（DONE で終わり、最終 Critic も成功）を、答え、成功した step、使ったリソース、判明した対象（名前と安定 ID）とともに記録する。
+- `geo_voyager/exploration_graph.py`: 試した Goal を 1 件 1 行で記録する。次に同じ Goal を試す Planner には、前の試行のうちモデルを使わずに確かめた失敗（実行のエラー、時間切れ、コードや Planner の契約違反、出力の上限超え、同じ行の重複）だけを渡す。Critic の判定と理由、Observation、stdout、Planner の応答は渡さない（[0011](../ADR/0011-exploration-graph-checked-failures.md)）。
 - Skill library、World Graph、試した Goal の記録は Goal をまたいで引き継ぐ。`--replay FILE` で、curriculum の代わりに決まった Goal の一覧を流せる（評価用の Goal はこれで流す。[0009](../ADR/0009-held-out-evaluation-goals.md)）。
 
 ## 1 Goal の流れ

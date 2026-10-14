@@ -14,3 +14,4 @@
 | [0008](0008-study-geoai-experiments-as-goals.md) | study-geoai-algo-py の実験を Goal と oracle に変える（案） | 2026-10-10 |
 | [0009](0009-held-out-evaluation-goals.md) | 評価用の Goal を取っておき、直すのに使わない | 2026-10-13 |
 | [0010](0010-generic-table-primitives.md) | Dataset の読み込みを、データセットの reference から組み立てる汎用の Primitive にする | 2026-10-13 |
+| [0011](0011-exploration-graph-checked-failures.md) | Exploration Graph: 次の試行に渡すのは、モデルを使わずに確かめた失敗だけ | 2026-10-14 |

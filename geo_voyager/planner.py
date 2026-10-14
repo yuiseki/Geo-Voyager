@@ -332,7 +332,7 @@ class Planner:
             + 'DONE とだけ返すか、次の Intent を以下の形式で1件だけ返す。複数返さない。前置き、番号、コードフェンス禁止。\n'
             + '調査項目: 調査内容\n結果名: 結果の名前\n入力:\n  - 使う結果名\n利用データセット: []\n利用サービス:\n  - 登録済みid\n対象: 名前\n'
             + '入力、利用データセット、利用サービスは空なら []、非空なら半角2空白の - の行を続ける。「対象:」は対象を測る Intent だけが付ける。\n'
-            + f'INPUT: 利用可能リソース:\n{self._resource_text(datasets, services, full=True, measured=True)}\n{facts_section(goal)}' + (f'前回この Goal を探索したときの記録（同じ失敗を繰り返さない）:\n{memory}\n' if memory else '') + f'Goal:\n{goal}\n履歴:\n{render_history(history)}\n'
+            + f'INPUT: 利用可能リソース:\n{self._resource_text(datasets, services, full=True, measured=True)}\n{facts_section(goal)}' + (f'前回この Goal を試したときに、モデルを使わずに確かめた失敗（同じ失敗を繰り返さない）:\n{memory}\n' if memory else '') + f'Goal:\n{goal}\n履歴:\n{render_history(history)}\n'
             + 'OUTPUT: DONE、または調査項目、結果名、入力、利用データセット、利用サービス、必要なら対象の行だけ。INPUT のメタデータを繰り返さない。'
         )
         text = self.llm_client.generate(
