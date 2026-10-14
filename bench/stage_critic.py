@@ -15,6 +15,7 @@ from pathlib import Path
 import re
 import time
 
+from geo_voyager.critic import CODE_HEADER, PLACE_FACTS, RESOURCES_HEADER
 from geo_voyager.critique import Critique
 from geo_voyager.datasets import load_dataset_graph
 from geo_voyager.services import load_service_graph
@@ -22,13 +23,16 @@ from geo_voyager.skill_candidate import called_service_ids, read_datasets
 from geo_voyager.llama_client import LlamaClient
 
 ANCHOR = '入力の Intent と Observation だけで要求した出力が得られたか判定する。外部知識で答えを推測・追加しない。Intent にない期待件数を仮定しない。\n'
-# Hypothesis 2: the model's knowledge of single places (which wards touch) was wrong 7 times and right 0; its sense
-# of scale (no station in the 23 wards) was right 12 times.
-PLACE_FACTS = ('個々の地物についての事実（どの区とどの区が接するか、ある名前が一覧に入るべきか）を、自分の知識で否定・補完して失敗の理由にしない。'
-               'データの定義（陸か海を含むか、どの版か）で答えが変わるため。値が 0 や空のこと、件数の桁が明らかに合わないことは疑ってよい。\n')
-CODE_HEADER = ('\n\nこの Observation を出力したコード（どう測ったかの根拠として読む。'
-               'コードが Intent の対象の一部だけを測っている、または Intent と違う条件で測っているなら失敗。'
-               'コードが Intent どおりに測っているなら、値の正しさを自分の知識で否定しない）:\n')
+# Made in geo_voyager.critic after stage 4 (the variant all); a prompt the current Critic wrote already has them.
+KEY_ANCHOR = '値そのものが無い、または別の値なら失敗。\n'
+# Hypothesis 3: an Intent names the column to read (rep_lon) and the key to output (lon); the Critic read the first as
+# the second. Hypothesis 4: it rejected a relation_id the code carried from the step before, because the dataset the
+# code read has no relation_id.
+READ_NAMES = ('Intent には、読む元のデータの列の名前（例: pop_2020）と、出力のキー名（例: population）の両方が出てくることがある。'
+              '読む元の列の名前が出力のキーに無いことを、失敗の理由にしない。\n')
+CARRIED = ('コードが入力（results や前段の Observation）から引き継いだ名前や ID は、前段で得た値である。'
+           '今回読んだデータやサービスがその種類の ID を持たないことを、失敗の理由にしない。\n')
+VARIANTS = ['base', 'rule', 'code', 'code+rule', 'all', 'all+names', 'all+carried', 'all+both']
 
 
 def producing_code(prompt_path: Path) -> str | None:
@@ -54,28 +58,31 @@ def resource_notes(code: str) -> str:
     return '\n'.join(lines)
 
 
-RESOURCES_HEADER = '\n\nコードが読んだサービスとデータの説明（コードが Intent の対象を正しく選んだかを照合するために読む）:\n'
-
-
 def changed(prompt: str, variant: str, path: Path) -> str:
-    if variant in ('rule', 'code+rule', 'all'):
+    stage4 = variant.split('+')[0] if variant.startswith('all') else variant
+    if stage4 in ('rule', 'code+rule', 'all') and PLACE_FACTS not in prompt:
         if ANCHOR not in prompt:
             raise ValueError(f'{path}: the anchor of the rule is not in the prompt')
         prompt = prompt.replace(ANCHOR, ANCHOR + PLACE_FACTS)
-    if variant in ('code', 'code+rule', 'all') and 'Goal 全体の最終判定' not in prompt:
+    if stage4 in ('code', 'code+rule', 'all') and 'Goal 全体の最終判定' not in prompt and CODE_HEADER not in prompt:
         code = producing_code(path)
         if code is not None:
             prompt += CODE_HEADER + code
-            notes = resource_notes(code) if variant == 'all' else ''
+            notes = resource_notes(code) if stage4 == 'all' else ''
             if notes:
                 prompt += RESOURCES_HEADER + notes
+    added = {'all+names': READ_NAMES, 'all+carried': CARRIED, 'all+both': READ_NAMES + CARRIED}.get(variant, '')
+    if added:
+        if KEY_ANCHOR not in prompt:
+            raise ValueError(f'{path}: the anchor of the key rule is not in the prompt')
+        prompt = prompt.replace(KEY_ANCHOR, KEY_ANCHOR + added)
     return prompt
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('--cases', required=True)
-    parser.add_argument('--variant', required=True, choices=['base', 'rule', 'code', 'code+rule', 'all'])
+    parser.add_argument('--variant', required=True, choices=VARIANTS)
     parser.add_argument('--out', required=True)
     args = parser.parse_args()
     out = Path(args.out).expanduser()
@@ -96,15 +103,19 @@ def main() -> None:
                           'Return exactly 判定: 成功 or 判定: 失敗, then 理由: on the second line.')
             started = time.time()
             reply = client.generate(changed(original, args.variant, path), temperature=0.0, system_prompt=system)
-            critique = Critique.from_text(reply)
-            verdict = '成功' if critique.success else '失敗'
+            try:
+                critique = Critique.from_text(reply)
+                verdict, reason = ('成功' if critique.success else '失敗'), critique.reason
+            except ValueError:
+                # A reply without the two lines; the Critic raises on it too, so it counts as a wrong verdict.
+                verdict, reason = '不正', reply
             ok = verdict == case['expected']
             right, wrong = right + ok, wrong + (not ok)
-            row = {**case, 'variant': args.variant, 'verdict': verdict, 'right': ok, 'reason': critique.reason,
+            row = {**case, 'variant': args.variant, 'verdict': verdict, 'right': ok, 'reason': reason,
                    'elapsed': round(time.time() - started, 1)}
             results.write(json.dumps(row, ensure_ascii=False) + '\n')
             results.flush()
-            print(case['case'], case['expected'], verdict, 'ok' if ok else 'WRONG', critique.reason[:80], flush=True)
+            print(case['case'], case['expected'], verdict, 'ok' if ok else 'WRONG', reason[:80], flush=True)
     summary = {'variant': args.variant, 'right': right, 'wrong': wrong}
     (out / 'summary.json').write_text(json.dumps(summary, ensure_ascii=False))
     print(json.dumps(summary, ensure_ascii=False))
