@@ -29,7 +29,9 @@ def test_a_rejected_reply_is_planned_again_as_in_a_full_run_and_the_reason_is_ke
 
 
 def test_a_goal_whose_first_step_never_comes_is_recorded_with_the_stop():
-    replies = [PlannerRejected(reason, 'reply') for reason in ('形式が違う', '対象が無い', '入力が無い')]
+    from geo_voyager.goal_executor import DEFAULT_MAX_PLANNER_FAILURES
+    reasons = [f'形式が違う {number}' for number in range(DEFAULT_MAX_PLANNER_FAILURES)]
+    replies = [PlannerRejected(reason, 'reply') for reason in reasons]
     record = first_step('渋谷区の cafe の数', planner(*replies), Mock(check=Mock(return_value=Critique(False, 'x'))))
     assert record['outcome'] == 'planner_failure' and record['intent'] is None
-    assert record['planner_failures'] == ['形式が違う', '対象が無い', '入力が無い']
+    assert record['planner_failures'] == reasons

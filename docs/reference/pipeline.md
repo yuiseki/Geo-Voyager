@@ -31,7 +31,7 @@ Goal
     └ DONE のとき Critic.check(goal, 全 Observation, final=True)。失敗なら履歴に入れて Planner に戻る
 ```
 
-- 停止の理由（`AdaptiveGoalExecution.stop_reason`）: `done`、`max_steps`（既定 8）、`repeated_intent`（成功した Intent か、2 回失敗した Intent をもう一度出した）、`planner_failure`（計画の失敗が 3 回）、`final_critic_failed`（最終判定の失敗が 3 回）、`planner_error`。
+- 停止の理由（`AdaptiveGoalExecution.stop_reason`）: `done`、`max_steps`（既定 12）、`repeated_intent`（成功した Intent か、2 回失敗した Intent をもう一度出した）、`planner_failure`（計画の失敗が 6 回）、`final_critic_failed`（最終判定の失敗が 3 回）、`planner_error`。
 - 外部は自前のサービスだけを使う（[services.md](services.md)、[0002](../ADR/0002-self-hosted-services-only.md)）。
 - 古い経路（`Planner.plan_goal` で Goal 全体を最初に計画する `GoalExecutor.execute`）も残っている（[planner_and_intents.md](planner_and_intents.md)）。
 
