@@ -22,7 +22,8 @@ class AdaptiveGoalExecution:
     goal: str
     history: tuple[HistoryEntry, ...]
     executions: tuple[IntentExecution, ...]
-    # done | max_steps | repeated_intent | planner_failure | final_critic_failed | planner_error
+    # done | max_steps | planner_failure | final_critic_failed | planner_error (repeated_intent in logs before
+    # 2026-10-15: a repeat is now a Planner failure)
     stop_reason: str
     critique: Critique
     error: str | None = None
@@ -138,9 +139,20 @@ class GoalExecutor:
             if last_call:
                 break
             earlier = history.entries_for(decision)
-            if any(entry.succeeded for entry in earlier) or len(earlier) >= max_attempts_per_intent:
-                stop = 'repeated_intent'
-                break
+            succeeded = [entry for entry in earlier if entry.succeeded]
+            if succeeded or len(earlier) >= max_attempts_per_intent:
+                # A repeat goes back to the Planner, which can split the step or change it; repeating the same
+                # reason ends the Goal as a Planner failure (_give_up).
+                reason = ('ValueError: この調査項目は既に成功している' + (f'（結果名 {succeeded[-1].intent.result_name}）' if succeeded and succeeded[-1].intent.result_name else '') + '。'
+                          '同じ調査項目を繰り返さない。その結果を入力にして次へ進むか、DONE を返す'
+                          if succeeded else
+                          f'ValueError: この調査項目は {len(earlier)} 回失敗した。同じ調査項目を繰り返さない。'
+                          '失敗の行を読み、調べることを分けるか、方法を変える')
+                add(PlannerFailure(reason, decision.text, len(history)))
+                if self._give_up(history.planner_failures(), max_planner_failures):
+                    stop, error = 'planner_failure', reason
+                    break
+                continue
             current = replace(decision, previous_observations=history.inputs_of(decision),
                               input_notes=history.input_notes(decision))
             refusal = _execution_refusal(current)

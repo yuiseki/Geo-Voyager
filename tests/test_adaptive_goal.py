@@ -146,22 +146,36 @@ def test_after_the_last_step_a_final_critic_failure_or_a_rejected_reply_ends_the
         assert result.stop_reason == 'max_steps' and executor.execute.call_count == 1 and len(planner.seen) == 2
 
 
-def test_an_intent_that_already_succeeded_is_not_run_again():
+# GeoAI-skills' small tasks (2026-10-15): a repeat ended tasks 17 and 11, after the Planner had named the pitfall
+# (Natural Earth's ISO_A3_EH shared by a country and its dependencies) and the code broke on quoting a name. A repeat
+# is now sent back to the Planner as a Planner failure, which it can answer by splitting the step or changing it.
+
+def test_an_intent_that_already_succeeded_is_not_run_again_and_the_planner_is_told():
     planner = Script(intent('a'), intent('a'), DONE)
     result, executor, _ = run(planner, [ok('1')])
-    assert result.stop_reason == 'repeated_intent' and executor.execute.call_count == 1
-    assert not result.critique.success
+    assert executor.execute.call_count == 1 and len(planner.seen) == 3
+    failures = [event for event in result.events if isinstance(event, PlannerFailure)]
+    assert len(failures) == 1 and '既に成功している' in failures[0].reason
 
 
 def test_the_same_whitespace_variant_counts_as_a_repeat():
-    result, executor, _ = run(Script(intent('a  b'), intent('a b')), [ok('1')])
-    assert result.stop_reason == 'repeated_intent' and executor.execute.call_count == 1
+    result, executor, _ = run(Script(intent('a  b'), intent('a b'), DONE), [ok('1')])
+    assert executor.execute.call_count == 1
+    assert any(isinstance(event, PlannerFailure) for event in result.events)
 
 
-def test_a_failed_intent_may_be_tried_once_more_and_then_the_goal_stops():
+def test_a_failed_intent_may_be_tried_once_more_and_then_is_sent_back_to_the_planner():
+    planner = Script(intent('a'), intent('a'), intent('a'), intent('b'), DONE)
+    result, executor, _ = run(planner, [crashed(), crashed(), ok('2')])
+    assert executor.execute.call_count == 3                       # a, a, then b
+    failures = [event for event in result.events if isinstance(event, PlannerFailure)]
+    assert len(failures) == 1 and '2 回失敗した' in failures[0].reason
+
+
+def test_a_planner_that_keeps_repeating_stops_as_a_planner_failure():
     planner = Script(intent('a'), intent('a'), intent('a'), DONE)
-    result, executor, _ = run(planner, [crashed(), crashed()])
-    assert result.stop_reason == 'repeated_intent' and executor.execute.call_count == 2
+    result, executor, _ = run(planner, [ok('1')])
+    assert result.stop_reason == 'planner_failure' and executor.execute.call_count == 1
 
 
 def test_a_different_target_is_a_different_intent():
