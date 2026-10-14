@@ -176,8 +176,12 @@ def skill_shape_problems(code: str, shown: tuple[str, ...] = ()) -> list[str]:
     if overwritten:
         return [f'the function {function.name} が引数 {name} に別の値を代入して上書きしている。引数（タグの値など）は後の行で'
                 f'そのまま使われるので、別の値には別の変数名を付ける' for name in overwritten]
+    # A name assigned in the function is its local variable throughout (a list it builds called results), not the
+    # runtime value, unless declared global.
+    declared = {name for node in ast.walk(function) if isinstance(node, ast.Global) for name in node.names}
+    local = {node.id for node in ast.walk(function) if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store)} - declared
     read = sorted({node.id for node in ast.walk(function) if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load)
-                   and node.id in RUNTIME_NAMES and node.id not in parameters})
+                   and node.id in RUNTIME_NAMES and node.id not in parameters and node.id not in local})
     return [f'the function {function.name} reads {name} directly; take it as an argument' for name in read]
 
 

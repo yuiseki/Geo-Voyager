@@ -44,6 +44,22 @@ def test_a_runtime_name_taken_as_a_parameter_is_fine():
     assert skill_shape_problems(code) == []
 
 
+# a_run6, Goal 8, steps 1 and 2: the function built its own list in a local variable named results and returned it.
+# A name assigned in a function is its local variable throughout (Python's scope), so it is not the runtime value.
+@pytest.mark.parametrize('code', [
+    'def a(rows):\n    """A."""\n    results = []\n    for row in rows:\n        results.append(row)\n    return results\n',
+    'def a(rows):\n    """A."""\n    for results in rows:\n        pass\n    return results\n',
+    'def a(rows):\n    """A."""\n    with open(rows) as dataset_id:\n        return dataset_id.read()\n',
+])
+def test_a_local_variable_with_a_runtime_name_is_not_a_runtime_read(code):
+    assert skill_shape_problems(code) == []
+
+
+def test_a_runtime_value_read_beside_a_local_of_another_name_is_still_found():
+    code = 'def a():\n    """A."""\n    out = []\n    out.append(results["x"])\n    return out\n'
+    assert any('reads results' in item for item in skill_shape_problems(code))
+
+
 # ---- a function must return its result, and code must either call a shown Skill or define a function
 
 def test_a_function_that_only_prints_is_named():
