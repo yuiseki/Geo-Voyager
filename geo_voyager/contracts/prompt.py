@@ -1,12 +1,12 @@
 """The contracts a generated candidate has to follow, as text for prompts.
 
 PRIMITIVE_CONTRACT is the same text the runtime repairer shows. A test keeps the two in step. The tables of the
-datasets an Intent declares are made from the dataset references (geo_voyager.table_contracts, ADR 0010).
+datasets an Intent declares are made from the dataset references (geo_voyager.contracts.tables, ADR 0010).
 """
-from .datasets import load_dataset_graph
-from .intent import Intent
-from .services import load_service_graph
-from .table_contracts import table_contract
+from ..datasets import load_dataset_graph
+from ..intent import Intent
+from ..services import load_service_graph
+from .tables import table_contract
 
 PRIMITIVE_CONTRACT = (
     'Control Primitive contract（geo_voyager.control_primitives から明示的に import）:\n'

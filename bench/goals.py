@@ -165,7 +165,7 @@ def dataset_oracle(setup: str, query: str, output: str) -> str:
                    'import json', 'con = connect_duckdb()', setup, query, output)
 
 
-# The 23 wards as geo_voyager.table_contracts.NAMED_AREAS names them; a row of station is a station on a line.
+# The 23 wards as geo_voyager.contracts.tables.NAMED_AREAS names them; a row of station is a station on a line.
 ADMIN = "read_table(con, 'yuiseki/jp-admin-2026-09', 'municipalities').filter(\"pref_code = '13' AND name LIKE '%区'\")"
 STATIONS = "read_table(con, 'yuiseki/ekidata-jp', 'station')"
 

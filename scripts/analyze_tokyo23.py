@@ -2,7 +2,7 @@
 
 from geo_voyager.control_primitives import connect_duckdb as connect, read_table
 
-# The 23 wards, as geo_voyager.table_contracts.NAMED_AREAS names them.
+# The 23 wards, as geo_voyager.contracts.tables.NAMED_AREAS names them.
 TOKYO_23 = "pref_code = '13' AND name LIKE '%区'"
 
 def analyze(connection):

@@ -1,6 +1,6 @@
 """The contract the Generator and the repair read for the datasets an Intent declares, made from the dataset
 references and the measured schemas, not written by hand (ADR 0010)."""
-from geo_voyager.table_contracts import NAMED_AREAS, table_contract
+from geo_voyager.contracts.tables import NAMED_AREAS, table_contract
 
 
 def test_each_table_of_a_declared_dataset_is_shown_with_the_call_that_reads_it():

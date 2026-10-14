@@ -5,7 +5,7 @@ from .dataset_graph import DatasetGraph
 from .goal_history import GoalHistory, render_history
 from .background_facts import facts_section
 from .intent_text import api_details_in
-from .reference_checks import lacked_keys, unsourced_codes
+from .contracts.references import lacked_keys, unsourced_codes
 from .hypothesis import Hypothesis
 from .intent import Intent
 from .llama_client import LlamaClient

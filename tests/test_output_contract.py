@@ -1,4 +1,4 @@
-from geo_voyager.output_contract import output_problem
+from geo_voyager.contracts.output import output_problem
 
 # memory_run2 goal 1: the rows of ekidata are a station on a line, so 東京 came back once per line.
 STATIONS = ('[{"name": "東京", "lat": 35.681391, "lon": 139.766103}, {"name": "渋谷", "lat": 35.658034, "lon": 139.701636}, '

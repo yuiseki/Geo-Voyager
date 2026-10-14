@@ -8,7 +8,7 @@ the output keys, and must not write observed values into the code.
 from dataclasses import dataclass
 from typing import Sequence
 
-from .contracts import dataset_contract, primitive_contract, service_contract
+from .contracts.prompt import dataset_contract, primitive_contract, service_contract
 from .execution_attempt import ExecutionAttempt
 from .hardcoding import hardcoded_literals
 from .intent import Intent

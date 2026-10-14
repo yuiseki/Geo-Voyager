@@ -62,7 +62,10 @@ LLM の出力に対する決定的な検査（モデルを使わない。単体�
 | `対象:` は 1 つの実体だけ（履歴で ID が判明した対象か、Goal が名指しした名前。タグ、タグのキーや値、複数の対象、集合は不可） | `planner._require_an_entity`、`_not_an_entity` | Planner.next | [0004-targets-by-stable-id.md](../ADR/0004-targets-by-stable-id.md)、[2026-10-10_adaptive_round_1.md](../reports/2026-10-10_adaptive_round_1.md) |
 | `対象:` は 1 Intent に 1 行 | `planner._extract_target` | Planner | [2026-10-09_identity_references.md](../reports/2026-10-09_identity_references.md) |
 | `id_type` を固定の文字列と比べない（`id_type == "relation"`） | `id_type_literals.id_type_comparisons` | Generator と runtime repair（対象に ID があるとき） | [2026-10-09_entity_target_e2e.md](../reports/2026-10-09_entity_target_e2e.md) |
-| ローカル集計は、測定値の欠落を数値や None の既定値で代用しない、Observation を位置で選ばない | `local_aggregation_contract.local_aggregation_violations` | Generator と runtime repair（`requires_context` の Intent） | [0005-local-aggregation-contract.md](../ADR/0005-local-aggregation-contract.md) |
+| ローカル集計は、測定値の欠落を数値や None の既定値で代用しない、Observation を位置で選ばない | `contracts.code.local_aggregation_violations` | Generator と runtime repair（`requires_context` の Intent） | [0005-local-aggregation-contract.md](../ADR/0005-local-aggregation-contract.md) |
+| 2 行以上ある入力（`results[...]`）の行を位置で選ばない（`area_ids[0]` など。ループや内包表記を通しても追う） | `contracts.code.positional_input_picks` | Generator と runtime repair（入力のある Intent） | 2026-10-14。過去のコード 607 件で 12 件を検出し、すべて 1 区だけを数えた誤り |
+| 出力が 8 KiB を超えない（超えたら切らずに失敗、`OutputTooLong`） | `execution_failure.sandbox_program` | sandbox | 2026-10-14 |
+| 出力の JSON の一覧に、まったく同じ行が無い（`DuplicateRows`） | `contracts.output.output_problem` | Worker（Critic の前） | 2026-10-14。ekidata の 1 行は路線上の駅 |
 | repair が、失敗に出た必須キーを `.get(k, 既定値)` や握りつぶす except で隠さない | `default_fallback.introduced_fallbacks` | runtime repair | [2026-10-09_runtime_repair_defaults.md](../reports/2026-10-09_runtime_repair_defaults.md) |
 | repair が Observation の値をコードに貼り込まない | `hardcoding.py` | semantic repair | [2026-10-09_semantic_repair.md](../reports/2026-10-09_semantic_repair.md) |
 | Observation が空、または対象の ID と違う ID | `critic.py`、`target_identity.identity_conflict` | Critic | [0004-targets-by-stable-id.md](../ADR/0004-targets-by-stable-id.md) |

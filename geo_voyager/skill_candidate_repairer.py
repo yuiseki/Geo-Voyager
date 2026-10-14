@@ -2,7 +2,7 @@ from typing import Sequence
 
 from .default_fallback import introduced_fallbacks
 from .id_type_literals import id_type_comparisons
-from .local_aggregation_contract import local_aggregation_violations, positional_input_picks
+from .contracts.code import local_aggregation_violations, positional_input_picks
 from .skill_candidate import entry_problems
 from .execution_attempt import ExecutionAttempt
 from .execution_failure import ExecutionFailure, bounded_output
@@ -12,7 +12,7 @@ from .repair_context import attempt_history_text, failing_line_excerpt
 from .llama_client import LlamaClient
 from .services import load_service_graph
 from .skill_candidate import SkillCandidate
-from .contracts import primitive_contract
+from .contracts.prompt import primitive_contract
 from .skill_candidate_generator import _parse_candidate, named_inputs, several_input_rows
 
 

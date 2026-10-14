@@ -7,9 +7,9 @@ import json
 from pathlib import Path
 import re
 
-from .intent import Intent
+from ..intent import Intent
 
-_DATA = json.loads(Path(__file__).with_name('dataset_references.json').read_text(encoding='utf-8'))
+_DATA = json.loads((Path(__file__).parents[1] / 'dataset_references.json').read_text(encoding='utf-8'))
 
 # How an Intent names a key a reference lists under no_key.
 _WORDS = {

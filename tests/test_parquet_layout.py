@@ -4,7 +4,7 @@ Memory run 1b (2026-10-13): reading two wards from jp-admin by name alone took 3
 because every one of the 47 row groups (one per prefecture) was read; with pref_code = '13' it took 3 to 4 s."""
 import duckdb
 
-from geo_voyager.parquet_layout import split_columns
+from geo_voyager.contracts.parquet_layout import split_columns
 
 
 def written(tmp_path, sql):

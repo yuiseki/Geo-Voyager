@@ -1,6 +1,6 @@
 import pytest
 
-from geo_voyager.local_aggregation_contract import local_aggregation_violations
+from geo_voyager.contracts.code import local_aggregation_violations
 
 # The comparison code from the trace: the first object named 渋谷区 was the lookup step's output, which has no count.
 FROM_THE_TRACE = '''
@@ -95,7 +95,7 @@ def count_footway(results=None):
 
 
 def test_the_first_row_of_an_input_is_found_through_a_loop():
-    from geo_voyager.local_aggregation_contract import positional_input_picks
+    from geo_voyager.contracts.code import positional_input_picks
     assert positional_input_picks(FIRST_OF_THE_INPUT) == ['area_ids[0]']
 
 
@@ -105,7 +105,7 @@ def test_the_first_row_of_an_input_is_found_through_a_loop():
     ('ids = [w["id"] for w in results["w"]]\nx = ids[1]', ['ids[1]']),
 ])
 def test_other_positional_picks_of_input_rows_are_found(code, expected):
-    from geo_voyager.local_aggregation_contract import positional_input_picks
+    from geo_voyager.contracts.code import positional_input_picks
     assert positional_input_picks(code) == expected
 
 
@@ -116,5 +116,5 @@ def test_other_positional_picks_of_input_rows_are_found(code, expected):
     'for w in results["w"]:\n    parts = w["name"].split()\n    head = parts[0]',  # a field of one row
 ])
 def test_what_uses_every_row_or_selects_by_condition_is_not_found(code):
-    from geo_voyager.local_aggregation_contract import positional_input_picks
+    from geo_voyager.contracts.code import positional_input_picks
     assert positional_input_picks(code) == []

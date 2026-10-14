@@ -100,7 +100,7 @@ def test_long_observations_are_bounded_in_the_prompt():
 
 
 def test_primitive_contract_is_the_same_text_the_runtime_repairer_uses():
-    from geo_voyager.contracts import PRIMITIVE_CONTRACT
+    from geo_voyager.contracts.prompt import PRIMITIVE_CONTRACT
     from geo_voyager.execution_failure import ExecutionFailure
     from geo_voyager.skill_candidate_repairer import SkillCandidateRepairer
     client = Mock(); client.generate.return_value = REPLY

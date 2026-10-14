@@ -25,7 +25,7 @@ def test_worldpop_description_says_which_file_is_readable():
 
 
 def test_the_code_generation_prompts_name_the_primitive():
-    from geo_voyager.contracts import PRIMITIVE_CONTRACT
+    from geo_voyager.contracts.prompt import PRIMITIVE_CONTRACT
     from geo_voyager.intent import Intent
     from geo_voyager.skill_candidate_generator import SkillCandidateGenerator
     assert 'sum_population_grid(connection, zones)' in PRIMITIVE_CONTRACT
@@ -40,7 +40,7 @@ def test_the_code_generation_prompts_name_the_primitive():
 
 
 def test_the_contract_shows_the_tables_of_the_declared_datasets():
-    from geo_voyager.contracts import primitive_contract
+    from geo_voyager.contracts.prompt import primitive_contract
     from geo_voyager.intent import Intent
     text = primitive_contract(Intent('区ごとの駅', ('yuiseki/jp-admin-2026-09', 'yuiseki/ekidata-jp')))
     assert 'read_table(connection, "yuiseki/ekidata-jp", "station")' in text and '東京23区: filter(' in text

@@ -11,7 +11,7 @@
 2. 読める Dataset の一覧（`dataset_url.py` が 3 つの id 以外を拒む）。
 3. Gateway の中継先（`Dataset.data_url` の 1 ファイルだけ）。そのため、1 つの Dataset から 1 つの表しか読めない。駅データの路線（line）や隣り合う駅（join）、行政区域の都道府県の表は、sandbox から読めない。
 4. 地域の知識（`load_admin_units.py` の `AREAS = {'東京都23区': "code5 BETWEEN '13101' AND '13123'"}`）。対応している地域はこれだけで、ほかの地域は関数を直さないと使えない。
-5. Generator、repair、`contracts.py` のプロンプトに書き写した Primitive の契約。Primitive の外から名前で参照している箇所が 22 ある。
+5. Generator、repair、`contracts.py`（2026-10-14 から `contracts/prompt.py`）のプロンプトに書き写した Primitive の契約。Primitive の外から名前で参照している箇所が 22 ある。
 
 一方、GeoAI-skills（How-to Graph）の dataset-discovery の reference には、YAML frontmatter で、各表の読み先（`tables[].read`）、1 行が何か（grain）、ID、結合キー、持たないキー、列の意味が、実測して書いてある。これはすでに、固定したコミットで `geo_voyager/dataset_references.json` に写し、Planner への説明に使っている（f76eef4）。
 

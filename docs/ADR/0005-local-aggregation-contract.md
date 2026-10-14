@@ -7,7 +7,7 @@
 
 ## 契約
 
-`geo_voyager/local_aggregation_contract.py`（AST）が次を見つける。
+`geo_voyager/contracts/code.py`（AST。2026-10-14 までは `local_aggregation_contract.py`）が次を見つける。
 
 | 違反 | 例 | 備考 |
 |---|---|---|

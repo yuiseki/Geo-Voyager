@@ -6,7 +6,7 @@ from .docker_sandbox import DockerSandbox
 from .execution_failure import ExecutionFailure, GENERATED_ERROR_EXIT, candidate_lines, sandbox_program
 from .intent import Intent, execution_refusal
 from .observation import Observation
-from .output_contract import output_problem
+from .contracts.output import output_problem
 from .skill_candidate import SkillCandidate, entry_program
 from .skill_library import SkillLibrary, link
 from .services import load_service_graph

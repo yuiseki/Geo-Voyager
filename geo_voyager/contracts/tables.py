@@ -8,9 +8,9 @@ prompt has 8192 tokens in all.
 import json
 from pathlib import Path
 
-from .docker_sandbox import DEFAULT_PROFILE
+from ..docker_sandbox import DEFAULT_PROFILE
 
-_DATA = json.loads(Path(__file__).with_name('dataset_references.json').read_text(encoding='utf-8'))
+_DATA = json.loads((Path(__file__).parents[1] / 'dataset_references.json').read_text(encoding='utf-8'))
 
 # Areas a Goal names, as conditions on the boundaries' columns. Measured on jp-admin-2026-09 (2026-10-13): 23 rows,
 # code5 13101 to 13123, population 9,733,276.

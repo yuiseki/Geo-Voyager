@@ -2,9 +2,9 @@ import json
 
 from .id_type_literals import id_type_comparisons
 from .intent import Intent
-from .local_aggregation_contract import local_aggregation_violations, positional_input_picks
+from .contracts.code import local_aggregation_violations, positional_input_picks
 from .background_facts import facts_section
-from .table_contracts import table_contract
+from .contracts.tables import table_contract
 from .skill_candidate import entry_problems, main_function_name, rewritten_skills, service_calls, skill_shape_problems, unpassed_runtime_reads, called_service_ids, intent_element_type, overpass_element_mismatch, read_datasets, calls_any, DATASET_READERS_NOTE
 from .place_names import place_words_in
 from .skill_function import SkillFunction

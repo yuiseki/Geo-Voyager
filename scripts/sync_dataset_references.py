@@ -10,7 +10,7 @@ sandbox can read, so that a run does not depend on another checkout and the comm
 A reference lists the main columns; the code needs every column's name and type. Those are measured here, from the
 Parquet footer of each table at the revision the sandbox reads (geo_voyager.dataset_tables), and kept as the
 table's "schema" with the date: not a fact of the reference, so it is marked as Geo-Voyager's measurement. So are
-the row groups and the columns the file is split by (geo_voyager.parquet_layout).
+the row groups and the columns the file is split by (geo_voyager.contracts.parquet_layout).
 """
 import datetime
 import json
@@ -49,7 +49,7 @@ def main() -> None:
             raise ValueError(f'{path} is about {datasets[dataset_id]["id"]}, not {dataset_id}')
     OUT.write_text(json.dumps({'source': {}, 'datasets': datasets}, ensure_ascii=False, default=str))
     from geo_voyager import dataset_tables
-    from geo_voyager.parquet_layout import split_columns
+    from geo_voyager.contracts.parquet_layout import split_columns
     import importlib
     import duckdb
     importlib.reload(dataset_tables)
