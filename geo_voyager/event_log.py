@@ -4,6 +4,10 @@ The events are those of geo_voyager.goal_history: a step, a Planner failure, a f
 happen and read back the same, they let a stopped Goal go on from its next step, and the records made at the end of
 a Goal (the trace, the Exploration Graph, the World Graph) can be made from them.
 """
+from dataclasses import dataclass
+import json
+from pathlib import Path
+
 from .critique import Critique
 from .execution_failure import ExecutionFailure
 from .goal_history import FinalCriticFailure, HistoryEntry, PlannerFailure
@@ -67,3 +71,45 @@ def event_from_dict(data: dict):
     if kind == 'final_critic_failure':
         return FinalCriticFailure(data['reason'], data['after_step'])
     raise ValueError(f'not an event of a Goal: {kind!r}')
+
+
+@dataclass(frozen=True)
+class LoggedGoal:
+    goal: str
+    memory: str | None
+    events: tuple
+    ended: bool
+    stop_reason: str | None
+    success: bool | None
+
+
+class EventLog:
+    """The log of one Goal: its start (the Goal and the memory it was given), each event as it happens, and its end
+    (how it stopped and whether it was answered). The end keeps no Critic's words (ADR 0011). A log without its end
+    is a Goal that stopped on the way."""
+
+    def __init__(self, path: Path) -> None:
+        self.path = Path(path)
+
+    def _write(self, row: dict) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        with self.path.open('a') as file:
+            file.write(json.dumps(row, ensure_ascii=False) + '\n')
+
+    def start(self, goal: str, memory: str | None = None) -> None:
+        self._write({'kind': 'goal_started', 'goal': goal, 'memory': memory})
+
+    def append(self, event) -> None:
+        self._write(event_to_dict(event))
+
+    def end(self, stop_reason: str, *, success: bool) -> None:
+        self._write({'kind': 'goal_ended', 'stop_reason': stop_reason, 'success': success})
+
+    def read(self) -> LoggedGoal:
+        rows = [json.loads(line) for line in self.path.read_text().splitlines() if line.strip()]
+        if not rows or rows[0].get('kind') != 'goal_started':
+            raise ValueError(f'{self.path}: a log starts with goal_started')
+        end = rows[-1] if rows[-1].get('kind') == 'goal_ended' else None
+        events = tuple(event_from_dict(row) for row in rows[1:len(rows) - (end is not None)])
+        return LoggedGoal(rows[0]['goal'], rows[0]['memory'], events, end is not None,
+                          end['stop_reason'] if end else None, end['success'] if end else None)

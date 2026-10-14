@@ -75,3 +75,55 @@ def test_the_events_of_a_goal_run_by_the_executor_are_read_back_the_same():
     assert result.events[0].targets                                           # the targets the step made known
     assert [event_from_dict(json.loads(json.dumps(event_to_dict(event), ensure_ascii=False)))
             for event in result.events] == list(result.events)
+
+
+def run_goal(on_event=None):
+    from unittest.mock import Mock
+    from geo_voyager.goal_executor import GoalExecutor
+    from geo_voyager.intent_execution import IntentExecution
+    from geo_voyager.planner import DONE, PlannerRejected
+    planner = Mock(); planner.next.side_effect = [
+        Intent('区の名前', service_ids=('yuisekin-geosparql',), result_name='wards', inputs=()),
+        PlannerRejected('書式が違う', 'reply'), DONE]
+    executor = Mock(); executor.execute.side_effect = [
+        IntentExecution([Observation('[{"name": "世田谷区", "relation_id": "1759474"}]')], (), (), None, Critique(True, 'ok'))]
+    critic = Mock(); critic.check.return_value = Critique(True, 'ok')
+    return GoalExecutor(planner, executor, critic).execute_adaptive('G', **({'on_event': on_event} if on_event else {}))
+
+
+def test_the_executor_hands_over_every_event_as_it_happens():
+    seen = []
+    result = run_goal(seen.append)
+    assert seen == list(result.events) and len(seen) == 2
+
+
+def test_the_log_of_a_goal_is_its_start_its_events_as_they_happen_and_its_end(tmp_path):
+    from geo_voyager.event_log import EventLog
+    path = tmp_path / '001' / 'events.jsonl'
+    log = EventLog(path)
+    log.start('G', memory='- step 5: 実行のエラー: KeyError: center')
+    result = run_goal(log.append)
+    assert len(path.read_text().splitlines()) == 3                             # written before the Goal ended
+    log.end(result.stop_reason, success=True)
+    read = EventLog(path).read()
+    assert (read.goal, read.memory, read.events, read.stop_reason, read.success) == (
+        'G', '- step 5: 実行のエラー: KeyError: center', result.events, 'done', True)
+    assert read.ended
+
+
+def test_a_log_without_its_end_is_a_goal_that_stopped_on_the_way(tmp_path):
+    from geo_voyager.event_log import EventLog
+    log = EventLog(tmp_path / 'events.jsonl')
+    log.start('G')
+    log.append(EVENTS[3])
+    read = EventLog(tmp_path / 'events.jsonl').read()
+    assert not read.ended and read.events == (EVENTS[3],) and read.memory is None and read.stop_reason is None
+
+
+def test_the_end_of_a_goal_keeps_how_it_stopped_and_no_critics_words(tmp_path):
+    from geo_voyager.event_log import EventLog
+    log = EventLog(tmp_path / 'events.jsonl')
+    log.start('G')
+    log.end('final_critic_failed', success=False)
+    assert json.loads((tmp_path / 'events.jsonl').read_text().splitlines()[-1]) == {
+        'kind': 'goal_ended', 'stop_reason': 'final_critic_failed', 'success': False}

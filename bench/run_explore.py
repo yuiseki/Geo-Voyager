@@ -8,7 +8,8 @@ earlier exploration tried.
 
 There is no list of Goals and no oracle. The Skill library, the World Graph (DIR/world.jsonl, the answered Goals with
 their provenance) and the record of every Goal tried (DIR/exploration.jsonl) carry over from Goal to Goal, and
-across runs given the same --out and --library, so a run can be continued.
+across runs given the same --out and --library, so a run can be continued. Each Goal's events are written as they
+happen to DIR/NNN/events.jsonl (geo_voyager.event_log); a Goal that broke on the way has no end there.
 """
 import argparse
 import datetime
@@ -25,6 +26,7 @@ from bench.infra import benchmark_environment, environment_problem
 from bench.run_goals import logged_llm
 from geo_voyager.critic import Critic
 from geo_voyager.curriculum import Curriculum, CurriculumRejected, ProposedGoal
+from geo_voyager.event_log import EventLog
 from geo_voyager.exploration_graph import ExplorationGraph
 from geo_voyager.embedding_client import EmbeddingClient
 from geo_voyager.goal_executor import GoalExecutor
@@ -61,9 +63,13 @@ def explore_one(number: int, out: Path, names, library: SkillLibrary, embedding:
     critic = Critic(llm)
     executor = IntentExecutor(SkillRetriever(library, embedding), Worker(names['internal']),
                               SkillCandidateGenerator(llm), critic, library, SkillCandidateRepairer(llm))
+    # Each event is written as it happens. A Goal that breaks gets no end, so it can be taken up again from its log.
+    log = EventLog(directory / 'events.jsonl')
+    log.start(proposed.goal, memory)
     started = time.time()
     try:
-        result = GoalExecutor(Planner(llm), executor, critic).execute_adaptive(proposed.goal, memory=memory)
+        result = GoalExecutor(Planner(llm), executor, critic).execute_adaptive(proposed.goal, memory=memory,
+                                                                               on_event=log.append)
     except Exception as problem:
         # One Goal that breaks (a model call that times out, say) is recorded as tried and the exploration goes on.
         result = None
@@ -75,6 +81,7 @@ def explore_one(number: int, out: Path, names, library: SkillLibrary, embedding:
                                  curriculum_reason=proposed.reason, memory=memory is not None)
     if result is None:
         return attempt
+    log.end(result.stop_reason, success=finding is not None)
     (directory / 'trace.json').write_text(json.dumps(
         {'goal': proposed.goal, 'steps': trace_steps(result), 'events': trace_events(result)}, ensure_ascii=False, indent=1))
     return attempt

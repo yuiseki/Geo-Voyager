@@ -70,7 +70,7 @@ class GoalExecutor:
                          max_attempts_per_intent: int = DEFAULT_MAX_ATTEMPTS_PER_INTENT,
                          max_planner_failures: int = DEFAULT_MAX_PLANNER_FAILURES,
                          max_final_critic_failures: int = DEFAULT_MAX_FINAL_CRITIC_FAILURES,
-                         memory: str | None = None) -> AdaptiveGoalExecution:
+                         memory: str | None = None, on_event=None) -> AdaptiveGoalExecution:
         """Run a Goal one step at a time. After each step the Planner decides the next Intent, or DONE.
 
         The full plan is not used. Three kinds of setback do not end the Goal; each is recorded in the history so
@@ -82,8 +82,16 @@ class GoalExecutor:
         the loop ends. It stops early when the same failure comes back, or an Intent that already succeeded (or has
         already failed max_attempts_per_intent times) is planned again. A step receives the Observations of the steps
         that succeeded, and nothing else.
+
+        on_event, when given, is called with each event as it is added to the history (to write it down then).
         """
         history, executions = GoalHistory(), []
+
+        def add(event) -> None:
+            history.append(event)
+            if on_event is not None:
+                on_event(event)
+
         stop, error = 'max_steps', None
         critique = None
         while True:
@@ -93,7 +101,7 @@ class GoalExecutor:
             try:
                 decision = self.planner.next(goal, history, **({'memory': memory} if memory else {}))
             except PlannerRejected as rejected:
-                history.append(PlannerFailure(rejected.reason, rejected.reply, len(history)))
+                add(PlannerFailure(rejected.reason, rejected.reply, len(history)))
                 if last_call:
                     break
                 if self._give_up(history.planner_failures(), max_planner_failures):
@@ -112,7 +120,7 @@ class GoalExecutor:
                 if critique.success:
                     stop = 'done'
                     break
-                history.append(FinalCriticFailure(critique.reason, len(history)))
+                add(FinalCriticFailure(critique.reason, len(history)))
                 if last_call:
                     break
                 if self._give_up(history.final_critic_failures(), max_final_critic_failures):
@@ -130,7 +138,7 @@ class GoalExecutor:
             refusal = _execution_refusal(current)
             if refusal:
                 reason = f'ValueError: {refusal}'
-                history.append(PlannerFailure(reason, current.text, len(history)))
+                add(PlannerFailure(reason, current.text, len(history)))
                 if self._give_up(history.planner_failures(), max_planner_failures):
                     stop, error = 'planner_failure', reason
                     break
@@ -142,7 +150,7 @@ class GoalExecutor:
                 # step, not a mistake of the Planner. The Planner reads it as an execution failure.
                 execution = _failed_execution(f'ValueError: {problem}')
             executions.append(execution)
-            history.append(HistoryEntry.from_execution(len(history) + 1, current, execution, history))
+            add(HistoryEntry.from_execution(len(history) + 1, current, execution, history))
         if stop != 'done':
             critique = Critique(False, f'Goal を完了できなかった: {stop}' + (f'（{error}）' if error else ''))
         return AdaptiveGoalExecution(goal, history.entries, tuple(executions), stop, critique, error, history.events)
