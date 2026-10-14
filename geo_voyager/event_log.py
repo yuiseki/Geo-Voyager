@@ -84,6 +84,12 @@ class LoggedGoal:
     # Why the curriculum chose the Goal, for whoever reads the record; no model is shown it again.
     reason: str = ''
 
+    @property
+    def history(self) -> tuple[HistoryEntry, ...]:
+        """The steps among the events, as AdaptiveGoalExecution.history: the records made at the end of a Goal (the
+        trace, the Exploration Graph, the World Graph) read a log as they read the run."""
+        return tuple(event for event in self.events if isinstance(event, HistoryEntry))
+
 
 class EventLog:
     """The log of one Goal: its start (the Goal and the memory it was given), each event as it happens, and its end

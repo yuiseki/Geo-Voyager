@@ -19,10 +19,12 @@ class WorldGraph:
         self.path = Path(path)
 
     def record(self, result: AdaptiveGoalExecution, *, explored_at: str | None = None) -> dict | None:
-        """Add the finding of an answered Goal and return it. A Goal that was not answered adds nothing."""
-        succeeded = [entry for entry in result.history if entry.succeeded and entry.observations]
-        if result.stop_reason != 'done' or not result.critique.success or not succeeded:
+        """Add the finding of an answered Goal and return it. A Goal that was not answered adds nothing.
+        result is the run or its log read back (geo_voyager.event_log.LoggedGoal). A Goal stops as done only when
+        the final Critic found it answered."""
+        if not self.answered(result):
             return None
+        succeeded = [entry for entry in result.history if entry.succeeded and entry.observations]
         targets, seen = [], set()
         for entry in succeeded:
             for target in entry.targets:
@@ -42,6 +44,11 @@ class WorldGraph:
         with self.path.open('a') as file:
             file.write(json.dumps(finding, ensure_ascii=False) + '\n')
         return finding
+
+    @staticmethod
+    def answered(result) -> bool:
+        """Whether the Goal has a finding: it stopped as done and a step that succeeded output something."""
+        return result.stop_reason == 'done' and any(entry.succeeded and entry.observations for entry in result.history)
 
     def findings(self) -> list[dict]:
         if not self.path.exists():

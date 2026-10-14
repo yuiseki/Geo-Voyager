@@ -191,3 +191,28 @@ def test_a_goal_stopped_after_its_second_step_goes_on_from_its_third_and_ends_as
     assert resumed.events == whole.events and resumed.stop_reason == whole.stop_reason == 'done'
     log.end(resumed.stop_reason, success=True)
     assert log.read().events == whole.events                                   # the log holds each event once
+
+
+def test_the_records_made_at_the_end_of_a_goal_come_out_the_same_from_its_log_alone(tmp_path):
+    # Stage 4: the trace, the Exploration Graph's row and the World Graph's finding are projections of the log, so a
+    # Goal taken up after a stop is recorded as if it had never stopped, and the records can be made again from logs.
+    from bench.adaptive_trace import trace_events, trace_steps
+    from geo_voyager.event_log import EventLog
+    from geo_voyager.exploration_graph import ExplorationGraph
+    from geo_voyager.goal_executor import GoalExecutor
+    from geo_voyager.world_graph import WorldGraph
+    log = EventLog(tmp_path / 'events.jsonl')
+    log.start('G')
+    result = GoalExecutor(*scripted()).execute_adaptive('G', on_event=log.append)
+    log.end(result.stop_reason, success=True)
+    logged = log.read()
+    assert logged.history == result.history
+
+    def records(run, name):
+        world, exploration = WorldGraph(tmp_path / f'{name}_world.jsonl'), ExplorationGraph(tmp_path / f'{name}_exploration.jsonl')
+        finding = world.record(run, explored_at='t')
+        row = exploration.record(1, run, success=finding is not None, explored_at='t', elapsed=1.0)
+        return finding, row, trace_steps(run), trace_events(run)
+
+    from_result, from_log = records(result, 'result'), records(logged, 'log')
+    assert from_log == from_result and from_log[0] is not None and from_log[1]['steps'] == 3

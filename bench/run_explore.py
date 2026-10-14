@@ -99,15 +99,18 @@ def explore_one(number: int, out: Path, names, library: SkillLibrary, embedding:
         result = None
         error = f'{type(problem).__name__}: {problem}'
     at = datetime.datetime.now().isoformat(timespec='seconds')
-    finding = world.record(result, explored_at=at) if result is not None else None
-    attempt = exploration.record(number, result, goal=proposed.goal, success=finding is not None, explored_at=at,
-                                 elapsed=round(time.time() - started, 1), error=None if result is not None else error,
-                                 curriculum_reason=proposed.reason, memory=memory is not None)
+    elapsed = round(time.time() - started, 1)
     if result is None:
-        return attempt
-    log.end(result.stop_reason, success=finding is not None)
+        return exploration.record(number, None, goal=proposed.goal, success=False, explored_at=at, elapsed=elapsed,
+                                  error=error, curriculum_reason=proposed.reason, memory=memory is not None)
+    log.end(result.stop_reason, success=WorldGraph.answered(result))
+    # The records are made from the log, the steps before a stop included, as if the Goal had never stopped.
+    logged = log.read()
+    finding = world.record(logged, explored_at=at)
+    attempt = exploration.record(number, logged, success=finding is not None, explored_at=at, elapsed=elapsed,
+                                 curriculum_reason=proposed.reason, memory=memory is not None)
     (directory / 'trace.json').write_text(json.dumps(
-        {'goal': proposed.goal, 'steps': trace_steps(result), 'events': trace_events(result)}, ensure_ascii=False, indent=1))
+        {'goal': logged.goal, 'steps': trace_steps(logged), 'events': trace_events(logged)}, ensure_ascii=False, indent=1))
     return attempt
 
 

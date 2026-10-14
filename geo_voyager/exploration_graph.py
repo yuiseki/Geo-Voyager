@@ -116,7 +116,8 @@ class ExplorationGraph:
     def record(self, number: int, result: AdaptiveGoalExecution | None, *, success: bool, explored_at: str,
                elapsed: float, goal: str | None = None, error: str | None = None, curriculum_reason: str = '',
                memory: bool = False) -> dict:
-        """Add the try of a Goal. result is None when the Goal broke (error says how)."""
+        """Add the try of a Goal. result is the run or its log read back (geo_voyager.event_log.LoggedGoal), None when
+        the Goal broke (error says how)."""
         row = {
             'number': number, 'goal': result.goal if result is not None else goal, 'curriculum_reason': curriculum_reason,
             # stop_reason and error are for whoever reads the record; neither reaches a model (ADR 0011).
