@@ -4,8 +4,9 @@ from urllib.request import Request, urlopen
 # Code generation has a long tail with Qwen3.8-27B: median 19 s, p99 107 s, and some calls over 120 s, which ended
 # the whole Goal. Measured from the exploration logs of 2026-10-11. With the prompt prefix no longer cached and
 # prompts of 24 KB, a call took up to 295 s and the next one passed 300 s and ended the Goal (2026-10-14): a reply of
-# max_tokens (4,096) at about 10 tokens a second needs some 400 s besides the prefill.
-TIMEOUT_SECONDS = 900
+# max_tokens (4,096) at about 10 tokens a second needs some 400 s besides the prefill. Code generation may write
+# 8,192 tokens beside 1,024 of thinking: at about 12 a second (17.5 KB in 556 s), 900 s ended a Goal (2026-10-15).
+TIMEOUT_SECONDS = 1500
 # Temperature 0 repeats only when the server does not reuse a cached prompt prefix: after another prompt with the same
 # prefix, the same prompt got a different reply (measured on gvt-llm, 2026-10-14). The cost is the prefix's prefill.
 CACHE_PROMPT = False
