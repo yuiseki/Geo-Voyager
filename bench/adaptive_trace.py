@@ -21,7 +21,7 @@ def trace_steps(result: AdaptiveGoalExecution, injected: set[int] | None = None)
             'critic_reason': entry.critique.reason if entry.critique else None,
             'failure': (error_line(entry.failure) or entry.failure.message) if entry.failure else '',
             'observation': (entry.observations[0].text[:OBSERVATION_SHOWN] if entry.observations else ''),
-            'attempts': len([a for a in execution.attempts if a.route == 'runtime']),
+            'attempts': len(execution.attempts),
             'called_skills': list(entry.called_skills),
             'learned_skill': entry.learned_skill,
             'new_targets': [target.to_dict() for target in entry.targets], 'injected': entry.step in injected,

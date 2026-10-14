@@ -20,7 +20,7 @@
 | 候補 | `geo_voyager/skill_candidate.py` | 生成コードは短いプログラムで、保存済みの Skill を名前で呼んでよく、新しい関数を 1 つまで定義してよい。`new_skill_code` は、そのうち import と関数だけを取り出す（保存する Skill）。`skill_shape_problems` は、関数が 2 つ以上、docstring が無い、関数が実行時変数（`intent_target`、`previous_observations`、`dataset_id`、`intent_text`）を引数でなく直接読む、を見つける |
 | 生成 | `SkillCandidateGenerator.generate(intent, skills)` | 検索した Skill のコードを見せ、呼んでよいこと、定義をコピーしないこと、新しい処理は名前と引数と docstring を持つ関数 1 つにまとめること、実行時変数は呼ぶ行で引数として渡すことを指示する。`skill_shape_problems` に当たれば、理由を添えて最大 2 回作り直させ、残れば拒否する（id_type とローカル集計の検査と同じ仕組み） |
 | 実行 | `Worker.execute_candidate(intent, candidate, library)` | 実行の前にリンクする。実行時変数とリンクした Skill のぶん行番号がずれるので、失敗の行番号は書かれたプログラムの行に直して返す |
-| 流れ | `IntentExecutor` | 検索、生成（Skill を渡す）、リンクして実行、失敗なら最大 2 回 repair、Critic、（任意で semantic repair）、Critic が成功なら新しい関数を保存。`IntentExecution` は `retrieved_skills`、`called_skills`、`learned_skill`（`名前@v版`）、保存できなかった理由（`note`）を持つ |
+| 流れ | `IntentExecutor` | 検索、生成（Skill を渡す）、リンクして実行、失敗なら最大 2 回 repair、Critic、Critic が成功なら新しい関数を保存。`IntentExecution` は `retrieved_skills`、`called_skills`、`learned_skill`（`名前@v版`）、保存できなかった理由（`note`）を持つ |
 
 リポジトリの `skill_library/` には、v0.1.0 の最初の 6 Skill と同じ目的の関数を、引数を取り値を返す形で書き直して置いた: `most_populous_area`、`least_populous_area`、`top_areas_by_population`、`total_population`、`count_station_records`、`northernmost_station`。
 

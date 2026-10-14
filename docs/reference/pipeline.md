@@ -23,8 +23,7 @@ Goal
     │    ├ Worker -> DockerSandbox        呼ぶ Skill をリンクして sandbox で実行（Gateway 経由でのみ外部へ、既定 30 秒）
     │    ├ SkillCandidateRepairer         実行が失敗したら traceback を見て直す（最大 2 回）
     │    ├ Critic.check                   Observation が Intent に答えたか判定
-    │    ├ （Critic が成功なら）新しい関数を Skill として名前と版で保存
-    │    └ SemanticRepairer（既定は無効） 実行は通ったが Critic が棄却したときに 1 回直す
+    │    └ （Critic が成功なら）新しい関数を Skill として名前と版で保存
     ├ GoalHistory に step、計画の失敗（PlannerFailure）、最終判定の失敗（FinalCriticFailure）を追記
     └ DONE のとき Critic.check(goal, 全 Observation, final=True)。失敗なら履歴に入れて Planner に戻る
 ```
@@ -67,7 +66,6 @@ LLM の出力に対する決定的な検査（モデルを使わない。単体�
 | 出力が 8 KiB を超えない（超えたら切らずに失敗、`OutputTooLong`） | `execution_failure.sandbox_program` | sandbox | 2026-10-14 |
 | 出力の JSON の一覧に、まったく同じ行が無い（`DuplicateRows`） | `contracts.output.output_problem` | Worker（Critic の前） | 2026-10-14。ekidata の 1 行は路線上の駅 |
 | repair が、失敗に出た必須キーを `.get(k, 既定値)` や握りつぶす except で隠さない | `default_fallback.introduced_fallbacks` | runtime repair | [2026-10-09_runtime_repair_defaults.md](../reports/2026-10-09_runtime_repair_defaults.md) |
-| repair が Observation の値をコードに貼り込まない | `hardcoding.py` | semantic repair | [2026-10-09_semantic_repair.md](../reports/2026-10-09_semantic_repair.md) |
 | Observation が空、または対象の ID と違う ID | `critic.py`、`target_identity.identity_conflict` | Critic | [0004-targets-by-stable-id.md](../ADR/0004-targets-by-stable-id.md) |
 
 LLM のプロンプトだけで課している契約（決定的な検査は無い）:

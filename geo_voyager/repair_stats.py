@@ -41,20 +41,9 @@ def classify_failure(failure: ExecutionFailure) -> str:
     return 'other'
 
 
-def _semantic_summary(attempt) -> dict:
-    return {
-        'note': attempt.note, 'executed': attempt.executed, 'trigger': attempt.trigger,
-        'critic_success': attempt.critique.success if attempt.critique else None,
-        'critic_reason': attempt.critique.reason if attempt.critique else None,
-        'execution_failed': attempt.failure is not None,
-    }
-
-
 def intent_record(intent_text: str, execution: IntentExecution) -> dict:
     """One JSON-serialisable row. It holds code hashes and stderr tails, not code."""
-    attempts = [attempt for attempt in execution.attempts if attempt.route == 'runtime']
-    semantic = [attempt for attempt in execution.attempts if attempt.route == 'semantic']
-    candidates = attempts
+    candidates = list(execution.attempts)
     outcome_at = next((i for i, attempt in enumerate(candidates) if attempt.failure is None), None)
     hashes = [sha256(attempt.code.encode()).hexdigest() for attempt in candidates]
     return {
@@ -67,7 +56,6 @@ def intent_record(intent_text: str, execution: IntentExecution) -> dict:
         'oscillation': any(code in hashes[:i] for i, code in enumerate(hashes)),
         'observation_head': (execution.observations[0].text[:OBSERVATION_HEAD_LIMIT]
                              if execution.observations else ''),
-        'semantic_repair': _semantic_summary(semantic[-1]) if semantic else None,
         'critic_success': execution.critique.success,
         'critic_reason': execution.critique.reason,
         'attempts': [

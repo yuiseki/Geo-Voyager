@@ -55,7 +55,7 @@
 
 ## 変更していないもの
 
-- 適応ループ（`geo_voyager/goal_executor.py`）、runtime repair（`SkillCandidateRepairer`）、semantic repair（`SemanticRepairer`）、`IntentExecutor` は、編集していない。semantic repair は、`Intent.target_name`（表示名）を使い続ける。そのプロンプトは、対象を `intent_target["name"]` と書いたままである。
+- 適応ループ（`geo_voyager/goal_executor.py`）、runtime repair（`SkillCandidateRepairer`）、`IntentExecutor` は、編集していない。semantic repair は、`Intent.target_name`（表示名）を使い続ける。そのプロンプトは、対象を `intent_target["name"]` と書いたままである。
 
 ## 確認（focused test のみ。大規模なベンチマークは流していない）
 
@@ -74,7 +74,7 @@
 - 生成コードが、実際の LLM で ID 優先の接続例どおりに書かれるかは、測っていない。確かめたのは、プロンプトの内容と、その接続例と同じコードが動くこと（実 Docker）である。
 - Critic の決定的な検査は、対象と同じ種類の ID（`id_type` と同じキー）を持つ object がある場合だけ働く。ID が別のキー（例えば `osm_id`）で出ていれば、検査されず、モデルの判定に任せる。
 - Planner の名前の解決は、完全一致と、カンマの前の名前の一致だけである。表記の揺れを、これ以上は吸収しない。名前が既知の対象のどれとも合わなければ、名前だけの対象（これから調べる対象）になる。
-- 古い実行の記録（`target_name` だけを持つ）は、`bench/replay_semantic.py` が名前だけの対象として読み直す。
+- 古い実行の記録（`target_name` だけを持つ）は、`bench/replay_critic.py` が名前だけの対象として読み直す。
 
 ## 再現
 
