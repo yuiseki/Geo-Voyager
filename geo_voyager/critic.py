@@ -2,6 +2,7 @@ import re
 import json
 
 from .critique import Critique
+from .dataset_references import REFERENCED, critic_text
 from .datasets import load_dataset_graph
 from .intent import Intent
 from .llama_client import LlamaClient
@@ -43,7 +44,7 @@ def _resources(code: str, intent: Intent) -> str:
     passed = intent.dataset_ids[0] if len(intent.dataset_ids) == 1 else None
     lines = [f'{service_id}: {services.get(service_id).description}' for service_id in sorted(called_service_ids(code))
              if service_id in {service.id for service in services.all()}]
-    lines += [f'{dataset_id}: {datasets.get(dataset_id).description}'
+    lines += [f'{dataset_id}: {datasets.get(dataset_id).description}' + (f' {critic_text(dataset_id, code)}' if dataset_id in REFERENCED else '')
               for dataset_id in sorted(read_datasets(code, passed) or ()) if dataset_id in known]
     return '\n'.join(lines)
 

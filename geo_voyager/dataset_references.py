@@ -7,9 +7,11 @@ primitives add (an area read at once, the zonal sums of the population grid) is 
 """
 import json
 from pathlib import Path
+import re
 
 _DATA = json.loads((Path(__file__).with_name('dataset_references.json')).read_text(encoding='utf-8'))
 SOURCE = _DATA['source']
+REFERENCED = frozenset(_DATA['datasets'])
 
 # The table of each dataset the Planner is told about: the one most Goals read.
 _MAIN_TABLE = {
@@ -46,3 +48,28 @@ def planner_text(dataset_id: str) -> str:
     if notes:
         text += '注意: ' + ' '.join(notes) + '。'
     return text + _NOTES.get(dataset_id, '')
+
+
+def _used(name: str, code: str) -> bool:
+    return re.search(rf'(?<![A-Za-z0-9_]){re.escape(name)}(?![A-Za-z0-9_])', code) is not None
+
+
+def critic_text(dataset_id: str, code: str) -> str:
+    """What the Critic is told about a dataset the code read: what a row of each table the code names is, and what
+    the columns it uses mean. Told the description alone, the Critic failed code that kept the rows with ward IS NULL
+    for not leaving out the wards' rows; that ward is empty on the parent city's row is in the column's meaning."""
+    reference = _DATA['datasets'][dataset_id]
+    tables = ([table for table in reference['tables'] if re.search(rf'["\']{re.escape(table["name"])}["\']', code)]
+              or [table for table in reference['tables'] if table['name'] == _MAIN_TABLE[dataset_id]])
+    text = ''
+    for table in tables:
+        meanings = {key['column']: key['meaning'] for key in table.get('join_keys', [])}
+        meanings.update({column['name']: column['meaning'] for column in table.get('columns', [])})
+        notes = {key['column']: key['note'] for key in table.get('join_keys', []) if key.get('note')}
+        notes.update({column['name']: column['note'] for column in table.get('columns', []) if column.get('note')})
+        used = [name for name in meanings if _used(name, code)]
+        text += f" {table['name']} の 1 行は{table['grain']}。"
+        if used:
+            text += 'コードが使う列: ' + '、'.join(
+                f'{name}（{meanings[name]}' + (f'。{notes[name]}' if name in notes else '') + '）' for name in used) + '。'
+    return text.strip()

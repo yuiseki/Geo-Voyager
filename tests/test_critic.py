@@ -284,6 +284,28 @@ def test_a_dataset_the_code_reads_by_its_argument_is_described_too():
     assert 'yuiseki/jp-admin-2026-09: デジタル庁のアドレス・ベース・レジストリ' in client.generate.call_args.args[0]
 
 
+# The small tasks of GeoAI-skills (2026-10-14), task 15: code that kept the rows with ward IS NULL counted the
+# 4,428 pairs of the reference answer, and the Critic failed it three times as "not leaving out the wards' rows". It
+# was told the dataset's description only, not that ward is empty on the parent city's row.
+WARDS_LEFT_OUT = ('from geo_voyager.control_primitives import connect_duckdb, read_table\n\n\n'
+                  'def pairs(dataset_id="yuiseki/jp-admin-2026-09"):\n    """Pairs."""\n    with connect_duckdb() as connection:\n'
+                  '        municipalities = read_table(connection, dataset_id, "municipalities").filter("ward IS NULL")\n'
+                  '        return connection.sql("SELECT count(*) FROM municipalities a JOIN municipalities b '
+                  'ON a.code5 < b.code5 AND ST_Intersects(a.geometry, b.geometry)").fetchone()[0]\n')
+
+
+def test_the_critic_is_told_what_a_row_is_and_what_the_columns_the_code_uses_mean():
+    client = Mock(); client.generate.return_value = '判定: 成功\n理由: ok'
+    Critic(client).check(Intent('政令指定都市は市全体を 1 つとして隣り合う市区町村の組を数える', ('yuiseki/jp-admin-2026-09',)),
+                         [Observation('{"pair_count": 4428}')], code=WARDS_LEFT_OUT)
+    prompt = client.generate.call_args.args[0]
+    assert '政令指定都市は、親の市と、その区が別の行になる' in prompt
+    assert 'ward（政令指定都市の区の名前。親の市の行では空）' in prompt
+    assert '親と区が重なるので ward is null に絞る' in prompt                  # the key's note
+    assert 'ST_Intersects で取る' in prompt                                    # the geometry's note
+    assert 'population（' not in prompt                                         # a column the code does not use
+
+
 def test_without_the_code_there_is_no_code_section():
     client = Mock(); client.generate.return_value = '判定: 成功\n理由: ok'
     Critic(client).check(intent(), [Observation('世田谷区 943664')])

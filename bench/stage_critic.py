@@ -17,6 +17,7 @@ import time
 
 from geo_voyager.critic import CARRIED, CODE_HEADER, PLACE_FACTS, READ_NAMES, RESOURCES_HEADER
 from geo_voyager.critique import Critique
+from geo_voyager.dataset_references import REFERENCED, critic_text
 from geo_voyager.datasets import load_dataset_graph
 from geo_voyager.services import load_service_graph
 from geo_voyager.skill_candidate import called_service_ids, read_datasets
@@ -29,7 +30,9 @@ ANCHOR = '入力の Intent と Observation だけで要求した出力が得ら�
 KEY_ANCHOR = '値そのものが無い、または別の値なら失敗。\n'
 # Hypothesis 5: with both, case 29 broke the two lines; told at the end of the prompt to write the two lines only, the
 # Critic stopped checking the list and misread it (stage 5). The verdict is now read from the last two lines instead.
-VARIANTS = ['base', 'rule', 'code', 'code+rule', 'all', 'all+names', 'all+carried', 'all+both']
+# Hypothesis 6 (the small tasks of GeoAI-skills, task 15): told what a row of the table is and what the columns the
+# code uses mean, the Critic stops failing ward IS NULL as not leaving out the wards' rows (geo_voyager.critic).
+VARIANTS = ['base', 'rule', 'code', 'code+rule', 'all', 'all+names', 'all+carried', 'all+both', 'all+both+columns']
 
 
 def producing_code(prompt_path: Path) -> str | None:
@@ -45,14 +48,26 @@ def producing_code(prompt_path: Path) -> str | None:
     return None
 
 
-def resource_notes(code: str) -> str:
-    """What the services and datasets the code reads are, as the Planner and the Generator are told."""
+def resource_notes(code: str, columns: bool = False) -> str:
+    """What the services and datasets the code reads are, as the Planner and the Generator are told; with columns,
+    what a row is and what the columns the code uses mean too."""
     services = load_service_graph()
     datasets = load_dataset_graph()
     lines = [f'{service_id}: {services.get(service_id).description}' for service_id in sorted(called_service_ids(code))]
-    lines += [f'{dataset_id}: {datasets.get(dataset_id).description}' for dataset_id in sorted(read_datasets(code))
+    lines += [f'{dataset_id}: {datasets.get(dataset_id).description}'
+              + (f' {critic_text(dataset_id, code)}' if columns and dataset_id in REFERENCED else '')
+              for dataset_id in sorted(read_datasets(code))
               if dataset_id in {dataset.id for dataset in datasets.all()}]
     return '\n'.join(lines)
+
+
+def with_columns(prompt: str, path: Path) -> str:
+    """The prompt with its description of what the code read made again, columns included."""
+    if CODE_HEADER not in prompt:
+        return prompt
+    code = prompt.split(CODE_HEADER, 1)[1].split(RESOURCES_HEADER, 1)[0]
+    notes = resource_notes(code, columns=True)
+    return prompt.split(RESOURCES_HEADER, 1)[0] + (RESOURCES_HEADER + notes if notes else '')
 
 
 def changed(prompt: str, variant: str, path: Path) -> str:
@@ -68,11 +83,14 @@ def changed(prompt: str, variant: str, path: Path) -> str:
             notes = resource_notes(code) if stage4 == 'all' else ''
             if notes:
                 prompt += RESOURCES_HEADER + notes
-    added = {'all+names': READ_NAMES, 'all+carried': CARRIED, 'all+both': READ_NAMES + CARRIED}.get(variant, '')
+    added = {'all+names': READ_NAMES, 'all+carried': CARRIED, 'all+both': READ_NAMES + CARRIED,
+             'all+both+columns': READ_NAMES + CARRIED}.get(variant, '')
     if added and added not in prompt:
         if KEY_ANCHOR not in prompt:
             raise ValueError(f'{path}: the anchor of the key rule is not in the prompt')
         prompt = prompt.replace(KEY_ANCHOR, KEY_ANCHOR + added)
+    if variant.endswith('+columns'):
+        prompt = with_columns(prompt, path)
     return prompt
 
 
