@@ -23,7 +23,7 @@ Goal
     ├ IntentExecutor.execute(intent)                     geo_voyager/intent_executor.py
     │    ├ SkillRetriever                 近い Skill（名前付き関数）を検索（embedding: embeddinggemma）
     │    ├ SkillCandidateGenerator        Skill を呼んでよいコードを生成（新しい関数は 1 つまで）
-    │    ├ Worker -> DockerSandbox        呼ぶ Skill をリンクして sandbox で実行（Gateway 経由でのみ外部へ、既定 180 秒、1 GB、2 CPU。DuckDB は 512 MB と 2 スレッド）
+    │    ├ Worker -> DockerSandbox        呼ぶ Skill をリンクして sandbox で実行（Gateway 経由でのみ外部へ、既定 180 秒、1 GB、2 CPU。DuckDB は 512 MB と 2 スレッドで、超えた分は /tmp（256 MB）へ書き出す）
     │    ├ SkillCandidateRepairer         実行が失敗したら traceback を見て直す（最大 2 回）
     │    ├ Critic.check                   Observation が Intent に答えたか判定
     │    └ （Critic が成功なら）新しい関数を Skill として名前と版で保存
@@ -73,7 +73,7 @@ LLM の出力に対する決定的な検査（モデルを使わない。単体�
 
 LLM のプロンプトだけで課している契約（決定的な検査は無い）:
 
-- Critic: 手ごとの判定では、最後に実行したコードと、そのコードが読んだサービスとデータの説明を見せ、どう測ったかで判定させる。個々の地物の事実（どの区とどの区が接するか）を自分の知識で否定しない。0 や空、桁違いは疑ってよい（[2026-10-14_critic_stage4.md](../reports/2026-10-14_critic_stage4.md)）。Intent に出てくる読む元の列の名前（例: rep_lon）が出力のキーに無いこと、前段から引き継いだ名前や ID が今回読んだデータに無い種類であることは、失敗の理由にしない。判定は応答の最後の 2 行から読み、その前に書いた確かめの過程は許す（[2026-10-14_critic_stage5.md](../reports/2026-10-14_critic_stage5.md)）。値が 0 や空、矛盾する値は、根拠が Observation にあるときだけ成功（[2026-10-09_critic_accepted_wrong.md](../reports/2026-10-09_critic_accepted_wrong.md)）。比較・選択・集計を求める step では、答えそのもの（勝者など）が Observation に出ていること（[2026-10-10_adaptive_round_1.md](../reports/2026-10-10_adaptive_round_1.md)）。
+- Critic: 手ごとの判定では、最後に実行したコードと、そのコードが読んだサービスとデータの説明を見せ、どう測ったかで判定させる。データの説明には、コードが名指しした表の 1 行が何かと、コードが使う列の意味と注意書きを含める（`dataset_references.critic_text`。説明だけでは、`ward IS NULL` で区を除いたコードを「区を除いていない」と退けた）。個々の地物の事実（どの区とどの区が接するか）を自分の知識で否定しない。0 や空、桁違いは疑ってよい（[2026-10-14_critic_stage4.md](../reports/2026-10-14_critic_stage4.md)）。Intent に出てくる読む元の列の名前（例: rep_lon）が出力のキーに無いこと、前段から引き継いだ名前や ID が今回読んだデータに無い種類であることは、失敗の理由にしない。判定は応答の最後の 2 行から読み、その前に書いた確かめの過程は許す（[2026-10-14_critic_stage5.md](../reports/2026-10-14_critic_stage5.md)）。値が 0 や空、矛盾する値は、根拠が Observation にあるときだけ成功（[2026-10-09_critic_accepted_wrong.md](../reports/2026-10-09_critic_accepted_wrong.md)）。比較・選択・集計を求める step では、答えそのもの（勝者など）が Observation に出ていること（[2026-10-10_adaptive_round_1.md](../reports/2026-10-10_adaptive_round_1.md)）。
 - 最終 Critic（`final=True`）: Goal の答えそのものが Observation に出ていること。複数の数値から自分で比べて答えを作らない（[2026-10-09_entity_target_e2e.md](../reports/2026-10-09_entity_target_e2e.md)）。
 - Generator: 出力の JSON のキーは値の意味を表す（固定のスキーマは無い）。`name` と `relation_id` は対象の出力にだけ使う。対象についての測定は、何を測ったか（`"tag": "amenity=cafe"`）を含める（[2026-10-09_planner_service_contract.md](../reports/2026-10-09_planner_service_contract.md)、[2026-10-10_adaptive_round_1.md](../reports/2026-10-10_adaptive_round_1.md)）。
 - サービスの説明（`services.py`）は、自前のサービスに実際に問い合わせて確かめた内容だけを書き、integration の契約テストで保つ。Taginfo（`key/values` の page と rp、`tag/stats`、`search/by_value` は部分一致）は `integration/test_taginfo_contract.py`、Valhalla（POST、`costing` 必須、`trip.summary.length` と `time`）は `integration/test_valhalla_contract.py`。

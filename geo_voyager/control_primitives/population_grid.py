@@ -36,7 +36,7 @@ def sum_population_grid(*args):
             # nodata at all, and the missing pixels were summed as people; no population is negative.
             cells = pixels[0].compressed() if hasattr(pixels[0], 'compressed') else pixels[0].ravel()
             sums.append((*values, float(cells[cells >= 0].sum())))
-    columns = ', '.join(f'"{key}" {types[key]}' for key in keys)
-    connection.execute(f'CREATE OR REPLACE TEMP TABLE population_grid_sums ({columns}, estimated_population DOUBLE)')
+    columns = ''.join(f'"{key}" {types[key]}, ' for key in keys)
+    connection.execute(f'CREATE OR REPLACE TEMP TABLE population_grid_sums ({columns}estimated_population DOUBLE)')
     connection.executemany(f'INSERT INTO population_grid_sums VALUES ({", ".join("?" * (len(keys) + 1))})', sums)
     return connection.table('population_grid_sums')

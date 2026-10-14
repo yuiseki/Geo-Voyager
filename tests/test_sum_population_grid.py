@@ -45,3 +45,32 @@ def test_the_contract_shows_the_tables_of_the_declared_datasets():
     text = primitive_contract(Intent('区ごとの駅', ('yuiseki/jp-admin-2026-09', 'yuiseki/ekidata-jp')))
     assert 'read_table(connection, "yuiseki/ekidata-jp", "station")' in text and '東京23区: filter(' in text
     assert 'load_admin_units' not in text and 'load_stations' not in text
+
+
+def small_grid(path):
+    """A 4 x 4 grid of 1 person a pixel, 0.01 degrees a pixel from 139.0 E, 36.0 N, one pixel missing."""
+    import numpy
+    import rasterio
+    from rasterio.transform import from_origin
+    values = numpy.ones((4, 4), dtype='float32')
+    values[0, 0] = -99999
+    with rasterio.open(path, 'w', driver='GTiff', width=4, height=4, count=1, dtype='float32', crs='EPSG:4326',
+                       transform=from_origin(139.0, 36.0, 0.01, 0.01), nodata=-99999) as target:
+        target.write(values, 1)
+
+
+def test_zones_with_a_geometry_alone_are_summed_in_their_order(tmp_path, monkeypatch):
+    # The small tasks of GeoAI-skills (2026-10-14), task 11: zones of a geometry and no other column made the table
+    # of sums "(, estimated_population DOUBLE)", a syntax error the model could not read as its own.
+    import duckdb
+    from geo_voyager.control_primitives import population_grid
+    small_grid(tmp_path / 'grid.tif')
+    monkeypatch.setattr(population_grid, 'dataset_url', lambda dataset_id: str(tmp_path / 'grid.tif'))
+    connection = duckdb.connect()
+    connection.execute('INSTALL spatial; LOAD spatial')
+    zones = connection.sql("SELECT ST_GeomFromText(wkt) AS geometry FROM (VALUES "
+                           "('POLYGON((139.0 35.98, 139.02 35.98, 139.02 36.0, 139.0 36.0, 139.0 35.98))'), "
+                           "('POLYGON((139.0 35.96, 139.04 35.96, 139.04 35.98, 139.0 35.98, 139.0 35.96))')) t(wkt)")
+    sums = population_grid.sum_population_grid(connection, zones)
+    assert sums.columns == ['estimated_population']
+    assert [row[0] for row in sums.fetchall()] == [3.0, 8.0]          # the missing pixel is no one

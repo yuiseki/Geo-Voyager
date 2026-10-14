@@ -32,3 +32,18 @@ assert rasterio.__version__ == '1.5.1' and 'GTiff' in rasterio.drivers.raster_dr
     stdout = DockerSandbox(image=WORKER_IMAGE).run(code)
     assert stdout == "duckdb extensions ok\n"
     print(stdout, end="")
+
+
+def test_duckdb_spills_to_the_sandboxs_tmpfs_when_a_query_outgrows_its_memory():
+    # The small tasks of GeoAI-skills (2026-10-14), task 15: a self join of the 1,918 municipalities' faces outgrew
+    # the memory limit, and DuckDB failed to create its temporary directory ".tmp" in the read-only working directory.
+    code = '''
+from geo_voyager.control_primitives import connect_duckdb
+with connect_duckdb() as con:
+    assert con.execute("SELECT current_setting('temp_directory')").fetchone()[0].startswith('/tmp/')
+    con.execute("SET memory_limit='64MB'")
+    con.execute("SET preserve_insertion_order=false")
+    rows = con.execute("SELECT count(*) FROM (SELECT md5(i::VARCHAR) AS k FROM range(3000000) t(i) ORDER BY k)").fetchone()[0]
+    print(rows)
+'''
+    assert DockerSandbox(image=WORKER_IMAGE).run(code) == "3000000\n"
