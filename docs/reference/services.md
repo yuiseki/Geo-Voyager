@@ -61,7 +61,7 @@ GeoSPARQL への直接接続の拒否と、SPARQL `SERVICE` の無効化も、�
 - 生成した Python の構文エラーや実行時エラーは、Worker が `ExecutionFailure` として返す。
   - コンテナの wrapper は、このエラーのために終了コード 73 を予約している。
   - Docker の起動やデーモンの失敗は、例外のまま外へ出る。
-  - 成功した実行の stdout は 256 KiB まで、stderr と失敗した実行の stdout は 8 KiB まで。stdout が上限を超えたコードは、黙って切らずに失敗（`OutputTooLong`、終了コード 73）にする（[0013](../ADR/0013-results-passed-whole-shown-within-budgets.md)）。切れた一覧を Critic が読んで理由の分からない失敗にしていたため。まったく同じ行が 2 回以上ある JSON の一覧も、Critic に渡す前に失敗（`DuplicateRows`、geo_voyager/contracts/output.py）にする。コンテナの環境変数の値は伏せ、診断から秘密や環境変数のダンプの行を除く。
+  - 成功した実行の stdout は 1 MiB まで、stderr と失敗した実行の stdout は 8 KiB まで。stdout が上限を超えたコードは、黙って切らずに失敗（`OutputTooLong`、終了コード 73）にする（[0013](../ADR/0013-results-passed-whole-shown-within-budgets.md)）。切れた一覧を Critic が読んで理由の分からない失敗にしていたため。まったく同じ行が 2 回以上ある JSON の一覧も、Critic に渡す前に失敗（`DuplicateRows`、geo_voyager/contracts/output.py）にする。コンテナの環境変数の値は伏せ、診断から秘密や環境変数のダンプの行を除く。
 - `IntentExecutor` は、生成コードの失敗を `SkillCandidateRepairer` で最大 2 回直す（実行は合わせて 3 回まで）。
   - repair が受け取るのは、元の Intent、登録リソースと Primitive の契約、Candidate、制限した診断。
   - repair は、元の再利用できる操作の説明を保ち、失敗の原因を直す。答えの定数や新しいリソースは持ち込まない。

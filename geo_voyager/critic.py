@@ -20,7 +20,7 @@ THINKING_BUDGET_TOKENS = 1024
 # The earlier Observations are reference for the identity of a target, not the answer. Shown whole, two lists of
 # 8 KB beside an 8 KB answer were more than the model's 8,192-token context, and the server refused the prompt.
 REFERENCE_BUDGET = 4096
-# The Observations judged, shared the same way. A result reaches the next step whole (up to 256 KiB); the Critic
+# The Observations judged, shared the same way. A result reaches the next step whole (up to 1 MiB); the Critic
 # reads the code that made it beside the part shown, and how long it was.
 OBSERVED_BUDGET = 6144
 # The model's knowledge of single places was wrong each time it failed a step on it (港区 and 目黒区 do not touch;

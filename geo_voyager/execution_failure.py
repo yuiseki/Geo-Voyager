@@ -5,8 +5,9 @@ import subprocess
 # A diagnostic (stderr, the stdout of a failed run) is shown to a model as it is: 8 KiB.
 OUTPUT_LIMIT = 8192
 # A result is passed whole to the next step's code (results[...]) and cut to a budget where a prompt shows it
-# (goal_history, critic). A table of the 217 countries of the world, or of the 1,741 municipalities of Japan, fits.
-RESULT_LIMIT = 256 * 1024
+# (goal_history, critic). A table of the 217 countries of the world, or of the 1,741 municipalities of Japan, fits:
+# seven columns of the municipalities were 310 KB (GeoAI-skills' small task 11, 2026-10-15).
+RESULT_LIMIT = 1024 * 1024
 GENERATED_ERROR_EXIT = 73
 
 

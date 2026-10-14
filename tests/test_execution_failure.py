@@ -127,7 +127,7 @@ def test_a_table_of_the_countries_of_the_world_passes_to_the_next_step_while_a_d
     import subprocess
     import sys
     from geo_voyager.execution_failure import OUTPUT_LIMIT, RESULT_LIMIT, sandbox_program
-    assert RESULT_LIMIT >= 128 * 1024 and OUTPUT_LIMIT == 8192
+    assert RESULT_LIMIT >= 512 * 1024 and OUTPUT_LIMIT == 8192          # 1,741 municipalities × 7 columns: 310 KB
     result = subprocess.run([sys.executable, '-I', '-B', '-'],
                             input=sandbox_program("import sys\nprint('x' * 30000)\nprint('e' * 20000, file=sys.stderr)"),
                             capture_output=True, text=True)

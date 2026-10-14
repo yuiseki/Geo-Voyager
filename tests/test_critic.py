@@ -332,7 +332,7 @@ def test_the_names_of_columns_to_read_and_values_carried_from_earlier_steps_are_
 
 
 def test_an_observation_longer_than_its_budget_is_cut_with_how_long_it_was_and_how_many_rows_it_had():
-    # The results of a step can be 256 KiB (execution_failure.RESULT_LIMIT) and reach the next step whole; the
+    # The results of a step can be 1 MiB (execution_failure.RESULT_LIMIT) and reach the next step whole; the
     # Critic is shown them within a budget, beside the code that made them.
     import json
     from geo_voyager.critic import OBSERVED_BUDGET

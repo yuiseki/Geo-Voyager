@@ -10,7 +10,7 @@
 
 ## 決定
 
-1. 成功した実行の stdout の上限を 256 KiB にする（`execution_failure.RESULT_LIMIT`）。超えたら、これまでどおり切らずに失敗にする。stderr と、失敗した実行の stdout は、診断として 8 KiB のまま（`OUTPUT_LIMIT`）。
+1. 成功した実行の stdout の上限を 1 MiB にする（`execution_failure.RESULT_LIMIT`）。最初は 256 KiB にしたが、小課題 11 で市区町村 1,741 行 × 7 列が 310 KB になった。超えたら、これまでどおり切らずに失敗にする。stderr と、失敗した実行の stdout は、診断として 8 KiB のまま（`OUTPUT_LIMIT`）。
 2. 次の手のコードには、結果を丸ごと渡す。
 3. プロンプトには、それぞれの予算の中で見せる。
    - Planner の履歴: 1 件 500 字（これまでどおり）。
