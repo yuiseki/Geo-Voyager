@@ -1,11 +1,13 @@
 {
  "source": {
   "repository": "https://github.com/yuiseki/GeoAI-skills",
-  "commit": "651c6df58f8be9ec001a67245a9cd34fda6de269",
+  "commit": "6926f3ec6cb1ee5fe2080ee2c581d1a1e5261a85",
   "paths": {
    "yuiseki/jp-admin-2026-09": ".agents/skills/dataset-discovery/references/jp-admin-2026-09.md",
    "yuiseki/ekidata-jp": ".agents/skills/dataset-discovery/references/ekidata-jp.md",
-   "yuiseki/worldpop-jp-2026-01": ".agents/skills/dataset-discovery/references/worldpop/japan.md"
+   "yuiseki/worldpop-jp-2026-01": ".agents/skills/dataset-discovery/references/worldpop/japan.md",
+   "yuiseki/worldbank-wdi": ".agents/skills/dataset-discovery/references/worldbank-wdi.md",
+   "yuiseki/natural-earth": ".agents/skills/dataset-discovery/references/natural-earth.md"
   }
  },
  "datasets": {
@@ -899,6 +901,2196 @@
      ]
     }
    ]
+  },
+  "yuiseki/worldbank-wdi": {
+   "kind": "dataset",
+   "id": "yuiseki/worldbank-wdi",
+   "description": "世界銀行の世界開発指標。国と年ごとの人口、GDP、保健、教育、環境など約 1,400 指標。座標は無い。",
+   "url": "https://huggingface.co/datasets/yuiseki/worldbank-wdi",
+   "license": "CC BY 4.0 に世界銀行の紛争解決条項 (調停と仲裁) が加わる。指標ごとに出典の表示が要る。ライセンスが CC BY でない 74 指標は除いてある",
+   "formats": [
+    "Parquet"
+   ],
+   "crs": null,
+   "spatial_coverage": "国と集計単位 264 (国 217、集計単位 47)。座標なし",
+   "temporal_coverage": "1960 から 2025 年。版ごとに別のディレクトリ (最新は 2026-10-01)",
+   "as_of": {
+    "release": "2026-10-01"
+   },
+   "contents": [
+    "国 × 年 × 指標の値",
+    "国の表",
+    "指標の定義",
+    "注記"
+   ],
+   "tables": [
+    {
+     "name": "data",
+     "read": "hf://datasets/yuiseki/worldbank-wdi/parquet/2026-10-01/data.parquet",
+     "grain": "1 つの値 (国または集計単位 × 指標 × 年)。空の値は行にならない",
+     "rows": 8790085,
+     "id": [
+      "country_code",
+      "indicator_code",
+      "year"
+     ],
+     "join_keys": [
+      {
+       "column": "country_code",
+       "type": "VARCHAR",
+       "meaning": "3 文字の国コード。集計単位 (World、地域、所得階層) も入る",
+       "joins": [
+        "countries.Country Code",
+        "natural-earth:ne_10m_admin_0_countries.ISO_A3_EH"
+       ],
+       "note": "国だけにするには countries の Region が空でないものに絞る。215 件が一致する"
+      },
+      {
+       "column": "indicator_code",
+       "type": "VARCHAR",
+       "meaning": "指標のコード (SP.POP.TOTL など)",
+       "joins": [
+        "series.Series Code"
+       ]
+      }
+     ],
+     "columns": [
+      {
+       "name": "value",
+       "type": "DOUBLE",
+       "meaning": "指標の値。単位は指標ごとに series の定義にある。欠損は行が無いことで表す",
+       "missing": "欠損は行が無いこと。NULL の行は 0 行 (実測)"
+      },
+      {
+       "name": "year",
+       "type": "SMALLINT",
+       "meaning": "年 (1960 から 2025)"
+      }
+     ],
+     "schema": {
+      "measured_by": "Geo-Voyager",
+      "measured_on": "2026-10-14",
+      "columns": [
+       [
+        "country_code",
+        "VARCHAR"
+       ],
+       [
+        "indicator_code",
+        "VARCHAR"
+       ],
+       [
+        "year",
+        "SMALLINT"
+       ],
+       [
+        "value",
+        "DOUBLE"
+       ]
+      ],
+      "row_groups": 88,
+      "split_by": []
+     }
+    },
+    {
+     "name": "series",
+     "read": "hf://datasets/yuiseki/worldbank-wdi/parquet/2026-10-01/series.parquet",
+     "grain": "1 つの指標 (定義、出典、ライセンスの種類)",
+     "rows": 1441,
+     "id": [
+      "Series Code"
+     ],
+     "schema": {
+      "measured_by": "Geo-Voyager",
+      "measured_on": "2026-10-14",
+      "columns": [
+       [
+        "Series Code",
+        "VARCHAR"
+       ],
+       [
+        "Topic",
+        "VARCHAR"
+       ],
+       [
+        "Indicator Name",
+        "VARCHAR"
+       ],
+       [
+        "Short definition",
+        "VARCHAR"
+       ],
+       [
+        "Long definition",
+        "VARCHAR"
+       ],
+       [
+        "Unit of measure",
+        "VARCHAR"
+       ],
+       [
+        "Periodicity",
+        "VARCHAR"
+       ],
+       [
+        "Base Period",
+        "VARCHAR"
+       ],
+       [
+        "Other notes",
+        "VARCHAR"
+       ],
+       [
+        "Aggregation method",
+        "VARCHAR"
+       ],
+       [
+        "Limitations and exceptions",
+        "VARCHAR"
+       ],
+       [
+        "Notes from original source",
+        "VARCHAR"
+       ],
+       [
+        "General comments",
+        "VARCHAR"
+       ],
+       [
+        "Source",
+        "VARCHAR"
+       ],
+       [
+        "Statistical concept and methodology",
+        "VARCHAR"
+       ],
+       [
+        "Development relevance",
+        "VARCHAR"
+       ],
+       [
+        "Related source links",
+        "VARCHAR"
+       ],
+       [
+        "Other web links",
+        "VARCHAR"
+       ],
+       [
+        "Related indicators",
+        "VARCHAR"
+       ],
+       [
+        "License Type",
+        "VARCHAR"
+       ]
+      ],
+      "row_groups": 1,
+      "split_by": []
+     }
+    },
+    {
+     "name": "countries",
+     "read": "hf://datasets/yuiseki/worldbank-wdi/parquet/2026-10-01/countries.parquet",
+     "grain": "1 つの国または集計単位",
+     "rows": 264,
+     "id": [
+      "Country Code"
+     ],
+     "columns": [
+      {
+       "name": "Region",
+       "type": "VARCHAR",
+       "meaning": "地域。空なら集計単位であって国ではない"
+      }
+     ],
+     "schema": {
+      "measured_by": "Geo-Voyager",
+      "measured_on": "2026-10-14",
+      "columns": [
+       [
+        "Country Code",
+        "VARCHAR"
+       ],
+       [
+        "Short Name",
+        "VARCHAR"
+       ],
+       [
+        "Table Name",
+        "VARCHAR"
+       ],
+       [
+        "Long Name",
+        "VARCHAR"
+       ],
+       [
+        "2-alpha code",
+        "VARCHAR"
+       ],
+       [
+        "Currency Unit",
+        "VARCHAR"
+       ],
+       [
+        "Special Notes",
+        "VARCHAR"
+       ],
+       [
+        "Region",
+        "VARCHAR"
+       ],
+       [
+        "Income Group",
+        "VARCHAR"
+       ],
+       [
+        "WB-2 code",
+        "VARCHAR"
+       ],
+       [
+        "National accounts base year",
+        "VARCHAR"
+       ],
+       [
+        "National accounts reference year",
+        "VARCHAR"
+       ],
+       [
+        "SNA price valuation",
+        "VARCHAR"
+       ],
+       [
+        "Lending category",
+        "VARCHAR"
+       ],
+       [
+        "Other groups",
+        "VARCHAR"
+       ],
+       [
+        "System of National Accounts",
+        "VARCHAR"
+       ],
+       [
+        "Alternative conversion factor",
+        "VARCHAR"
+       ],
+       [
+        "PPP survey year",
+        "VARCHAR"
+       ],
+       [
+        "Balance of Payments Manual in use",
+        "VARCHAR"
+       ],
+       [
+        "External debt Reporting status",
+        "VARCHAR"
+       ],
+       [
+        "System of trade",
+        "VARCHAR"
+       ],
+       [
+        "Government Accounting concept",
+        "VARCHAR"
+       ],
+       [
+        "IMF data dissemination standard",
+        "VARCHAR"
+       ],
+       [
+        "Latest population census",
+        "VARCHAR"
+       ],
+       [
+        "Latest household survey",
+        "VARCHAR"
+       ],
+       [
+        "Source of most recent Income and expenditure data",
+        "VARCHAR"
+       ],
+       [
+        "Vital registration complete",
+        "VARCHAR"
+       ],
+       [
+        "Latest agricultural census",
+        "VARCHAR"
+       ],
+       [
+        "Latest industrial data",
+        "VARCHAR"
+       ],
+       [
+        "Latest trade data",
+        "VARCHAR"
+       ],
+       [
+        "Latest water withdrawal data",
+        "VARCHAR"
+       ]
+      ],
+      "row_groups": 1,
+      "split_by": []
+     }
+    }
+   ],
+   "card_revision": "d0b1ad8c98643db75c767c0ff96db800126f4954",
+   "card_revision_pinned_by": "Geo-Voyager"
+  },
+  "yuiseki/natural-earth": {
+   "kind": "dataset",
+   "id": "yuiseki/natural-earth",
+   "description": "全世界の小縮尺ベクター (国、州・省、都市、海岸線、陸、海、湖、川、道路など)。1 レイヤーが 1 つの GeoParquet。",
+   "url": "https://huggingface.co/datasets/yuiseki/natural-earth",
+   "license": "public domain",
+   "formats": [
+    "GeoParquet"
+   ],
+   "crs": "EPSG:4326",
+   "spatial_coverage": "全世界。縮尺は 1:10m、1:50m、1:110m",
+   "temporal_coverage": "2022-05 の版 v5.1.2 で止まっている。以後の境界変更、改名、合併は入っていない",
+   "as_of": {
+    "version": "v5.1.2",
+    "fetched": "2026-10-06"
+   },
+   "contents": [
+    "国と地域",
+    "州・省・県",
+    "郡 (米国のみ)",
+    "都市の点",
+    "陸と海",
+    "海岸線",
+    "市街地"
+   ],
+   "tables": [
+    {
+     "name": "ne_10m_admin_0_countries",
+     "read": "hf://datasets/yuiseki/natural-earth/parquet/v5.1.2/10m_cultural/ne_10m_admin_0_countries.parquet",
+     "grain": "1 つの国または地域 (属領や係争地を含む)",
+     "rows": 258,
+     "id": [
+      "ADM0_A3"
+     ],
+     "join_keys": [
+      {
+       "column": "ADM0_A3",
+       "type": "VARCHAR",
+       "meaning": "3 文字の国コード (Natural Earth 独自)。258 件すべてに入り、重複が無い",
+       "unique": true,
+       "joins": []
+      },
+      {
+       "column": "ISO_A3_EH",
+       "type": "VARCHAR",
+       "meaning": "ISO の 3 文字コードの補正版",
+       "unique": false,
+       "joins": [
+        "worldbank-wdi:countries.Country Code",
+        "unhcr-refugee-stats:population.Country of origin (ISO)"
+       ],
+       "note": "属領が本体と同じ値を持つので、本体の行に絞ってから結ぶ"
+      },
+      {
+       "column": "ISO_A2_EH",
+       "type": "VARCHAR",
+       "meaning": "ISO の 2 文字コードの補正版",
+       "joins": [
+        "ourairports-2026-08:airports.iso_country"
+       ]
+      }
+     ],
+     "no_key": [
+      {
+       "name": "ISO_A3",
+       "note": "22 件が -99。結合キーにしない"
+      }
+     ],
+     "columns": [
+      {
+       "name": "POP_EST",
+       "type": "DOUBLE",
+       "meaning": "推計人口。年は POP_YEAR で、国によって 2009 から 2020 年"
+      },
+      {
+       "name": "GDP_MD",
+       "type": "INTEGER",
+       "meaning": "GDP (百万米ドル)。年は GDP_YEAR で、国によって 1999 から 2019 年"
+      },
+      {
+       "name": "NAME_JA",
+       "type": "VARCHAR",
+       "meaning": "国名の日本語。国境の見方 (de facto) によって表記が変わる"
+      },
+      {
+       "name": "geometry",
+       "type": "geometry:EPSG:4326",
+       "meaning": "国の面 (EPSG:4326)"
+      }
+     ],
+     "schema": {
+      "measured_by": "Geo-Voyager",
+      "measured_on": "2026-10-14",
+      "columns": [
+       [
+        "featurecla",
+        "VARCHAR"
+       ],
+       [
+        "scalerank",
+        "INTEGER"
+       ],
+       [
+        "LABELRANK",
+        "INTEGER"
+       ],
+       [
+        "SOVEREIGNT",
+        "VARCHAR"
+       ],
+       [
+        "SOV_A3",
+        "VARCHAR"
+       ],
+       [
+        "ADM0_DIF",
+        "INTEGER"
+       ],
+       [
+        "LEVEL",
+        "INTEGER"
+       ],
+       [
+        "TYPE",
+        "VARCHAR"
+       ],
+       [
+        "TLC",
+        "VARCHAR"
+       ],
+       [
+        "ADMIN",
+        "VARCHAR"
+       ],
+       [
+        "ADM0_A3",
+        "VARCHAR"
+       ],
+       [
+        "GEOU_DIF",
+        "INTEGER"
+       ],
+       [
+        "GEOUNIT",
+        "VARCHAR"
+       ],
+       [
+        "GU_A3",
+        "VARCHAR"
+       ],
+       [
+        "SU_DIF",
+        "INTEGER"
+       ],
+       [
+        "SUBUNIT",
+        "VARCHAR"
+       ],
+       [
+        "SU_A3",
+        "VARCHAR"
+       ],
+       [
+        "BRK_DIFF",
+        "INTEGER"
+       ],
+       [
+        "NAME",
+        "VARCHAR"
+       ],
+       [
+        "NAME_LONG",
+        "VARCHAR"
+       ],
+       [
+        "BRK_A3",
+        "VARCHAR"
+       ],
+       [
+        "BRK_NAME",
+        "VARCHAR"
+       ],
+       [
+        "BRK_GROUP",
+        "VARCHAR"
+       ],
+       [
+        "ABBREV",
+        "VARCHAR"
+       ],
+       [
+        "POSTAL",
+        "VARCHAR"
+       ],
+       [
+        "FORMAL_EN",
+        "VARCHAR"
+       ],
+       [
+        "FORMAL_FR",
+        "VARCHAR"
+       ],
+       [
+        "NAME_CIAWF",
+        "VARCHAR"
+       ],
+       [
+        "NOTE_ADM0",
+        "VARCHAR"
+       ],
+       [
+        "NOTE_BRK",
+        "VARCHAR"
+       ],
+       [
+        "NAME_SORT",
+        "VARCHAR"
+       ],
+       [
+        "NAME_ALT",
+        "VARCHAR"
+       ],
+       [
+        "MAPCOLOR7",
+        "INTEGER"
+       ],
+       [
+        "MAPCOLOR8",
+        "INTEGER"
+       ],
+       [
+        "MAPCOLOR9",
+        "INTEGER"
+       ],
+       [
+        "MAPCOLOR13",
+        "INTEGER"
+       ],
+       [
+        "POP_EST",
+        "DOUBLE"
+       ],
+       [
+        "POP_RANK",
+        "INTEGER"
+       ],
+       [
+        "POP_YEAR",
+        "INTEGER"
+       ],
+       [
+        "GDP_MD",
+        "INTEGER"
+       ],
+       [
+        "GDP_YEAR",
+        "INTEGER"
+       ],
+       [
+        "ECONOMY",
+        "VARCHAR"
+       ],
+       [
+        "INCOME_GRP",
+        "VARCHAR"
+       ],
+       [
+        "FIPS_10",
+        "VARCHAR"
+       ],
+       [
+        "ISO_A2",
+        "VARCHAR"
+       ],
+       [
+        "ISO_A2_EH",
+        "VARCHAR"
+       ],
+       [
+        "ISO_A3",
+        "VARCHAR"
+       ],
+       [
+        "ISO_A3_EH",
+        "VARCHAR"
+       ],
+       [
+        "ISO_N3",
+        "VARCHAR"
+       ],
+       [
+        "ISO_N3_EH",
+        "VARCHAR"
+       ],
+       [
+        "UN_A3",
+        "VARCHAR"
+       ],
+       [
+        "WB_A2",
+        "VARCHAR"
+       ],
+       [
+        "WB_A3",
+        "VARCHAR"
+       ],
+       [
+        "WOE_ID",
+        "INTEGER"
+       ],
+       [
+        "WOE_ID_EH",
+        "INTEGER"
+       ],
+       [
+        "WOE_NOTE",
+        "VARCHAR"
+       ],
+       [
+        "ADM0_ISO",
+        "VARCHAR"
+       ],
+       [
+        "ADM0_DIFF",
+        "VARCHAR"
+       ],
+       [
+        "ADM0_TLC",
+        "VARCHAR"
+       ],
+       [
+        "ADM0_A3_US",
+        "VARCHAR"
+       ],
+       [
+        "ADM0_A3_FR",
+        "VARCHAR"
+       ],
+       [
+        "ADM0_A3_RU",
+        "VARCHAR"
+       ],
+       [
+        "ADM0_A3_ES",
+        "VARCHAR"
+       ],
+       [
+        "ADM0_A3_CN",
+        "VARCHAR"
+       ],
+       [
+        "ADM0_A3_TW",
+        "VARCHAR"
+       ],
+       [
+        "ADM0_A3_IN",
+        "VARCHAR"
+       ],
+       [
+        "ADM0_A3_NP",
+        "VARCHAR"
+       ],
+       [
+        "ADM0_A3_PK",
+        "VARCHAR"
+       ],
+       [
+        "ADM0_A3_DE",
+        "VARCHAR"
+       ],
+       [
+        "ADM0_A3_GB",
+        "VARCHAR"
+       ],
+       [
+        "ADM0_A3_BR",
+        "VARCHAR"
+       ],
+       [
+        "ADM0_A3_IL",
+        "VARCHAR"
+       ],
+       [
+        "ADM0_A3_PS",
+        "VARCHAR"
+       ],
+       [
+        "ADM0_A3_SA",
+        "VARCHAR"
+       ],
+       [
+        "ADM0_A3_EG",
+        "VARCHAR"
+       ],
+       [
+        "ADM0_A3_MA",
+        "VARCHAR"
+       ],
+       [
+        "ADM0_A3_PT",
+        "VARCHAR"
+       ],
+       [
+        "ADM0_A3_AR",
+        "VARCHAR"
+       ],
+       [
+        "ADM0_A3_JP",
+        "VARCHAR"
+       ],
+       [
+        "ADM0_A3_KO",
+        "VARCHAR"
+       ],
+       [
+        "ADM0_A3_VN",
+        "VARCHAR"
+       ],
+       [
+        "ADM0_A3_TR",
+        "VARCHAR"
+       ],
+       [
+        "ADM0_A3_ID",
+        "VARCHAR"
+       ],
+       [
+        "ADM0_A3_PL",
+        "VARCHAR"
+       ],
+       [
+        "ADM0_A3_GR",
+        "VARCHAR"
+       ],
+       [
+        "ADM0_A3_IT",
+        "VARCHAR"
+       ],
+       [
+        "ADM0_A3_NL",
+        "VARCHAR"
+       ],
+       [
+        "ADM0_A3_SE",
+        "VARCHAR"
+       ],
+       [
+        "ADM0_A3_BD",
+        "VARCHAR"
+       ],
+       [
+        "ADM0_A3_UA",
+        "VARCHAR"
+       ],
+       [
+        "ADM0_A3_UN",
+        "INTEGER"
+       ],
+       [
+        "ADM0_A3_WB",
+        "INTEGER"
+       ],
+       [
+        "CONTINENT",
+        "VARCHAR"
+       ],
+       [
+        "REGION_UN",
+        "VARCHAR"
+       ],
+       [
+        "SUBREGION",
+        "VARCHAR"
+       ],
+       [
+        "REGION_WB",
+        "VARCHAR"
+       ],
+       [
+        "NAME_LEN",
+        "INTEGER"
+       ],
+       [
+        "LONG_LEN",
+        "INTEGER"
+       ],
+       [
+        "ABBREV_LEN",
+        "INTEGER"
+       ],
+       [
+        "TINY",
+        "INTEGER"
+       ],
+       [
+        "HOMEPART",
+        "INTEGER"
+       ],
+       [
+        "MIN_ZOOM",
+        "DOUBLE"
+       ],
+       [
+        "MIN_LABEL",
+        "DOUBLE"
+       ],
+       [
+        "MAX_LABEL",
+        "DOUBLE"
+       ],
+       [
+        "LABEL_X",
+        "DOUBLE"
+       ],
+       [
+        "LABEL_Y",
+        "DOUBLE"
+       ],
+       [
+        "NE_ID",
+        "BIGINT"
+       ],
+       [
+        "WIKIDATAID",
+        "VARCHAR"
+       ],
+       [
+        "NAME_AR",
+        "VARCHAR"
+       ],
+       [
+        "NAME_BN",
+        "VARCHAR"
+       ],
+       [
+        "NAME_DE",
+        "VARCHAR"
+       ],
+       [
+        "NAME_EN",
+        "VARCHAR"
+       ],
+       [
+        "NAME_ES",
+        "VARCHAR"
+       ],
+       [
+        "NAME_FA",
+        "VARCHAR"
+       ],
+       [
+        "NAME_FR",
+        "VARCHAR"
+       ],
+       [
+        "NAME_EL",
+        "VARCHAR"
+       ],
+       [
+        "NAME_HE",
+        "VARCHAR"
+       ],
+       [
+        "NAME_HI",
+        "VARCHAR"
+       ],
+       [
+        "NAME_HU",
+        "VARCHAR"
+       ],
+       [
+        "NAME_ID",
+        "VARCHAR"
+       ],
+       [
+        "NAME_IT",
+        "VARCHAR"
+       ],
+       [
+        "NAME_JA",
+        "VARCHAR"
+       ],
+       [
+        "NAME_KO",
+        "VARCHAR"
+       ],
+       [
+        "NAME_NL",
+        "VARCHAR"
+       ],
+       [
+        "NAME_PL",
+        "VARCHAR"
+       ],
+       [
+        "NAME_PT",
+        "VARCHAR"
+       ],
+       [
+        "NAME_RU",
+        "VARCHAR"
+       ],
+       [
+        "NAME_SV",
+        "VARCHAR"
+       ],
+       [
+        "NAME_TR",
+        "VARCHAR"
+       ],
+       [
+        "NAME_UK",
+        "VARCHAR"
+       ],
+       [
+        "NAME_UR",
+        "VARCHAR"
+       ],
+       [
+        "NAME_VI",
+        "VARCHAR"
+       ],
+       [
+        "NAME_ZH",
+        "VARCHAR"
+       ],
+       [
+        "NAME_ZHT",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_ISO",
+        "VARCHAR"
+       ],
+       [
+        "TLC_DIFF",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_TLC",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_US",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_FR",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_RU",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_ES",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_CN",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_TW",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_IN",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_NP",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_PK",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_DE",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_GB",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_BR",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_IL",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_PS",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_SA",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_EG",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_MA",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_PT",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_AR",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_JP",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_KO",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_VN",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_TR",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_ID",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_PL",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_GR",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_IT",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_NL",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_SE",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_BD",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_UA",
+        "VARCHAR"
+       ],
+       [
+        "geometry",
+        "GEOMETRY('EPSG:4326')"
+       ]
+      ],
+      "row_groups": 1,
+      "split_by": []
+     }
+    },
+    {
+     "name": "ne_10m_admin_1_states_provinces",
+     "read": "hf://datasets/yuiseki/natural-earth/parquet/v5.1.2/10m_cultural/ne_10m_admin_1_states_provinces.parquet",
+     "grain": "1 つの州・省・県。日本は 47 都道府県",
+     "rows": 4596,
+     "id": [
+      "adm1_code"
+     ],
+     "schema": {
+      "measured_by": "Geo-Voyager",
+      "measured_on": "2026-10-14",
+      "columns": [
+       [
+        "featurecla",
+        "VARCHAR"
+       ],
+       [
+        "scalerank",
+        "INTEGER"
+       ],
+       [
+        "adm1_code",
+        "VARCHAR"
+       ],
+       [
+        "diss_me",
+        "INTEGER"
+       ],
+       [
+        "iso_3166_2",
+        "VARCHAR"
+       ],
+       [
+        "wikipedia",
+        "VARCHAR"
+       ],
+       [
+        "iso_a2",
+        "VARCHAR"
+       ],
+       [
+        "adm0_sr",
+        "INTEGER"
+       ],
+       [
+        "name",
+        "VARCHAR"
+       ],
+       [
+        "name_alt",
+        "VARCHAR"
+       ],
+       [
+        "name_local",
+        "VARCHAR"
+       ],
+       [
+        "type",
+        "VARCHAR"
+       ],
+       [
+        "type_en",
+        "VARCHAR"
+       ],
+       [
+        "code_local",
+        "VARCHAR"
+       ],
+       [
+        "code_hasc",
+        "VARCHAR"
+       ],
+       [
+        "note",
+        "VARCHAR"
+       ],
+       [
+        "hasc_maybe",
+        "VARCHAR"
+       ],
+       [
+        "region",
+        "VARCHAR"
+       ],
+       [
+        "region_cod",
+        "VARCHAR"
+       ],
+       [
+        "provnum_ne",
+        "INTEGER"
+       ],
+       [
+        "gadm_level",
+        "INTEGER"
+       ],
+       [
+        "check_me",
+        "INTEGER"
+       ],
+       [
+        "datarank",
+        "INTEGER"
+       ],
+       [
+        "abbrev",
+        "VARCHAR"
+       ],
+       [
+        "postal",
+        "VARCHAR"
+       ],
+       [
+        "area_sqkm",
+        "INTEGER"
+       ],
+       [
+        "sameascity",
+        "INTEGER"
+       ],
+       [
+        "labelrank",
+        "INTEGER"
+       ],
+       [
+        "name_len",
+        "INTEGER"
+       ],
+       [
+        "mapcolor9",
+        "INTEGER"
+       ],
+       [
+        "mapcolor13",
+        "INTEGER"
+       ],
+       [
+        "fips",
+        "VARCHAR"
+       ],
+       [
+        "fips_alt",
+        "VARCHAR"
+       ],
+       [
+        "woe_id",
+        "INTEGER"
+       ],
+       [
+        "woe_label",
+        "VARCHAR"
+       ],
+       [
+        "woe_name",
+        "VARCHAR"
+       ],
+       [
+        "latitude",
+        "DOUBLE"
+       ],
+       [
+        "longitude",
+        "DOUBLE"
+       ],
+       [
+        "sov_a3",
+        "VARCHAR"
+       ],
+       [
+        "adm0_a3",
+        "VARCHAR"
+       ],
+       [
+        "adm0_label",
+        "INTEGER"
+       ],
+       [
+        "admin",
+        "VARCHAR"
+       ],
+       [
+        "geonunit",
+        "VARCHAR"
+       ],
+       [
+        "gu_a3",
+        "VARCHAR"
+       ],
+       [
+        "gn_id",
+        "INTEGER"
+       ],
+       [
+        "gn_name",
+        "VARCHAR"
+       ],
+       [
+        "gns_id",
+        "INTEGER"
+       ],
+       [
+        "gns_name",
+        "VARCHAR"
+       ],
+       [
+        "gn_level",
+        "INTEGER"
+       ],
+       [
+        "gn_region",
+        "VARCHAR"
+       ],
+       [
+        "gn_a1_code",
+        "VARCHAR"
+       ],
+       [
+        "region_sub",
+        "VARCHAR"
+       ],
+       [
+        "sub_code",
+        "VARCHAR"
+       ],
+       [
+        "gns_level",
+        "INTEGER"
+       ],
+       [
+        "gns_lang",
+        "VARCHAR"
+       ],
+       [
+        "gns_adm1",
+        "VARCHAR"
+       ],
+       [
+        "gns_region",
+        "VARCHAR"
+       ],
+       [
+        "min_label",
+        "DOUBLE"
+       ],
+       [
+        "max_label",
+        "DOUBLE"
+       ],
+       [
+        "min_zoom",
+        "DOUBLE"
+       ],
+       [
+        "wikidataid",
+        "VARCHAR"
+       ],
+       [
+        "name_ar",
+        "VARCHAR"
+       ],
+       [
+        "name_bn",
+        "VARCHAR"
+       ],
+       [
+        "name_de",
+        "VARCHAR"
+       ],
+       [
+        "name_en",
+        "VARCHAR"
+       ],
+       [
+        "name_es",
+        "VARCHAR"
+       ],
+       [
+        "name_fr",
+        "VARCHAR"
+       ],
+       [
+        "name_el",
+        "VARCHAR"
+       ],
+       [
+        "name_hi",
+        "VARCHAR"
+       ],
+       [
+        "name_hu",
+        "VARCHAR"
+       ],
+       [
+        "name_id",
+        "VARCHAR"
+       ],
+       [
+        "name_it",
+        "VARCHAR"
+       ],
+       [
+        "name_ja",
+        "VARCHAR"
+       ],
+       [
+        "name_ko",
+        "VARCHAR"
+       ],
+       [
+        "name_nl",
+        "VARCHAR"
+       ],
+       [
+        "name_pl",
+        "VARCHAR"
+       ],
+       [
+        "name_pt",
+        "VARCHAR"
+       ],
+       [
+        "name_ru",
+        "VARCHAR"
+       ],
+       [
+        "name_sv",
+        "VARCHAR"
+       ],
+       [
+        "name_tr",
+        "VARCHAR"
+       ],
+       [
+        "name_vi",
+        "VARCHAR"
+       ],
+       [
+        "name_zh",
+        "VARCHAR"
+       ],
+       [
+        "ne_id",
+        "BIGINT"
+       ],
+       [
+        "name_he",
+        "VARCHAR"
+       ],
+       [
+        "name_uk",
+        "VARCHAR"
+       ],
+       [
+        "name_ur",
+        "VARCHAR"
+       ],
+       [
+        "name_fa",
+        "VARCHAR"
+       ],
+       [
+        "name_zht",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_ISO",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_US",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_FR",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_RU",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_ES",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_CN",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_TW",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_IN",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_NP",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_PK",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_DE",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_GB",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_BR",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_IL",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_PS",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_SA",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_EG",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_MA",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_PT",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_AR",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_JP",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_KO",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_VN",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_TR",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_ID",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_PL",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_GR",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_IT",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_NL",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_SE",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_BD",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_UA",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_TLC",
+        "VARCHAR"
+       ],
+       [
+        "geometry",
+        "GEOMETRY('EPSG:4326')"
+       ]
+      ],
+      "row_groups": 1,
+      "split_by": []
+     }
+    },
+    {
+     "name": "ne_10m_populated_places",
+     "read": "hf://datasets/yuiseki/natural-earth/parquet/v5.1.2/10m_cultural/ne_10m_populated_places.parquet",
+     "grain": "1 つの都市 (点)",
+     "rows": 7342,
+     "id": [],
+     "schema": {
+      "measured_by": "Geo-Voyager",
+      "measured_on": "2026-10-14",
+      "columns": [
+       [
+        "SCALERANK",
+        "INTEGER"
+       ],
+       [
+        "NATSCALE",
+        "INTEGER"
+       ],
+       [
+        "LABELRANK",
+        "INTEGER"
+       ],
+       [
+        "FEATURECLA",
+        "VARCHAR"
+       ],
+       [
+        "NAME",
+        "VARCHAR"
+       ],
+       [
+        "NAMEPAR",
+        "VARCHAR"
+       ],
+       [
+        "NAMEALT",
+        "VARCHAR"
+       ],
+       [
+        "NAMEASCII",
+        "VARCHAR"
+       ],
+       [
+        "ADM0CAP",
+        "INTEGER"
+       ],
+       [
+        "CAPIN",
+        "VARCHAR"
+       ],
+       [
+        "WORLDCITY",
+        "INTEGER"
+       ],
+       [
+        "MEGACITY",
+        "INTEGER"
+       ],
+       [
+        "SOV0NAME",
+        "VARCHAR"
+       ],
+       [
+        "SOV_A3",
+        "VARCHAR"
+       ],
+       [
+        "ADM0NAME",
+        "VARCHAR"
+       ],
+       [
+        "ADM0_A3",
+        "VARCHAR"
+       ],
+       [
+        "ADM1NAME",
+        "VARCHAR"
+       ],
+       [
+        "ISO_A2",
+        "VARCHAR"
+       ],
+       [
+        "NOTE",
+        "VARCHAR"
+       ],
+       [
+        "LATITUDE",
+        "DOUBLE"
+       ],
+       [
+        "LONGITUDE",
+        "DOUBLE"
+       ],
+       [
+        "POP_MAX",
+        "BIGINT"
+       ],
+       [
+        "POP_MIN",
+        "BIGINT"
+       ],
+       [
+        "POP_OTHER",
+        "BIGINT"
+       ],
+       [
+        "RANK_MAX",
+        "INTEGER"
+       ],
+       [
+        "RANK_MIN",
+        "INTEGER"
+       ],
+       [
+        "MEGANAME",
+        "VARCHAR"
+       ],
+       [
+        "LS_NAME",
+        "VARCHAR"
+       ],
+       [
+        "MAX_POP10",
+        "BIGINT"
+       ],
+       [
+        "MAX_POP20",
+        "BIGINT"
+       ],
+       [
+        "MAX_POP50",
+        "BIGINT"
+       ],
+       [
+        "MAX_POP300",
+        "BIGINT"
+       ],
+       [
+        "MAX_POP310",
+        "BIGINT"
+       ],
+       [
+        "MAX_NATSCA",
+        "BIGINT"
+       ],
+       [
+        "MIN_AREAKM",
+        "BIGINT"
+       ],
+       [
+        "MAX_AREAKM",
+        "BIGINT"
+       ],
+       [
+        "MIN_AREAMI",
+        "BIGINT"
+       ],
+       [
+        "MAX_AREAMI",
+        "BIGINT"
+       ],
+       [
+        "MIN_PERKM",
+        "BIGINT"
+       ],
+       [
+        "MAX_PERKM",
+        "BIGINT"
+       ],
+       [
+        "MIN_PERMI",
+        "BIGINT"
+       ],
+       [
+        "MAX_PERMI",
+        "BIGINT"
+       ],
+       [
+        "MIN_BBXMIN",
+        "DOUBLE"
+       ],
+       [
+        "MAX_BBXMIN",
+        "DOUBLE"
+       ],
+       [
+        "MIN_BBXMAX",
+        "DOUBLE"
+       ],
+       [
+        "MAX_BBXMAX",
+        "DOUBLE"
+       ],
+       [
+        "MIN_BBYMIN",
+        "DOUBLE"
+       ],
+       [
+        "MAX_BBYMIN",
+        "DOUBLE"
+       ],
+       [
+        "MIN_BBYMAX",
+        "DOUBLE"
+       ],
+       [
+        "MAX_BBYMAX",
+        "DOUBLE"
+       ],
+       [
+        "MEAN_BBXC",
+        "DOUBLE"
+       ],
+       [
+        "MEAN_BBYC",
+        "DOUBLE"
+       ],
+       [
+        "TIMEZONE",
+        "VARCHAR"
+       ],
+       [
+        "UN_FID",
+        "INTEGER"
+       ],
+       [
+        "POP1950",
+        "BIGINT"
+       ],
+       [
+        "POP1955",
+        "BIGINT"
+       ],
+       [
+        "POP1960",
+        "BIGINT"
+       ],
+       [
+        "POP1965",
+        "BIGINT"
+       ],
+       [
+        "POP1970",
+        "BIGINT"
+       ],
+       [
+        "POP1975",
+        "BIGINT"
+       ],
+       [
+        "POP1980",
+        "BIGINT"
+       ],
+       [
+        "POP1985",
+        "BIGINT"
+       ],
+       [
+        "POP1990",
+        "BIGINT"
+       ],
+       [
+        "POP1995",
+        "BIGINT"
+       ],
+       [
+        "POP2000",
+        "BIGINT"
+       ],
+       [
+        "POP2005",
+        "BIGINT"
+       ],
+       [
+        "POP2010",
+        "BIGINT"
+       ],
+       [
+        "POP2015",
+        "BIGINT"
+       ],
+       [
+        "POP2020",
+        "BIGINT"
+       ],
+       [
+        "POP2025",
+        "BIGINT"
+       ],
+       [
+        "POP2050",
+        "BIGINT"
+       ],
+       [
+        "MIN_ZOOM",
+        "DOUBLE"
+       ],
+       [
+        "WIKIDATAID",
+        "VARCHAR"
+       ],
+       [
+        "WOF_ID",
+        "BIGINT"
+       ],
+       [
+        "CAPALT",
+        "INTEGER"
+       ],
+       [
+        "NAME_EN",
+        "VARCHAR"
+       ],
+       [
+        "NAME_DE",
+        "VARCHAR"
+       ],
+       [
+        "NAME_ES",
+        "VARCHAR"
+       ],
+       [
+        "NAME_FR",
+        "VARCHAR"
+       ],
+       [
+        "NAME_PT",
+        "VARCHAR"
+       ],
+       [
+        "NAME_RU",
+        "VARCHAR"
+       ],
+       [
+        "NAME_ZH",
+        "VARCHAR"
+       ],
+       [
+        "LABEL",
+        "VARCHAR"
+       ],
+       [
+        "NAME_AR",
+        "VARCHAR"
+       ],
+       [
+        "NAME_BN",
+        "VARCHAR"
+       ],
+       [
+        "NAME_EL",
+        "VARCHAR"
+       ],
+       [
+        "NAME_HI",
+        "VARCHAR"
+       ],
+       [
+        "NAME_HU",
+        "VARCHAR"
+       ],
+       [
+        "NAME_ID",
+        "VARCHAR"
+       ],
+       [
+        "NAME_IT",
+        "VARCHAR"
+       ],
+       [
+        "NAME_JA",
+        "VARCHAR"
+       ],
+       [
+        "NAME_KO",
+        "VARCHAR"
+       ],
+       [
+        "NAME_NL",
+        "VARCHAR"
+       ],
+       [
+        "NAME_PL",
+        "VARCHAR"
+       ],
+       [
+        "NAME_SV",
+        "VARCHAR"
+       ],
+       [
+        "NAME_TR",
+        "VARCHAR"
+       ],
+       [
+        "NAME_VI",
+        "VARCHAR"
+       ],
+       [
+        "NE_ID",
+        "BIGINT"
+       ],
+       [
+        "NAME_FA",
+        "VARCHAR"
+       ],
+       [
+        "NAME_HE",
+        "VARCHAR"
+       ],
+       [
+        "NAME_UK",
+        "VARCHAR"
+       ],
+       [
+        "NAME_UR",
+        "VARCHAR"
+       ],
+       [
+        "NAME_ZHT",
+        "VARCHAR"
+       ],
+       [
+        "GEONAMESID",
+        "BIGINT"
+       ],
+       [
+        "FCLASS_ISO",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_US",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_FR",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_RU",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_ES",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_CN",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_TW",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_IN",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_NP",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_PK",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_DE",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_GB",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_BR",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_IL",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_PS",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_SA",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_EG",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_MA",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_PT",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_AR",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_JP",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_KO",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_VN",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_TR",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_ID",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_PL",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_GR",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_IT",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_NL",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_SE",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_BD",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_UA",
+        "VARCHAR"
+       ],
+       [
+        "FCLASS_TLC",
+        "VARCHAR"
+       ],
+       [
+        "geometry",
+        "GEOMETRY('EPSG:4326')"
+       ]
+      ],
+      "row_groups": 1,
+      "split_by": []
+     }
+    }
+   ],
+   "card_revision": "efdd0668c57c9d42307e12eacbf66d8d151de5b9",
+   "card_revision_pinned_by": "Geo-Voyager"
   }
  }
 }

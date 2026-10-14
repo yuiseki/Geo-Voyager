@@ -87,6 +87,33 @@ CATALOG = (
             "jpn_pop_2020_CN_100m_R2025A_v1.tif"
         ),
     ),
+    # d0b1ad8c98643db75c767c0ff96db800126f4954 (pinned by Geo-Voyager: the reference has no card revision)
+    Dataset(
+        id="yuiseki/worldbank-wdi",
+        description=("世界銀行の世界開発指標。国と年ごとの人口、GDP、保健、教育、環境など約 1,400 指標。座標は無い。"
+                     "版 2026-10-01 の data（国 × 指標 × 年の値）、series（指標の定義）、countries（国と集計単位）を読める。"),
+        url="https://huggingface.co/datasets/yuiseki/worldbank-wdi",
+        license="CC BY 4.0 に世界銀行の紛争解決条項（調停と仲裁）が加わる。指標ごとに出典の表示が要る",
+        formats=("Parquet",),
+        spatial_coverage="国と集計単位 264（国 217、集計単位 47）。座標なし",
+        temporal_coverage="1960〜2025年、版 2026-10-01",
+        contents=("指標の値", "指標の定義", "国と集計単位"),
+        data_url=("https://huggingface.co/datasets/yuiseki/worldbank-wdi/resolve/"
+                  "d0b1ad8c98643db75c767c0ff96db800126f4954/parquet/2026-10-01/data.parquet"),
+    ),
+    # efdd0668c57c9d42307e12eacbf66d8d151de5b9 (pinned by Geo-Voyager: the reference has no card revision)
+    Dataset(
+        id="yuiseki/natural-earth",
+        description=("全世界の小縮尺ベクター。版 v5.1.2 の 10m の国（属領や係争地を含む）、州・省、都市の点を読める。"),
+        url="https://huggingface.co/datasets/yuiseki/natural-earth",
+        license="Public domain",
+        formats=("GeoParquet",),
+        spatial_coverage="全世界",
+        temporal_coverage="v5.1.2",
+        contents=("国の面", "州・省の面", "都市の点"),
+        data_url=("https://huggingface.co/datasets/yuiseki/natural-earth/resolve/"
+                  "efdd0668c57c9d42307e12eacbf66d8d151de5b9/parquet/v5.1.2/10m_cultural/ne_10m_admin_0_countries.parquet"),
+    ),
 )
 
 

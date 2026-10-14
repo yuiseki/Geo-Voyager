@@ -26,6 +26,15 @@ REFERENCES = {
     'yuiseki/jp-admin-2026-09': 'jp-admin-2026-09.md',
     'yuiseki/ekidata-jp': 'ekidata-jp.md',
     'yuiseki/worldpop-jp-2026-01': 'worldpop/japan.md',
+    'yuiseki/worldbank-wdi': 'worldbank-wdi.md',
+    'yuiseki/natural-earth': 'natural-earth.md',
+}
+# The revision a reference without card_revision is read at: the dataset's main when it was first synced
+# (2026-10-14). Its tables are under a directory of their version (parquet/2026-10-01/, parquet/v5.1.2/), so the
+# files the reference describes are those. Kept apart from the reference as Geo-Voyager's choice.
+PINNED = {
+    'yuiseki/worldbank-wdi': 'd0b1ad8c98643db75c767c0ff96db800126f4954',
+    'yuiseki/natural-earth': 'efdd0668c57c9d42307e12eacbf66d8d151de5b9',
 }
 DIRECTORY = '.agents/skills/dataset-discovery/references/'
 OUT = Path(__file__).resolve().parents[1] / 'geo_voyager' / 'dataset_references.json'
@@ -47,6 +56,9 @@ def main() -> None:
         datasets[dataset_id] = frontmatter(text)
         if datasets[dataset_id]['id'] != dataset_id:
             raise ValueError(f'{path} is about {datasets[dataset_id]["id"]}, not {dataset_id}')
+        if not datasets[dataset_id].get('card_revision'):
+            datasets[dataset_id]['card_revision'] = PINNED[dataset_id]
+            datasets[dataset_id]['card_revision_pinned_by'] = 'Geo-Voyager'
     OUT.write_text(json.dumps({'source': {}, 'datasets': datasets}, ensure_ascii=False, default=str))
     from geo_voyager import dataset_tables
     from geo_voyager.contracts.parquet_layout import split_columns
