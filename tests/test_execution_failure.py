@@ -21,7 +21,7 @@ def test_generated_errors_are_bounded_failures(error):
     assert len(result.stdout) <= 8192
 
 
-@pytest.mark.parametrize('code', [1, 125, 126, 127, 137])
+@pytest.mark.parametrize('code', [1, 125, 126, 127])
 def test_infrastructure_failure_propagates(code):
     with patch('geo_voyager.worker.DockerSandbox') as sandbox:
         sandbox.return_value.run.side_effect = subprocess.CalledProcessError(code, ['docker', 'run'], stderr='daemon failed')
@@ -132,3 +132,14 @@ def test_a_table_of_the_countries_of_the_world_passes_to_the_next_step_while_a_d
                             input=sandbox_program("import sys\nprint('x' * 30000)\nprint('e' * 20000, file=sys.stderr)"),
                             capture_output=True, text=True)
     assert result.returncode == 0 and len(result.stdout) == 30001 and len(result.stderr) <= OUTPUT_LIMIT
+
+
+def test_code_killed_for_its_memory_is_a_failure_of_that_code():
+    # GeoAI-skills' small task 11 (2026-10-15): code that read too much of the population grid was killed at the
+    # sandbox's 1 GB (exit 137), and the whole Goal ended as an infrastructure error after 68 minutes.
+    with patch('geo_voyager.worker.DockerSandbox') as sandbox:
+        sandbox.return_value.profile.memory = '1g'
+        sandbox.return_value.run.side_effect = subprocess.CalledProcessError(137, ['docker', 'run'], output='', stderr='')
+        result = Worker('internal').execute_candidate(Intent('調査', ('admin',)), SkillCandidate('big', '説明'))
+    assert isinstance(result, ExecutionFailure) and result.exit_code == 137
+    assert 'MemoryError' in result.stderr and '1g' in result.stderr

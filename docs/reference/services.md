@@ -67,7 +67,7 @@ GeoSPARQL への直接接続の拒否と、SPARQL `SERVICE` の無効化も、�
   - repair は、元の再利用できる操作の説明を保ち、失敗の原因を直す。答えの定数や新しいリソースは持ち込まない。
   - Critic は、実行できた Observation だけを判定する。
   - 回数が尽きたら `failure` と失敗の critique を返し、Candidate を Skill として保存しない。
-  - インフラの例外は例外のまま外へ出る。
+  - インフラの例外は例外のまま外へ出る。ただし、メモリの上限（1 GB）を超えてカーネルに止められたコード（終了コード 137）と時間切れは、そのコードの失敗として返す。読む量を減らせば直せるため（2026-10-15。小課題 11 で、137 が Goal を 68 分で止めた）。
 - `IntentExecution.attempts` は、すべての実行（選んだ Skill、最初の Candidate、repair した Candidate）を順に、元のコード、Observation、失敗とともに残す。
   - `critique` は、採用した最終の結果についての判定。失敗した実行には Critic の判定が無い。
 

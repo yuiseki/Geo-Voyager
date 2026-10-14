@@ -3,7 +3,7 @@ import json
 import subprocess
 
 from .docker_sandbox import DockerSandbox
-from .execution_failure import ExecutionFailure, GENERATED_ERROR_EXIT, candidate_lines, sandbox_program
+from .execution_failure import ExecutionFailure, GENERATED_ERROR_EXIT, bounded_output, candidate_lines, sandbox_program
 from .intent import Intent, execution_refusal
 from .observation import Observation
 from .contracts.output import output_problem
@@ -34,6 +34,10 @@ def injected_lines(intent: Intent) -> str:
     return lines
 
 
+# 128 + SIGKILL: the kernel's out-of-memory killer, at the container's memory limit.
+KILLED_EXIT = 137
+
+
 class Worker:
     def __init__(self, network: str) -> None:
         self.network = network
@@ -49,16 +53,22 @@ class Worker:
         linked = link(code, library) if library is not None else code
         prefix = injected_lines(intent) + linked[:len(linked) - len(code)]
         code = prefix + code
+        sandbox = DockerSandbox(image="geo-voyager-worker:duckdb-1.5.6-rasterio-1.5.1", network=self.network)
         try:
-            stdout = DockerSandbox(
-                image="geo-voyager-worker:duckdb-1.5.6-rasterio-1.5.1", network=self.network,
-            ).run(sandbox_program(code))
+            stdout = sandbox.run(sandbox_program(code))
         except subprocess.TimeoutExpired as error:
             # Code that does too much (a request per item, a query over too wide an area) is a failure of that
             # code: the repair and the Planner can read it and change the approach. It does not end the Goal.
             return ExecutionFailure('Generated Python execution timed out', '',
                                     f'TimeoutError: the sandbox stopped the code after {error.timeout:g} s', None)
         except subprocess.CalledProcessError as error:
+            if error.returncode == KILLED_EXIT:
+                # The container is given a memory limit, and the kernel kills code that goes over it (SIGKILL). Like
+                # a timeout, it is a failure of the code: reading less (a smaller area, in blocks) can fix it.
+                return ExecutionFailure('Generated Python execution was killed', bounded_output(error.stdout),
+                                        f'MemoryError: the sandbox killed the code (exit {KILLED_EXIT}): it used more '
+                                        f'than its {sandbox.profile.memory} of memory. 一度に読む量を減らす（範囲や列で絞る、塊ごとに読んで足す）',
+                                        KILLED_EXIT)
             if error.returncode != GENERATED_ERROR_EXIT:
                 raise
             failure = ExecutionFailure.from_process(error)
