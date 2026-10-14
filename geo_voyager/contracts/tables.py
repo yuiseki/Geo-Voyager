@@ -16,6 +16,14 @@ _DATA = json.loads((Path(__file__).parents[1] / 'dataset_references.json').read_
 # code5 13101 to 13123, population 9,733,276.
 NAMED_AREAS = {'東京23区': "pref_code = '13' AND name LIKE '%区'"}
 _AREAS_OF = {'yuiseki/jp-admin-2026-09': ('municipalities', NAMED_AREAS)}
+# How to measure on longitude, latitude in this DuckDB (1.5.6), measured 2026-10-15. Degrees are not metres: a
+# circle of 1/111 degree around Tokyo is 2.54 km², not 3.14 (GeoAI-skills, spatial-data-integration, crs-and-datum).
+MEASURING = ('座標は経度、緯度の度で、面積と距離と円は度のまま測らない。'
+             "面積は ST_Area(ST_Transform(geometry, 'OGC:CRS84', 'EPSG:6933'))（m²、等積）。"
+             '2 点の距離は ST_Distance_Sphere(ST_FlipCoordinates(a), ST_FlipCoordinates(b))（m）。'
+             'この DuckDB の ST_Distance_Sphere と *_Spheroid は緯度、経度の順を読み、入れ替えないと値が黙って誤る'
+             '（東京と大阪の 396 km が 473 km、日本の面積が NaN）。'
+             "半径 r m の円は、UTM（EPSG:326NN、NN は経度から決まる帯。日本は 51 から 56）に移して ST_Buffer(…, r) し、OGC:CRS84 に戻す。")
 _SHORT_TYPES = {'VARCHAR': 'VARCHAR', 'INTEGER': 'INTEGER', 'BIGINT': 'BIGINT', 'DOUBLE': 'DOUBLE'}
 
 
@@ -65,5 +73,6 @@ def table_contract(dataset_ids) -> str:
                 texts.append(f'{dataset_id} の {table["name"]} はラスタで、表として読まない（1 画素は{table["grain"]}）。'
                              'sum_population_grid(connection, zones) が、zones（geometry 列を持つ relation）の区域ごとに画素を足す。')
     if texts:
-        texts.append('geometry は OGC:CRS84（read_table がそろえる）。2 つの表は ST_Within などで空間結合できる。')
+        texts.append('geometry は OGC:CRS84（read_table がそろえる）。2 つの表は ST_Within などで空間結合できる。'
+                     + MEASURING)
     return '\n'.join(texts)

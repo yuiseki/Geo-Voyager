@@ -357,3 +357,13 @@ def test_a_repair_that_writes_an_indicator_code_the_wdi_lacks_is_asked_again():
                              SkillCandidate('print(x)', '人口密度'), failure)
     assert result.code == RIGHT_INDICATOR and llm.generate.call_count == 2
     assert 'EN.POP.DNST' in llm.generate.call_args_list[1].args[0]
+
+
+def test_a_repair_that_calls_a_sphere_function_on_unflipped_coordinates_is_asked_again():
+    unflipped = 'print(json.dumps({"sql": "SELECT ST_Distance_Sphere(a.geometry, b.geometry)"}))'
+    flipped = 'print(json.dumps({"sql": "SELECT ST_Distance_Sphere(ST_FlipCoordinates(a.geometry), ST_FlipCoordinates(b.geometry))"}))'
+    llm = Mock(); llm.generate.side_effect = [code_reply(unflipped), code_reply(flipped)]
+    repairer = SkillCandidateRepairer(llm)
+    failure = ExecutionFailure('failed', '', 'Traceback (most recent call last):\n  File "<candidate>", line 1, in <module>\nNameError: x', 73)
+    result = repairer.repair(Intent('駅の間の距離', dataset_ids=('yuiseki/ekidata-jp',)), SkillCandidate('print(x)', '距離'), failure)
+    assert result.code == flipped and 'ST_FlipCoordinates' in llm.generate.call_args_list[1].args[0]

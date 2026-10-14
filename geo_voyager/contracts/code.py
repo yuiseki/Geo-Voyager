@@ -8,6 +8,7 @@ A local aggregation works only on the Observations of earlier steps. Two things 
 The remedy is the same as for a target: find the object by its name and id, and let a missing field raise.
 """
 import ast
+import re
 
 
 def _mentions(node: ast.AST, names: set[str]) -> bool:
@@ -138,3 +139,18 @@ def _every_place_of_a_checked_length(tree: ast.AST, picks: list[ast.Subscript]) 
         places.setdefault(ast.unparse(node.value), set()).add(index)
     lengths = _checked_lengths(tree)
     return {rows for rows, taken in places.items() if any(taken == set(range(k)) for k in lengths.get(rows, ()))}
+
+
+# The sphere and spheroid functions of DuckDB 1.5.6 read a point as latitude, longitude; read_table gives longitude,
+# latitude (OGC:CRS84). Unflipped, Tokyo to Osaka (396 km) is 473 km and the area of Japan is NaN (2026-10-15).
+LATITUDE_FIRST = ('ST_Distance_Sphere', 'ST_Distance_Spheroid', 'ST_DWithin_Spheroid', 'ST_Area_Spheroid',
+                  'ST_Length_Spheroid', 'ST_Perimeter_Spheroid')
+
+
+def axis_order_problems(code: str) -> list[str]:
+    """The sphere and spheroid functions the code calls without flipping the coordinates anywhere."""
+    if 'ST_FlipCoordinates' in code:
+        return []
+    return [f'{function} は緯度、経度の順の点を読む。read_table の geometry は経度、緯度なので、'
+            f'ST_FlipCoordinates で入れ替えてから渡す（入れ替えないと、値は黙って誤る）'
+            for function in LATITUDE_FIRST if re.search(rf'\b{function}\s*\(', code)]
