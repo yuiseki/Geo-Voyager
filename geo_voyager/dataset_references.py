@@ -44,7 +44,8 @@ def planner_text(dataset_id: str) -> str:
                                     if name != 'geometry') + '。'
     # A column's note says how to use it (jp-admin's geometry: touching pairs are taken with ST_Intersects), as the
     # Generator's table text does (geo_voyager.contracts.tables).
-    notes = [f"{column['name']}: {column['note']}" for column in table.get('columns', []) if column.get('note')]
+    notes = [f"{key['column']}: {key['note']}" for key in table.get('join_keys', []) if key.get('note')]
+    notes += [f"{column['name']}: {column['note']}" for column in table.get('columns', []) if column.get('note')]
     if notes:
         text += '注意: ' + ' '.join(notes) + '。'
     return text + _NOTES.get(dataset_id, '')

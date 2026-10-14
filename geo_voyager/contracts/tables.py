@@ -31,7 +31,8 @@ def _table_text(dataset_id: str, table: dict) -> str:
         lines[0] += f'ID: {", ".join(table["id"])}。'
     if table.get('join_keys'):
         lines.append('  結合キー: ' + '、'.join(f'{key["column"]}（→ {", ".join(key.get("joins", []))}'
-                                               + (f'。{key["cast"]}' if key.get('cast') else '') + '）'
+                                               + (f'。{key["cast"]}' if key.get('cast') else '')
+                                               + (f'。注意: {key["note"]}' if key.get('note') else '') + '）'
                                                for key in table['join_keys']))
     if table.get('no_key'):
         lines.append('  持たないキー: ' + '、'.join(f'{key["name"]}（{key["note"]}）' for key in table['no_key']))

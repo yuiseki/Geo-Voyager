@@ -86,3 +86,14 @@ def test_the_planner_is_told_a_columns_note_on_how_to_use_it_as_the_generator_is
     # Planner, which decides what a step measures, was not told.
     text = planner_text('yuiseki/jp-admin-2026-09')
     assert 'ST_Intersects' in text and 'ST_Touches' in text
+
+
+def test_a_join_keys_note_reaches_the_planner_and_the_generator():
+    # The small tasks of GeoAI-skills (2026-10-14), task 14: the WDI reference says, on country_code, to keep the
+    # countries whose Region is not empty; neither the Planner nor the Generator was told, and the run left out the
+    # aggregates by matching Natural Earth instead, dropping Kosovo and the Channel Islands without a word.
+    from geo_voyager.contracts.tables import table_contract
+    for text in (planner_text('yuiseki/worldbank-wdi'), table_contract(('yuiseki/worldbank-wdi',))):
+        assert 'countries の Region が空でないものに絞る' in text
+    for text in (planner_text('yuiseki/jp-admin-2026-09'), table_contract(('yuiseki/jp-admin-2026-09',))):
+        assert '親と区が重なるので ward is null に絞る' in text
