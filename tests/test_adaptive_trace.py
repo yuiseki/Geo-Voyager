@@ -23,9 +23,9 @@ def result():
     third = Intent('新宿区の件数', service_ids=('overpass',), target=TargetRef('新宿区'))
     entries = (
         HistoryEntry(1, first, (Observation('{"name": "港区", "relation_id": "1"}'),), Critique(True, 'ok'), None, (), None,
-                     (TargetRef('港区', 'relation_id', '1'),)),
-        HistoryEntry(2, second, (), Critique(False, 'crashed'), failure, (), None, ()),
-        HistoryEntry(3, third, (Observation('{"count": 3}'),), Critique(True, 'ok'), None, reused, learned, ()),
+                     (TargetRef('港区', 'relation_id', '1'),), 1),
+        HistoryEntry(2, second, (), Critique(False, 'crashed'), failure, (), None, (), 3),
+        HistoryEntry(3, third, (Observation('{"count": 3}'),), Critique(True, 'ok'), None, reused, learned, (), 1),
     )
     executions = (execution_of('{"name": "港区", "relation_id": "1"}'), execution_of('', False, failure, attempts=3),
                   execution_of('{"count": 3}', learned=learned, reused=reused))

@@ -10,7 +10,7 @@ def trace_steps(result: AdaptiveGoalExecution, injected: set[int] | None = None)
     injected = injected or set()
     known: list = []
     steps = []
-    for entry, execution in zip(result.history, result.executions):
+    for entry in result.history:
         intent = entry.intent
         steps.append({
             'step': entry.step, 'intent': intent.text, 'target': intent.target_name,
@@ -21,7 +21,7 @@ def trace_steps(result: AdaptiveGoalExecution, injected: set[int] | None = None)
             'critic_reason': entry.critique.reason if entry.critique else None,
             'failure': (error_line(entry.failure) or entry.failure.message) if entry.failure else '',
             'observation': (entry.observations[0].text[:OBSERVATION_SHOWN] if entry.observations else ''),
-            'attempts': len(execution.attempts),
+            'attempts': entry.attempts,
             'called_skills': list(entry.called_skills),
             'learned_skill': entry.learned_skill,
             'new_targets': [target.to_dict() for target in entry.targets], 'injected': entry.step in injected,

@@ -2,6 +2,7 @@
 
     .venv/bin/python -m bench.run_explore --out DIR --library DIR --goals N
     .venv/bin/python -m bench.run_explore --out DIR --library DIR --replay FILE
+    .venv/bin/python -m bench.run_explore --out DIR --library DIR --resume --goals 0   # only take up stopped Goals
 
 --replay takes the Goals from FILE (one per line) instead of the curriculum, to compare a change on the Goals an
 earlier exploration tried.
@@ -26,7 +27,7 @@ from bench.infra import benchmark_environment, environment_problem
 from bench.run_goals import logged_llm
 from geo_voyager.critic import Critic
 from geo_voyager.curriculum import Curriculum, CurriculumRejected, ProposedGoal
-from geo_voyager.event_log import EventLog
+from geo_voyager.event_log import EventLog, LoggedGoal
 from geo_voyager.exploration_graph import ExplorationGraph
 from geo_voyager.embedding_client import EmbeddingClient
 from geo_voyager.goal_executor import GoalExecutor
@@ -52,11 +53,33 @@ def propose(curriculum: Curriculum, findings: list[dict], attempts: list[dict]):
     return None
 
 
+def unfinished(out: Path) -> list[tuple[int, LoggedGoal]]:
+    """The Goals of the directory whose log has no end (the run stopped on them), in their order."""
+    found = []
+    for directory in sorted(path for path in out.iterdir() if path.is_dir() and path.name.isdigit()):
+        if (directory / 'events.jsonl').exists():
+            logged = EventLog(directory / 'events.jsonl').read()
+            if not logged.ended:
+                found.append((int(directory.name), logged))
+    return found
+
+
+def still_to_replay(goals: list, out: Path) -> list:
+    """The Goals of a replay after those the directory has begun: one Goal directory each, in order."""
+    begun = sum(1 for path in out.iterdir() if path.is_dir() and path.name.isdigit()) if out.exists() else 0
+    return goals[begun:]
+
+
 def explore_one(number: int, out: Path, names, library: SkillLibrary, embedding: EmbeddingClient,
-                world: WorldGraph, exploration: ExplorationGraph, given: ProposedGoal | None = None, memory: str | None = None) -> dict | None:
+                world: WorldGraph, exploration: ExplorationGraph, given: ProposedGoal | None = None, memory: str | None = None,
+                resumed: LoggedGoal | None = None) -> dict | None:
+    """Explore one Goal: the given one, the curriculum's, or one taken up from its log (resumed), which goes on from
+    the events written before it stopped, with the memory it was given then."""
     directory = out / f'{number:03d}'
-    directory.mkdir(parents=True, exist_ok=False)
+    directory.mkdir(parents=True, exist_ok=resumed is not None)
     llm = logged_llm(directory)
+    if resumed is not None:
+        given, memory = ProposedGoal(resumed.goal, resumed.reason), resumed.memory
     proposed = given or propose(Curriculum(llm), world.findings(), exploration.attempts())
     if proposed is None:
         return None
@@ -65,11 +88,12 @@ def explore_one(number: int, out: Path, names, library: SkillLibrary, embedding:
                               SkillCandidateGenerator(llm), critic, library, SkillCandidateRepairer(llm))
     # Each event is written as it happens. A Goal that breaks gets no end, so it can be taken up again from its log.
     log = EventLog(directory / 'events.jsonl')
-    log.start(proposed.goal, memory)
+    if resumed is None:
+        log.start(proposed.goal, memory, reason=proposed.reason)
     started = time.time()
     try:
-        result = GoalExecutor(Planner(llm), executor, critic).execute_adaptive(proposed.goal, memory=memory,
-                                                                               on_event=log.append)
+        result = GoalExecutor(Planner(llm), executor, critic).execute_adaptive(
+            proposed.goal, memory=memory, on_event=log.append, events=resumed.events if resumed is not None else ())
     except Exception as problem:
         # One Goal that breaks (a model call that times out, say) is recorded as tried and the exploration goes on.
         result = None
@@ -110,11 +134,14 @@ def main() -> None:
     which.add_argument('--replay', help='a file of Goals, one per line, explored in order instead of asking the curriculum')
     parser.add_argument('--remember', help="an earlier run's --out: a Goal it did not answer is given the failures of that try "
                                            'checked without a model (ADR 0011)')
+    parser.add_argument('--resume', action='store_true',
+                        help='first take up the Goals of --out that stopped on the way, each from the step after its last event')
     args = parser.parse_args()
     memories = ExplorationGraph(Path(args.remember).expanduser() / 'exploration.jsonl').memories() if args.remember else {}
-    replayed = ([ProposedGoal(line.strip(), 'replay') for line in Path(args.replay).read_text().splitlines() if line.strip()]
-                if args.replay else None)
     out = Path(args.out).expanduser()
+    # Given the same --out again, a replay goes on after the Goals it has begun (those stopped on the way: --resume).
+    replayed = (still_to_replay([ProposedGoal(line.strip(), 'replay') for line in Path(args.replay).read_text().splitlines()
+                                 if line.strip()], out) if args.replay else None)
     out.mkdir(parents=True, exist_ok=True)
     shared = Path(args.library).expanduser()
     if not shared.exists():
@@ -124,8 +151,10 @@ def main() -> None:
     embedding = EmbeddingClient(os.environ['GEO_VOYAGER_EMBEDDING_BASE_URL'], os.environ['GEO_VOYAGER_EMBEDDING_MODEL'])
     first = sum(1 for path in out.iterdir() if path.is_dir() and path.name.isdigit()) + 1
     exit_on_sigterm()
+    taken_up = unfinished(out) if args.resume else []
+    new = range(first, first + (len(replayed) if replayed is not None else args.goals))
     with benchmark_environment() as names:
-        for index, number in enumerate(range(first, first + (len(replayed) if replayed else args.goals))):
+        for index, (number, resumed) in enumerate([*taken_up, *((number, None) for number in new)]):
             if stop_requested(out):
                 print(number, f'| stopped by {out / STOP_FILE}', flush=True)
                 break
@@ -133,14 +162,14 @@ def main() -> None:
             if problem:
                 print(number, f'| stopped: the environment is gone: {problem}', flush=True)
                 sys.exit(1)
-            given = replayed[index] if replayed else None
+            given = replayed[index - len(taken_up)] if replayed is not None and resumed is None else None
             attempt = explore_one(number, out, names, SkillLibrary(shared), embedding, world, exploration,
-                                  given, memories.get(given.goal) if given else None)
+                                  given, memories.get(given.goal) if given else None, resumed=resumed)
             if attempt is None:
                 print(number, '| the curriculum gave no usable Goal', flush=True)
                 continue
             print(number, '|', attempt['goal'], '|', 'answered' if attempt['success'] else attempt['stop_reason'],
-                  '|', attempt['steps'], 'steps |', attempt['elapsed'], 's', flush=True)
+                  '|', attempt['steps'], 'steps |', attempt['elapsed'], 's', '(taken up)' if resumed else '', flush=True)
 
 
 if __name__ == '__main__':

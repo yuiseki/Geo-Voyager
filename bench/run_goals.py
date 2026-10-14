@@ -62,9 +62,11 @@ def logged_llm(directory: Path) -> Mock:
     directory.mkdir(parents=True, exist_ok=True)
     llm = Mock(wraps=LlamaClient())
     generate = llm.generate._mock_wraps
+    # A Goal taken up again (run_explore --resume) goes on after the calls it saved before it stopped.
+    saved = len(list(directory.glob('llm_*_prompt.txt')))
 
     def log(*args, **kwargs):
-        number = llm.generate.call_count
+        number = saved + llm.generate.call_count
         (directory / f'llm_{number:02d}_prompt.txt').write_text(args[0])
         reply = generate(*args, **kwargs)
         (directory / f'llm_{number:02d}_response.txt').write_text(reply)

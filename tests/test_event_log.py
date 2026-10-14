@@ -127,3 +127,67 @@ def test_the_end_of_a_goal_keeps_how_it_stopped_and_no_critics_words(tmp_path):
     log.end('final_critic_failed', success=False)
     assert json.loads((tmp_path / 'events.jsonl').read_text().splitlines()[-1]) == {
         'kind': 'goal_ended', 'stop_reason': 'final_critic_failed', 'success': False}
+
+
+def test_how_many_attempts_a_step_took_is_kept_in_the_step_and_read_back():
+    from geo_voyager.goal_history import GoalHistory
+    from geo_voyager.intent_execution import IntentExecution
+    execution = IntentExecution([Observation('[{"name": "世田谷区"}]')], (), (), None, Critique(True, 'ok'), attempts=('a', 'b'))
+    entry = HistoryEntry.from_execution(1, Intent('区', service_ids=('overpass',)), execution, GoalHistory())
+    assert entry.attempts == 2
+    assert event_from_dict(json.loads(json.dumps(event_to_dict(entry)))).attempts == 2
+
+
+class Crash(Exception):
+    """The process stopping on the way (a model call that times out, a SIGTERM)."""
+
+
+def scripted(crash_at=None):
+    """A Planner, an executor and a Critic that give the same replies however often the Goal is taken up: the
+    Planner's decision depends only on how many steps the history holds, as a model at temperature zero shown the
+    same history writes the same reply."""
+    from unittest.mock import Mock
+    from geo_voyager.intent_execution import IntentExecution
+    from geo_voyager.planner import DONE, PlannerRejected
+    intents = [Intent('区の名前', service_ids=('yuisekin-geosparql',), result_name='wards', inputs=()),
+               Intent('区の人口', dataset_ids=('yuiseki/jp-admin-2026-09',), result_name='pop', inputs=('wards',)),
+               Intent('最大の区', requires_context=True, result_name='top', inputs=('pop',))]
+    outputs = ['[{"name": "世田谷区", "relation_id": "1759474"}, {"name": "大田区", "relation_id": "1758947"}]',
+               '[{"name": "世田谷区", "population": 943664}, {"name": "大田区", "population": 748081}]',
+               '{"name": "世田谷区", "population": 943664}']
+
+    def next_decision(goal, history, **kwargs):
+        if len(history) == 1 and not history.planner_failures():
+            raise PlannerRejected('書式が違う', 'reply')
+        return intents[len(history)] if len(history) < len(intents) else DONE
+
+    def execute(intent):
+        step = [i.text for i in intents].index(intent.text)
+        if step == crash_at:
+            raise Crash()
+        return IntentExecution([Observation(outputs[step])], (), (), None, Critique(True, 'ok'), attempts=('a',))
+
+    planner = Mock(); planner.next.side_effect = next_decision
+    executor = Mock(); executor.execute.side_effect = execute
+    critic = Mock(); critic.check.return_value = Critique(True, 'ok')
+    return planner, executor, critic
+
+
+def test_a_goal_stopped_after_its_second_step_goes_on_from_its_third_and_ends_as_if_never_stopped(tmp_path):
+    from geo_voyager.event_log import EventLog
+    from geo_voyager.goal_executor import GoalExecutor
+    whole = GoalExecutor(*scripted()).execute_adaptive('G')
+
+    log = EventLog(tmp_path / 'events.jsonl')
+    log.start('G')
+    with pytest.raises(Crash):
+        GoalExecutor(*scripted(crash_at=2)).execute_adaptive('G', on_event=log.append)
+    stopped = log.read()
+    assert not stopped.ended and len([e for e in stopped.events if isinstance(e, HistoryEntry)]) == 2
+
+    planner, executor, critic = scripted()
+    resumed = GoalExecutor(planner, executor, critic).execute_adaptive('G', events=stopped.events, on_event=log.append)
+    assert executor.execute.call_count == 1                                   # only the third step ran again
+    assert resumed.events == whole.events and resumed.stop_reason == whole.stop_reason == 'done'
+    log.end(resumed.stop_reason, success=True)
+    assert log.read().events == whole.events                                   # the log holds each event once

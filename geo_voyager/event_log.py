@@ -46,7 +46,7 @@ def event_to_dict(event) -> dict:
             'failure': {'message': failure.message, 'stdout': failure.stdout, 'stderr': failure.stderr,
                         'exit_code': failure.exit_code} if failure is not None else None,
             'called_skills': list(event.called_skills), 'learned_skill': event.learned_skill,
-            'targets': [target.to_dict() for target in event.targets],
+            'targets': [target.to_dict() for target in event.targets], 'attempts': event.attempts,
         }
     if isinstance(event, PlannerFailure):
         return {'kind': 'planner_failure', 'reason': event.reason, 'reply': event.reply, 'after_step': event.after_step}
@@ -65,7 +65,7 @@ def event_from_dict(data: dict):
             ExecutionFailure(failure['message'], failure['stdout'], failure['stderr'], failure['exit_code'])
             if failure is not None else None,
             tuple(data['called_skills']), data['learned_skill'],
-            tuple(TargetRef.from_dict(target) for target in data['targets']))
+            tuple(TargetRef.from_dict(target) for target in data['targets']), data['attempts'])
     if kind == 'planner_failure':
         return PlannerFailure(data['reason'], data['reply'], data['after_step'])
     if kind == 'final_critic_failure':
@@ -81,6 +81,8 @@ class LoggedGoal:
     ended: bool
     stop_reason: str | None
     success: bool | None
+    # Why the curriculum chose the Goal, for whoever reads the record; no model is shown it again.
+    reason: str = ''
 
 
 class EventLog:
@@ -96,8 +98,8 @@ class EventLog:
         with self.path.open('a') as file:
             file.write(json.dumps(row, ensure_ascii=False) + '\n')
 
-    def start(self, goal: str, memory: str | None = None) -> None:
-        self._write({'kind': 'goal_started', 'goal': goal, 'memory': memory})
+    def start(self, goal: str, memory: str | None = None, *, reason: str = '') -> None:
+        self._write({'kind': 'goal_started', 'goal': goal, 'memory': memory, 'reason': reason})
 
     def append(self, event) -> None:
         self._write(event_to_dict(event))
@@ -112,4 +114,4 @@ class EventLog:
         end = rows[-1] if rows[-1].get('kind') == 'goal_ended' else None
         events = tuple(event_from_dict(row) for row in rows[1:len(rows) - (end is not None)])
         return LoggedGoal(rows[0]['goal'], rows[0]['memory'], events, end is not None,
-                          end['stop_reason'] if end else None, end['success'] if end else None)
+                          end['stop_reason'] if end else None, end['success'] if end else None, rows[0]['reason'])

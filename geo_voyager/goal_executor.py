@@ -70,7 +70,7 @@ class GoalExecutor:
                          max_attempts_per_intent: int = DEFAULT_MAX_ATTEMPTS_PER_INTENT,
                          max_planner_failures: int = DEFAULT_MAX_PLANNER_FAILURES,
                          max_final_critic_failures: int = DEFAULT_MAX_FINAL_CRITIC_FAILURES,
-                         memory: str | None = None, on_event=None) -> AdaptiveGoalExecution:
+                         memory: str | None = None, on_event=None, events: tuple = ()) -> AdaptiveGoalExecution:
         """Run a Goal one step at a time. After each step the Planner decides the next Intent, or DONE.
 
         The full plan is not used. Three kinds of setback do not end the Goal; each is recorded in the history so
@@ -84,8 +84,12 @@ class GoalExecutor:
         that succeeded, and nothing else.
 
         on_event, when given, is called with each event as it is added to the history (to write it down then).
+        events are those of the same Goal stopped on the way (read back from its log): the Goal goes on from them, and
+        the limits count them. executions then holds only the steps run now.
         """
         history, executions = GoalHistory(), []
+        for event in events:
+            history.append(event)
 
         def add(event) -> None:
             history.append(event)

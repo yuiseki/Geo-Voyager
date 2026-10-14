@@ -58,6 +58,8 @@ class HistoryEntry:
     learned_skill: str | None           # the Skill saved from the step ('name@vN')
     # Targets this step made known for the first time, each with its stable id. Empty for a step that did not succeed.
     targets: tuple[TargetRef, ...]
+    # How many candidates the step ran (a generated one and its repairs).
+    attempts: int = 0
 
     @property
     def succeeded(self) -> bool:
@@ -69,7 +71,7 @@ class HistoryEntry:
         known = {target.key for target in history.targets()}
         new = tuple(target for target in discover_targets(tuple(execution.observations)) if target.key not in known) if succeeded else ()
         return cls(step, intent, tuple(execution.observations), execution.critique, execution.failure,
-                   tuple(execution.called_skills), execution.learned_skill, new)
+                   tuple(execution.called_skills), execution.learned_skill, new, len(execution.attempts))
 
 
 class GoalHistory:
