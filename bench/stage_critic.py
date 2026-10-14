@@ -16,6 +16,9 @@ import re
 import time
 
 from geo_voyager.critique import Critique
+from geo_voyager.datasets import load_dataset_graph
+from geo_voyager.services import load_service_graph
+from geo_voyager.skill_candidate import called_service_ids, read_datasets
 from geo_voyager.llama_client import LlamaClient
 
 ANCHOR = '入力の Intent と Observation だけで要求した出力が得られたか判定する。外部知識で答えを推測・追加しない。Intent にない期待件数を仮定しない。\n'
@@ -41,22 +44,38 @@ def producing_code(prompt_path: Path) -> str | None:
     return None
 
 
+def resource_notes(code: str) -> str:
+    """What the services and datasets the code reads are, as the Planner and the Generator are told."""
+    services = load_service_graph()
+    datasets = load_dataset_graph()
+    lines = [f'{service_id}: {services.get(service_id).description}' for service_id in sorted(called_service_ids(code))]
+    lines += [f'{dataset_id}: {datasets.get(dataset_id).description}' for dataset_id in sorted(read_datasets(code))
+              if dataset_id in {dataset.id for dataset in datasets.all()}]
+    return '\n'.join(lines)
+
+
+RESOURCES_HEADER = '\n\nコードが読んだサービスとデータの説明（コードが Intent の対象を正しく選んだかを照合するために読む）:\n'
+
+
 def changed(prompt: str, variant: str, path: Path) -> str:
-    if variant in ('rule', 'code+rule'):
+    if variant in ('rule', 'code+rule', 'all'):
         if ANCHOR not in prompt:
             raise ValueError(f'{path}: the anchor of the rule is not in the prompt')
         prompt = prompt.replace(ANCHOR, ANCHOR + PLACE_FACTS)
-    if variant in ('code', 'code+rule') and 'Goal 全体の最終判定' not in prompt:
+    if variant in ('code', 'code+rule', 'all') and 'Goal 全体の最終判定' not in prompt:
         code = producing_code(path)
         if code is not None:
             prompt += CODE_HEADER + code
+            notes = resource_notes(code) if variant == 'all' else ''
+            if notes:
+                prompt += RESOURCES_HEADER + notes
     return prompt
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('--cases', required=True)
-    parser.add_argument('--variant', required=True, choices=['base', 'rule', 'code', 'code+rule'])
+    parser.add_argument('--variant', required=True, choices=['base', 'rule', 'code', 'code+rule', 'all'])
     parser.add_argument('--out', required=True)
     args = parser.parse_args()
     out = Path(args.out).expanduser()
