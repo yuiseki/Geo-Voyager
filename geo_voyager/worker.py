@@ -6,6 +6,7 @@ from .docker_sandbox import DockerSandbox
 from .execution_failure import ExecutionFailure, GENERATED_ERROR_EXIT, candidate_lines, sandbox_program
 from .intent import Intent, execution_refusal
 from .observation import Observation
+from .output_contract import output_problem
 from .skill_candidate import SkillCandidate, entry_program
 from .skill_library import SkillLibrary, link
 from .services import load_service_graph
@@ -62,6 +63,9 @@ class Worker:
                 raise
             failure = ExecutionFailure.from_process(error)
             return replace(failure, stderr=candidate_lines(failure.stderr, prefix.count('\n')))
+        problem = output_problem(stdout.strip())
+        if problem:
+            return ExecutionFailure('Generated Python output breaks the output contract', stdout, problem, None)
         return [Observation(stdout.strip())] if stdout.strip() else []
 
     def execute_candidate(self, intent: Intent, candidate: SkillCandidate,

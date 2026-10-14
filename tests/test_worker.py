@@ -126,3 +126,15 @@ def test_injected_lines_keep_the_order_dataset_target_then_observations():
     lines = injected_lines(intent).splitlines()
     assert [line.split('=')[0] for line in lines] == ['dataset_id', 'intent_target', 'previous_observations', 'intent_text']
     assert injected_lines(Intent('件数', service_ids=('overpass',))) == ''
+
+
+def test_output_with_rows_that_are_the_same_is_a_failure_of_the_code():
+    from unittest.mock import patch
+    from geo_voyager.execution_failure import ExecutionFailure
+    from geo_voyager.intent import Intent
+    from geo_voyager.worker import Worker
+    with patch('geo_voyager.worker.DockerSandbox') as sandbox:
+        sandbox.return_value.run.return_value = '[{"name": "東京"}, {"name": "東京"}]\n'
+        result = Worker('net')._execute_code(Intent('駅', dataset_ids=('yuiseki/ekidata-jp',)), 'print(1)')
+    assert isinstance(result, ExecutionFailure)
+    assert '重複' in result.stderr and result.stdout.startswith('[{"name": "東京"}')
