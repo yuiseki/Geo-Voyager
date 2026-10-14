@@ -18,7 +18,8 @@ _MAIN_TABLE = {
     'yuiseki/worldpop-jp-2026-01': 'population_100m_2020',
 }
 _NOTES = {
-    'yuiseki/jp-admin-2026-09': '東京23区の23区は1回で読める。',
+    'yuiseki/jp-admin-2026-09': ('東京23区の23区は1回で読める。区や市区町村の中心点は、この Dataset の代表点 rep_lon と rep_lat を使う。'
+                                 'Goal が OSM を名指ししないとき、中心点を Overpass で求めない。'),
     'yuiseki/worldpop-jp-2026-01': (
         '実行環境で読めるのは2020年の100m総人口（constrained）だけで、sum_population_grid が、渡した区域ごとに画素を足した'
         '推計人口を返す。Goal が WorldPop・推計を名指ししない人口は、yuiseki/jp-admin-2026-09 の国勢調査人口を使う。'),

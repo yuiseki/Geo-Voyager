@@ -9,8 +9,9 @@ class WorldGraph:
     """What exploration found out about the world, one finding per Goal that was answered, kept with its provenance.
 
     A finding is the model's observation, not a fact checked against an oracle: it records the Goal, the answer (the
-    last Observation of a step that succeeded), the steps that led to it, the resources used, the final Critic's
-    reason and the targets made known. It is kept apart from the oracle (YuisekinGeoSPARQL) and never written into it.
+    last Observation of a step that succeeded), the steps that led to it, the resources used and the targets made
+    known. The final Critic's reason is not kept: no model's judgement is (ADR 0011). It is kept apart from the oracle
+    (YuisekinGeoSPARQL) and never written into it.
     Append-only JSON lines, so a run can be read while it goes on.
     """
 
@@ -31,7 +32,6 @@ class WorldGraph:
         finding = {
             'goal': result.goal,
             'answer': succeeded[-1].observations[0].text,
-            'critic_reason': result.critique.reason,
             'steps': [{'intent': entry.intent.text, 'observation': entry.observations[0].text} for entry in succeeded],
             'resources': list(dict.fromkeys(resource for entry in succeeded
                                             for resource in entry.intent.dataset_ids + entry.intent.service_ids)),

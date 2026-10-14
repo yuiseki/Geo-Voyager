@@ -10,7 +10,7 @@ def curriculum(reply):
     return Curriculum(client), client
 
 
-FINDING = {'goal': '渋谷区のカフェの数', 'answer': '{"tag": "amenity=cafe", "count": 459}', 'critic_reason': 'ok',
+FINDING = {'goal': '渋谷区のカフェの数', 'answer': '{"tag": "amenity=cafe", "count": 459}',
            'steps': [], 'resources': ['overpass'], 'targets': [{'name': '渋谷区', 'id_type': 'relation_id', 'id_value': '1759477'}]}
 ATTEMPT = {'goal': '23区で最も人口の多い区', 'success': False, 'stop_reason': 'final_critic_failed',
            'reason': 'CRITIC_SECRET 答えの根拠が無い',

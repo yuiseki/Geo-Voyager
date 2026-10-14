@@ -38,6 +38,7 @@
 - 当初、Curriculum は試した Goal の一覧で、未達の Goal に止まり方（`stop_reason`）と Critic の理由の先頭 150 字を添えて読んでいた（`curriculum.py`）。次の Goal を選ぶための材料で、Planner への記憶とは別の経路だった。
 - これも閉じた。記録から Critic の理由の欄（`reason`）をなくし、Curriculum には `exploration_graph.outcome` が `CheckedFailure` だけから作る要約を見せる。答えが出た Goal は「答えが出た」、未達の Goal は「未達」と、あれば確かめた失敗の種類と、それが起きた資源（例: 「未達（モデルを使わずに確かめた失敗: overpass で実行のエラー）」）。止まり方は見せない。`final_critic_failed` は Critic の判断から来る。
 - 記録には、人が読むための `stop_reason` と、Goal の実行が壊れたときの `error` が残る。どちらもモデルには渡らない。
+- World Graph の発見からも、最終 Critic の理由の欄（`critic_reason`）を外した。読み手は無く、モデルの判断の文を保存しないため。同じ Goal の中の Planner の履歴でも、承認された手の Critic の理由は見せず、棄却された手の理由だけを見せる。
 - これで、モデルの判断が次の試行にも次の Goal の選択にも引き継がれる経路は無い。単体テストで、Critic の理由と止まり方が Curriculum のプロンプトに出ないことを保証する。
 
 ## 結果

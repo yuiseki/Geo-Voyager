@@ -20,7 +20,9 @@ def load_service_graph() -> ServiceGraph:
                 'Replace <...> with runtime values. Never use bare IDs as statements. '
                 'Every relation ID, including gs:osmRelation, must be converted to an Overpass area ID. nominatim の osm_type=relation なら area_id = int(osm_id) + 3600000000（整数の加算）。文字列連結や乗算ではない。Verify the resolved area exists before counting: area(<area_id>);out ids; returns an area element. Missing area must raise an error, not a zero count.'
                 'Numeric area IDs use a colon (area:<area_id>), never a dot, which denotes a named set. タグ比較は = であり == ではない。'
-                'bbox は south,west,north,east だが国境検索には area を使う。',
+                'bbox は south,west,north,east だが国境検索には area を使う。'
+                'area 要素は out center を付けても center を返さない（relation の中心は rel(<relation_id>);out center; の center）。'
+                'ただし区や市区町村の中心点は Overpass で求めず、yuiseki/jp-admin-2026-09 の rep_lon と rep_lat（代表点）を使う。',
                 'https://overpass.yuiseki.net', 'overpass'),
         Service('nominatim', 'セルフホスト地名検索・逆ジオコーディング。/search, /reverse, /lookup。format=jsonv2。/search は q と limit を受け取り JSON 配列を返す。boundingbox は south,north,west,east の文字列配列。boundingbox は国境ではない。他国を含む場合があるため国内検索には osm_type と osm_id を使って境界で絞る。lat/lon, osm_type/osm_id も返す。',
                 'https://nominatim.yuiseki.net', 'nominatim'),

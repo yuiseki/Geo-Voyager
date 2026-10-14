@@ -1,3 +1,4 @@
+import json
 from geo_voyager.critique import Critique
 from geo_voyager.goal_executor import AdaptiveGoalExecution
 from geo_voyager.goal_history import HistoryEntry
@@ -29,7 +30,7 @@ def test_a_goal_that_ended_done_and_passed_the_final_critic_becomes_a_finding_wi
     finding = world.record(result, explored_at='2026-10-11T07:00:00')
     assert finding['goal'] == '渋谷区のカフェの数'
     assert finding['answer'] == '{"tag": "amenity=cafe", "count": 459}'
-    assert finding['critic_reason'] == '答えが出ている'
+    assert '答えが出ている' not in json.dumps(finding, ensure_ascii=False)        # no Critic's words are kept (ADR 0011)
     assert [step['intent'] for step in finding['steps']] == ['渋谷区の relation_id', '渋谷区の amenity=cafe の数']
     assert finding['resources'] == ['yuisekin-geosparql', 'overpass']
     assert finding['targets'] == [{'name': '渋谷区', 'id_type': 'relation_id', 'id_value': '1759477'}]

@@ -60,3 +60,22 @@ def test_the_curriculum_is_shown_them_too_and_the_first_plan_route_keeps_the_cat
     except Exception:
         pass
     assert planner_text('yuiseki/jp-admin-2026-09') not in planned.generate.call_args.args[0]
+
+
+def test_the_centre_of_a_ward_is_the_representative_point_of_jp_admin_not_an_overpass_centre():
+    # a_run4, Goal 5 step 4 and timeout_run1, Goal 8 step 5: the Planner asked Overpass for the centres of two wards and
+    # the code asked for the centre of an area element, which has none. The answer is measured from jp-admin's
+    # representative points; an OSM relation's centre is another point (世田谷区 35.6365, 139.6345 against 35.6465,
+    # 139.6532), so being told only how to get it from Overpass would answer another distance.
+    from geo_voyager.planner import Planner
+    from geo_voyager.services import load_service_graph
+    assert 'rep_lon' in planner_text('yuiseki/jp-admin-2026-09') and 'Overpass で求めない' in planner_text('yuiseki/jp-admin-2026-09')
+    overpass = load_service_graph().get('overpass').description
+    assert 'area 要素は out center を付けても center を返さない' in overpass
+    assert 'yuiseki/jp-admin-2026-09 の rep_lon' in overpass
+    plan = Planner(Mock())
+    plan.llm_client.generate.return_value = 'DONE'
+    from geo_voyager.goal_history import GoalHistory
+    plan.next('g', GoalHistory())
+    prompt = plan.llm_client.generate.call_args.args[0]
+    assert 'Overpass で求めない' in prompt and 'area 要素は out center を付けても center を返さない' in prompt
