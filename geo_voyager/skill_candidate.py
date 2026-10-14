@@ -57,12 +57,20 @@ def entry_program(code: str, entry: str | None = None) -> str:
         # The copy of a saved Skill was dropped, and the saved one is linked in front: pass it the runtime values
         # it takes, as found from its signature when it runs.
         return (code.rstrip() + '\n\n\nimport inspect as _inspect\nimport json as _json\n'
-                + f'_runtime = {{name: globals().get(name) for name in {RUNTIME_NAMES!r}}}\n'
                 + f'_taken = _inspect.signature({entry}).parameters\n'
-                + f'print(_json.dumps({entry}(**{{k: v for k, v in _runtime.items() if k in _taken}}), ensure_ascii=False, default=str))')
-    names = [a.arg for a in (*main.args.posonlyargs, *main.args.args, *main.args.kwonlyargs)]
-    # a runtime value the Intent does not have (no dataset, no target) is passed as None
-    arguments = ', '.join(f'{n}=globals().get({n!r})' for n in names if n in RUNTIME_NAMES)
+                + f'_runtime = {{name: globals().get(name) for name in {RUNTIME_NAMES!r} if name in _taken and '
+                + '(name in globals() or _taken[name].default is _inspect.Parameter.empty)}\n'
+                + f'print(_json.dumps({entry}(**_runtime), ensure_ascii=False, default=str))')
+    positional = [*main.args.posonlyargs, *main.args.args]
+    defaulted = {a.arg for a in positional[len(positional) - len(main.args.defaults):]} if main.args.defaults else set()
+    defaulted |= {a.arg for a, default in zip(main.args.kwonlyargs, main.args.kw_defaults) if default is not None}
+    names = [a.arg for a in (*positional, *main.args.kwonlyargs) if a.arg in RUNTIME_NAMES]
+    # A runtime value the Intent does not have (no dataset, no target) is passed as None, unless the parameter has
+    # a default: an Intent on two datasets has no dataset_id, and dataset_id="yuiseki/worldbank-wdi" got None.
+    required = [n for n in names if n not in defaulted]
+    optional = [n for n in names if n in defaulted]
+    arguments = ', '.join([f'{n}=globals().get({n!r})' for n in required]
+                          + [f'**({{{n!r}: globals()[{n!r}]}} if {n!r} in globals() else {{}})' for n in optional])
     return (code.rstrip() + '\n\n\n' + 'import json as _json\n'
             + f'print(_json.dumps({main.name}({arguments}), ensure_ascii=False, default=str))')
 
