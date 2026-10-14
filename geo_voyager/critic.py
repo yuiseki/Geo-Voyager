@@ -2,9 +2,12 @@ import re
 import json
 
 from .critique import Critique
+from .datasets import load_dataset_graph
 from .intent import Intent
 from .llama_client import LlamaClient
 from .observation import Observation
+from .services import load_service_graph
+from .skill_candidate import called_service_ids, read_datasets
 from .target_identity import identity_conflict, resolve_target
 
 
@@ -16,6 +19,26 @@ THINKING_BUDGET_TOKENS = 1024
 # The earlier Observations are reference for the identity of a target, not the answer. Shown whole, two lists of
 # 8 KB beside an 8 KB answer were more than the model's 8,192-token context, and the server refused the prompt.
 REFERENCE_BUDGET = 4096
+# The model's knowledge of single places was wrong each time it failed a step on it (港区 and 目黒区 do not touch;
+# 大田区 and 江戸川区 touch at sea in OSM), and its sense of scale was right (no station in the 23 wards is wrong).
+PLACE_FACTS = ('個々の地物についての事実（どの区とどの区が接するか、ある名前が一覧に入るべきか）を、自分の知識で否定・補完して失敗の理由にしない。'
+               'データの定義（陸か海を含むか、どの版か）で答えが変わるため。値が 0 や空のこと、件数の桁が明らかに合わないことは疑ってよい。\n')
+CODE_HEADER = ('\n\nこの Observation を出力したコード（どう測ったかの根拠として読む。'
+               'コードが Intent の対象の一部だけを測っている、または Intent と違う条件で測っているなら失敗。'
+               'コードが Intent どおりに測っているなら、値の正しさを自分の知識で否定しない）:\n')
+RESOURCES_HEADER = '\n\nコードが読んだサービスとデータの説明（コードが Intent の対象を正しく選んだかを照合するために読む）:\n'
+
+
+def _resources(code: str, intent: Intent) -> str:
+    """What the services and datasets the code reads are, as the Planner and the Generator are told."""
+    services, datasets = load_service_graph(), load_dataset_graph()
+    known = {dataset.id for dataset in datasets.all()}
+    passed = intent.dataset_ids[0] if len(intent.dataset_ids) == 1 else None
+    lines = [f'{service_id}: {services.get(service_id).description}' for service_id in sorted(called_service_ids(code))
+             if service_id in {service.id for service in services.all()}]
+    lines += [f'{dataset_id}: {datasets.get(dataset_id).description}'
+              for dataset_id in sorted(read_datasets(code, passed) or ()) if dataset_id in known]
+    return '\n'.join(lines)
 
 
 def _references(observations: tuple[Observation, ...], budget: int = REFERENCE_BUDGET) -> list[str]:
@@ -37,12 +60,15 @@ class Critic:
         self.thinking = thinking
 
     def check(self, intent: Intent, observations: list[Observation], *, final: bool = False,
-              asked: tuple[str, ...] = ()) -> Critique:
+              asked: tuple[str, ...] = (), code: str | None = None) -> Critique:
         """Judge whether the observations answer the Intent.
 
         asked, for the final check, is the Intent text of the step that produced each Observation. A step that
         picked the smallest from a list prints only the one it picked; without the step beside it, that output is a
         bare record and the model can not tell it is the answer.
+
+        code, for a step, is the code that printed the observations. The model reads how the value was measured
+        (the first of 23 wards only; a query of the 23 wards) instead of judging the value by what it knows.
         """
         if asked and len(asked) != len(observations):
             raise ValueError('asked must name the step of each Observation')
@@ -65,6 +91,7 @@ class Critic:
             'Observation が Intent の要求した調査結果を実際に答えているか判定してください。\n'
             '仮説が正しいか、結果が望ましいかは判定しない。\n'
             '入力の Intent と Observation だけで要求した出力が得られたか判定する。外部知識で答えを推測・追加しない。Intent にない期待件数を仮定しない。\n'
+            + PLACE_FACTS +
             'データを取得したという報告だけでは、要求された調査結果を答えたことにはなりません。\n'
             '回答の値が 0 や空のとき、または値同士が矛盾するとき（例: 距離が数メートルなのに所要時間が99分）は、その値が正しいと分かる根拠が Observation に'
             'あるときだけ成功にする。数値が書かれているだけでは成功にしない。根拠が無ければ、取得方法の誤りを疑って失敗とする。\n'
@@ -111,6 +138,11 @@ class Critic:
             prompt += ('\nIntent が比較・選択・集計（比較の勝者、最大・最小、一覧からの選択、合計など）を求めるときは、その答えそのものが'
                        'Observation に値として出力されていなければならない。Observation の数値から自分で比較・計算して答えを導かない。'
                        '材料の数値だけで答えが出力されていなければ失敗とする。')
+        if code is not None:
+            prompt += CODE_HEADER + code
+            resources = _resources(code, intent)
+            if resources:
+                prompt += RESOURCES_HEADER + resources
         system_prompt = None
         if intent.previous_observations:
             system_prompt = ('Judge only the current returned Observation. Previous observations are reference evidence, '

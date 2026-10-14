@@ -125,3 +125,11 @@ def test_a_function_that_only_calls_a_saved_skill_is_not_saved_as_another_skill(
     result = run.execute(INTENT)
     assert result.learned_skill is None and library.names() == ['count_tag_in_area']
     assert result.called_skills == ('count_tag_in_area@v1',) and 'only calls' in result.note
+
+
+
+def test_the_critic_reads_the_code_of_the_attempt_that_ran(tmp_path):
+    first, repaired = SkillCandidate(NEW, 'count'), SkillCandidate(NEW.replace('return 3', 'return 4'), 'count')
+    run, _, (_, _, _, critic, _) = executor(tmp_path, [first, repaired], [FAILURE, [Observation('4')]])
+    run.execute(INTENT)
+    assert critic.check.call_args.kwargs['code'] == repaired.code

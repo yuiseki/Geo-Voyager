@@ -255,3 +255,43 @@ def test_the_earlier_observations_are_cut_to_a_budget_so_the_prompt_fits_the_con
     assert len(shown.encode('utf-8')) < REFERENCE_BUDGET + 1024
     assert '千代田区' in shown                                       # a short one is kept whole
     assert '以下略' in shown and f'全 {len(pairs.text.encode("utf-8"))} バイト' in shown
+
+
+# Stage 4 (2026-10-14): 35 stored Critic calls judged by hand. Asked as they were, 28 were right. With the code that
+# ran, the services and datasets it read, and the rule on facts of single places, 34: it saw that goal 4 counted the
+# first ward only, stopped calling the right 57 pairs wrong for lacking 港区-目黒区 or holding 大田区-江戸川区, and read
+# from the GeoSPARQL description that gs:Ward is the 23 wards.
+SPARQL_COUNT = ('import json\nfrom geo_voyager.control_primitives import call_service\n\n\n'
+                'def count_touching_pairs():\n    """Count."""\n'
+                '    return json.loads(call_service("yuisekin-geosparql", path="/geo/sparql", params={"query": "q"}))\n')
+
+
+def test_a_step_is_judged_with_the_code_that_ran_and_what_it_read():
+    client = Mock(); client.generate.return_value = '判定: 成功\n理由: 件数がある'
+    Critic(client).check(Intent('gs:Ward の sfTouches の区対を数える', service_ids=('yuisekin-geosparql',)),
+                         [Observation('{"count": 57}')], code=SPARQL_COUNT)
+    prompt = client.generate.call_args.args[0]
+    assert 'この Observation を出力したコード' in prompt and 'count_touching_pairs' in prompt
+    assert 'yuisekin-geosparql: YuisekinGeoSPARQLのpinned geographic graph。東京23区の全23個の gs:Ward' in prompt
+
+
+def test_a_dataset_the_code_reads_by_its_argument_is_described_too():
+    code = ('from geo_voyager.control_primitives import connect_duckdb, read_table\n\n\n'
+            'def wards(dataset_id):\n    """Wards."""\n    with connect_duckdb() as connection:\n'
+            '        return read_table(connection, dataset_id, "municipalities").count("*").fetchone()[0]\n')
+    client = Mock(); client.generate.return_value = '判定: 成功\n理由: ok'
+    Critic(client).check(intent(), [Observation('{"count": 23}')], code=code)
+    assert 'yuiseki/jp-admin-2026-09: デジタル庁のアドレス・ベース・レジストリ' in client.generate.call_args.args[0]
+
+
+def test_without_the_code_there_is_no_code_section():
+    client = Mock(); client.generate.return_value = '判定: 成功\n理由: ok'
+    Critic(client).check(intent(), [Observation('世田谷区 943664')])
+    assert 'この Observation を出力したコード' not in client.generate.call_args.args[0]
+
+
+def test_facts_of_single_places_from_the_models_knowledge_are_no_reason_to_fail():
+    client = Mock(); client.generate.return_value = '判定: 成功\n理由: ok'
+    Critic(client).check(intent(), [Observation('世田谷区 943664')])
+    prompt = client.generate.call_args.args[0]
+    assert '個々の地物についての事実' in prompt and '値が 0 や空のこと、件数の桁が明らかに合わないことは疑ってよい' in prompt
