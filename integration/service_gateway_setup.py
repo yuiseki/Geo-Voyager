@@ -8,7 +8,7 @@ from integration.test_tokyo23_gateway import docker
 def gateway_code(*, with_datasets=False, mirror_dir=None):
     """Service Gateway. with_datasets also serves the registered Parquet datasets.
 
-    mirror_dir is where the Gateway finds local copies of the tables (bench.dataset_mirror), inside its container.
+    mirror_dir is where the Gateway finds local copies of the tables (geo_voyager.dataset_mirror), inside its container.
     Dataset download URLs are resolved at startup, so the gateway waits for /tmp/start,
     which wait_for_gateway(start=True) touches once the external network is attached.
     """
