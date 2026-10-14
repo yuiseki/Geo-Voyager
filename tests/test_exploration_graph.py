@@ -10,7 +10,7 @@ from unittest.mock import Mock
 
 from geo_voyager.critique import Critique
 from geo_voyager.execution_failure import ExecutionFailure
-from geo_voyager.exploration_graph import CheckedFailure, ExplorationGraph, checked_failures
+from geo_voyager.exploration_graph import CheckedFailure, ExplorationGraph, checked_failures, outcome
 from geo_voyager.goal_executor import AdaptiveGoalExecution
 from geo_voyager.goal_history import FinalCriticFailure, GoalHistory, HistoryEntry, PlannerFailure
 from geo_voyager.intent import Intent
@@ -76,6 +76,7 @@ def test_neither_the_record_nor_the_memory_carries_a_judgement_an_observation_or
         assert secret not in memory, secret
     assert "KeyError: 'name'" in memory and 'OutputTooLong' in memory and 'DuplicateRows' in memory
     assert 'max_steps' not in memory                                             # how it stopped can come from a Critic
+    assert 'reason' not in json.loads(stored)                                    # no Critic's reason is kept at all
 
 
 def test_a_hand_edited_record_can_not_slip_a_judgement_in(tmp_path):
@@ -126,3 +127,26 @@ def test_the_executor_passes_the_memory_to_every_call_of_the_planner():
     critic = Mock(); critic.check.return_value = Critique(True, 'ok')
     GoalExecutor(planner, Mock(), critic).execute_adaptive('G', memory='M')
     assert planner.next.call_args.kwargs['memory'] == 'M'
+
+
+def test_the_outcome_shown_to_the_curriculum_is_made_from_checked_failures_only(tmp_path):
+    graph = ExplorationGraph(tmp_path / 'exploration.jsonl')
+    graph.record(1, result(EVENTS, stop='final_critic_failed'), success=False, explored_at='t', elapsed=1.0)
+    graph.record(2, result(EVENTS[:2]), success=False, explored_at='t', elapsed=1.0)
+    graph.record(3, None, goal='H', success=False, explored_at='t', elapsed=1.0, error='TimeoutError: CRITIC_SECRET')
+    graph.record(4, result(EVENTS[:1], stop='done'), success=True, explored_at='t', elapsed=1.0)
+    failed, judged, broke, answered = (outcome(attempt) for attempt in graph.attempts())
+    for text in (failed, judged, broke, answered):
+        for secret in SECRETS:
+            assert secret not in text, secret
+        assert 'final_critic_failed' not in text and 'max_steps' not in text
+    assert failed.startswith('未達') and 'overpass で実行のエラー' in failed and 'Planner の応答が検査で拒まれた' in failed
+    assert judged == '未達' and broke == '未達' and answered == '答えが出た'
+
+
+def test_the_outcome_is_bounded_and_ignores_fields_added_by_hand():
+    many = [{'step': n, 'intent': 'x', 'resources': [f'service-{n}'], 'kind': 'execution_error', 'line': 'KeyError: a',
+             'critic_reason': 'CRITIC_SECRET'} for n in range(40)]
+    text = outcome({'goal': 'G', 'success': False, 'reason': 'CRITIC_SECRET', 'checked_failures': many})
+    assert len(text) <= 160 and 'CRITIC_SECRET' not in text and 'service-39' in text
+    assert outcome({'goal': 'G', 'success': False, 'reason': 'CRITIC_SECRET'}) == '未達'   # a record from before ADR 0011

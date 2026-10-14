@@ -6,7 +6,7 @@
 
 決まった Goal を解く代わりに、モデルが自分で次の Goal を立てる（[0003](../ADR/0003-three-graphs-and-skill-library.md)、記録は [2026-10-11_exploration.md](../reports/2026-10-11_exploration.md)）。
 
-- `geo_voyager/curriculum.py`: 次の Goal を 1 件だけ決める。読むのは、利用できるリソース、これまでの発見（新しいものから 20 件）、試した Goal とその結果（新しいものから 15 件）。
+- `geo_voyager/curriculum.py`: 次の Goal を 1 件だけ決める。読むのは、利用できるリソース、これまでの発見（新しいものから 20 件）、試した Goal とその結果（新しいものから 15 件）。結果は「答えが出た」か「未達」で、未達ならモデルを使わずに確かめた失敗の種類と資源だけを添える。Critic の理由と止まり方は読まない（[0011](../ADR/0011-exploration-graph-checked-failures.md)）。
 - `geo_voyager/world_graph.py`: 答えが出た Goal（DONE で終わり、最終 Critic も成功）を、答え、成功した step、使ったリソース、判明した対象（名前と安定 ID）とともに記録する。
 - `geo_voyager/exploration_graph.py`: 試した Goal を 1 件 1 行で記録する。次に同じ Goal を試す Planner には、前の試行のうちモデルを使わずに確かめた失敗（実行のエラー、時間切れ、コードや Planner の契約違反、出力の上限超え、同じ行の重複）だけを渡す。Critic の判定と理由、Observation、stdout、Planner の応答は渡さない（[0011](../ADR/0011-exploration-graph-checked-failures.md)）。
 - Skill library、World Graph、試した Goal の記録は Goal をまたいで引き継ぐ。`--replay FILE` で、curriculum の代わりに決まった Goal の一覧を流せる（評価用の Goal はこれで流す。[0009](../ADR/0009-held-out-evaluation-goals.md)）。

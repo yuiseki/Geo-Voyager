@@ -18,6 +18,7 @@ from .goal_history import HistoryEntry, PlannerFailure
 
 LINE_LIMIT = 250
 MEMORY_LIMIT = 2500
+OUTCOME_LIMIT = 160
 KINDS = {
     'execution_error': '実行のエラー',
     'timeout': '実行の時間切れ',
@@ -84,6 +85,28 @@ def checked_failures(events) -> tuple[CheckedFailure, ...]:
     return tuple(kept)
 
 
+def outcome(attempt: dict) -> str:
+    """How a try of a Goal ended, for the curriculum: answered, or not answered with the kinds of the failures checked
+    without a model and where they happened. How it stopped is left out: a Critic can decide it (final_critic_failed),
+    and a step the Critic rejected is not counted (ADR 0011)."""
+    if attempt['success']:
+        return '答えが出た'
+    failures = [CheckedFailure.from_dict(row) for row in attempt.get('checked_failures', [])]
+    kinds = list(dict.fromkeys((f'{", ".join(failure.resources)} で' if failure.resources else '') + KINDS[failure.kind]
+                               for failure in failures))
+    if not kinds:
+        return '未達'
+    head, tail = '未達（モデルを使わずに確かめた失敗: ', '）'
+    kept, size = [], len(head) + len(tail)
+    for kind in reversed(kinds):
+        if size + len(kind) + 1 > OUTCOME_LIMIT:
+            kept.append('…')
+            break
+        kept.append(kind)
+        size += len(kind) + 1
+    return head + '、'.join(reversed(kept)) + tail
+
+
 class ExplorationGraph:
     """Every Goal exploration tried, one JSON line each, appended as it goes."""
 
@@ -96,9 +119,8 @@ class ExplorationGraph:
         """Add the try of a Goal. result is None when the Goal broke (error says how)."""
         row = {
             'number': number, 'goal': result.goal if result is not None else goal, 'curriculum_reason': curriculum_reason,
-            'success': success, 'stop_reason': result.stop_reason if result is not None else 'error',
-            # Read by the curriculum only, not by the next try of the Goal (ADR 0011, the path left).
-            'reason': result.critique.reason if result is not None else error,
+            # stop_reason and error are for whoever reads the record; neither reaches a model (ADR 0011).
+            'success': success, 'stop_reason': result.stop_reason if result is not None else 'error', 'error': error,
             'steps': len(result.history) if result is not None else None,
             'elapsed': elapsed, 'explored_at': explored_at, 'memory': memory,
             'checked_failures': [asdict(failure) for failure in checked_failures(result.events)] if result is not None else [],

@@ -12,7 +12,10 @@ def curriculum(reply):
 
 FINDING = {'goal': '渋谷区のカフェの数', 'answer': '{"tag": "amenity=cafe", "count": 459}', 'critic_reason': 'ok',
            'steps': [], 'resources': ['overpass'], 'targets': [{'name': '渋谷区', 'id_type': 'relation_id', 'id_value': '1759477'}]}
-ATTEMPT = {'goal': '23区で最も人口の多い区', 'success': False, 'stop_reason': 'max_steps', 'reason': 'Goal を完了できなかった: max_steps'}
+ATTEMPT = {'goal': '23区で最も人口の多い区', 'success': False, 'stop_reason': 'final_critic_failed',
+           'reason': 'CRITIC_SECRET 答えの根拠が無い',
+           'checked_failures': [{'step': 2, 'intent': '区の中心点', 'resources': ['overpass'], 'kind': 'execution_error',
+                                 'line': 'AssertionError: no center in element', 'critic_reason': 'CRITIC_SECRET'}]}
 
 
 def test_the_curriculum_proposes_one_goal_with_its_reason():
@@ -20,9 +23,11 @@ def test_the_curriculum_proposes_one_goal_with_its_reason():
     proposed = agent.propose([FINDING], [ATTEMPT])
     assert proposed == ProposedGoal('新宿区の amenity=cafe の数を求める', '渋谷区と比べる材料にする')
     prompt = client.generate.call_args.args[0]
-    for text in ('渋谷区のカフェの数', '"count": 459', '渋谷区 (relation_id=1759477)', '23区で最も人口の多い区', 'max_steps',
-                 'Service overpass', 'Dataset yuiseki/jp-admin-2026-09', '少しずつ難しく', 'まだ分かっていない'):
+    for text in ('渋谷区のカフェの数', '"count": 459', '渋谷区 (relation_id=1759477)', '23区で最も人口の多い区',
+                 '未達（モデルを使わずに確かめた失敗: overpass で実行のエラー）', 'Service overpass', 'Dataset yuiseki/jp-admin-2026-09', '少しずつ難しく', 'まだ分かっていない'):
         assert text in prompt
+    # A Critic's reason, and how the Goal stopped (which a Critic can decide), do not reach the curriculum (ADR 0011).
+    assert 'CRITIC_SECRET' not in prompt and 'final_critic_failed' not in prompt
 
 
 def test_the_prompt_starts_from_nothing_when_nothing_is_known():
