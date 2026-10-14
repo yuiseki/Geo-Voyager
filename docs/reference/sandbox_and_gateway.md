@@ -95,6 +95,16 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest integration/test_worker_image.
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest integration/test_tokyo23_gateway.py -q -s -W error
 ```
 
+control primitives と参照（`dataset_references.json` など）は、build のときにイメージへ写します。
+リポジトリでこれらを変えたら、イメージを作り直します。`bench.infra.benchmark_environment` は、
+イメージの中のファイルとリポジトリのファイルの sha256 を比べ、違えば実行を断ります
+（`require_current_image`）。作り直さずに流した 4 つの Goal が、古い primitives
+（DuckDB 64 MB）の失敗をモデルの失敗のように記録したためです。
+
+```bash
+docker build --tag geo-voyager-worker:duckdb-1.5.6-rasterio-1.5.1 --file docker/worker/Dockerfile .
+```
+
 Dataset に任意の1ファイルを指す optional `data_url` だけを追加しました。
 `url` は紹介ページとして保持し、行政区 Dataset の `data_url` に固定 revision の
 `municipalities.parquet` を登録しています。ファイル一覧や任意 path API はありません。
