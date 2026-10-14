@@ -43,7 +43,7 @@ def test_the_planner_is_shown_these_texts_and_they_fit_the_context():
     prompt = client.generate.call_args.args[0]
     texts = [planner_text(dataset.id) for dataset in load_readable_dataset_graph().all()]
     assert all(f'Dataset {dataset.id}: {text}' in prompt for dataset, text in zip(load_readable_dataset_graph().all(), texts))
-    assert sum(len(text) for text in texts) < 2000                                    # the prompt has 8192 tokens in all
+    assert sum(len(text) for text in texts) < 2500           # the context is 16,384 tokens; the largest prompts are ~26 KB
 
 
 def test_the_curriculum_is_shown_them_too_and_the_first_plan_route_keeps_the_catalog():
@@ -79,3 +79,10 @@ def test_the_centre_of_a_ward_is_the_representative_point_of_jp_admin_not_an_ove
     plan.next('g', GoalHistory())
     prompt = plan.llm_client.generate.call_args.args[0]
     assert 'Overpass で求めない' in prompt and 'area 要素は out center を付けても center を返さない' in prompt
+
+
+def test_the_planner_is_told_a_columns_note_on_how_to_use_it_as_the_generator_is():
+    # jp-admin's geometry note (take touching pairs with ST_Intersects) reached the Generator's table text only; the
+    # Planner, which decides what a step measures, was not told.
+    text = planner_text('yuiseki/jp-admin-2026-09')
+    assert 'ST_Intersects' in text and 'ST_Touches' in text
