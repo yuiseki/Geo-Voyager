@@ -77,10 +77,10 @@ def test_the_prompt_shows_what_the_history_holds():
     prompt = client.generate.call_args.args[0]
     for shown in ['港区の relation_id を取得する', '"relation_id": "1761717"',          # intent and observation
                   '港区内の病院数', 'KeyError: 0', 'Generated Python execution failed',  # a failed step and why
-                  '件数が答えられている',                                              # the Critic's verdict
                   'count_tag_in_area@v2', 'compare_counts@v1',                          # skill called and learned
                   '判明した対象', '港区', '1761717']:                                    # the targets made known
         assert shown in prompt, shown
+    assert '件数が答えられている' not in prompt                                    # an acceptance's words are not shown
 
 
 def test_the_prompt_tells_the_model_how_to_use_known_targets_and_when_to_stop():

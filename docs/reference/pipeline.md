@@ -18,10 +18,11 @@ Goal
  └ GoalExecutor.execute_adaptive                         geo_voyager/goal_executor.py
     ├ Planner.next(goal, history) -> Intent | DONE       geo_voyager/planner.py
     │    履歴（GoalHistory）を読んで次の Intent を 1 件決める。対象は「対象:」、出力の名前は「結果名:」、使う前の結果は「入力:」
+    │    履歴の各手は、結果（成功、実行失敗、Critic が不十分と判定）と Observation。Critic の理由は、棄却された手だけに添える
     ├ IntentExecutor.execute(intent)                     geo_voyager/intent_executor.py
     │    ├ SkillRetriever                 近い Skill（名前付き関数）を検索（embedding: embeddinggemma）
     │    ├ SkillCandidateGenerator        Skill を呼んでよいコードを生成（新しい関数は 1 つまで）
-    │    ├ Worker -> DockerSandbox        呼ぶ Skill をリンクして sandbox で実行（Gateway 経由でのみ外部へ、既定 30 秒）
+    │    ├ Worker -> DockerSandbox        呼ぶ Skill をリンクして sandbox で実行（Gateway 経由でのみ外部へ、既定 60 秒）
     │    ├ SkillCandidateRepairer         実行が失敗したら traceback を見て直す（最大 2 回）
     │    ├ Critic.check                   Observation が Intent に答えたか判定
     │    └ （Critic が成功なら）新しい関数を Skill として名前と版で保存
@@ -63,7 +64,7 @@ LLM の出力に対する決定的な検査（モデルを使わない。単体�
 | `対象:` は 1 Intent に 1 行 | `planner._extract_target` | Planner | [2026-10-09_identity_references.md](../reports/2026-10-09_identity_references.md) |
 | `id_type` を固定の文字列と比べない（`id_type == "relation"`） | `id_type_literals.id_type_comparisons` | Generator と runtime repair（対象に ID があるとき） | [2026-10-09_entity_target_e2e.md](../reports/2026-10-09_entity_target_e2e.md) |
 | ローカル集計は、測定値の欠落を数値や None の既定値で代用しない、Observation を位置で選ばない | `contracts.code.local_aggregation_violations` | Generator と runtime repair（`requires_context` の Intent） | [0005-local-aggregation-contract.md](../ADR/0005-local-aggregation-contract.md) |
-| 2 行以上ある入力（`results[...]`）の行を位置で選ばない（`area_ids[0]` など。ループや内包表記を通しても追う） | `contracts.code.positional_input_picks` | Generator と runtime repair（入力のある Intent） | 2026-10-14。過去のコード 607 件で 12 件を検出し、すべて 1 区だけを数えた誤り |
+| 2 行以上ある入力（`results[...]`）の行を位置で選ばない（`area_ids[0]` など。ループや内包表記を通しても追う）。長さを k と確かめて 0 から k-1 をすべて位置で使う（経路の起点と終点）のは選択ではないので除く | `contracts.code.positional_input_picks` | Generator と runtime repair（入力のある Intent） | 2026-10-14。過去のコード 607 件で 12 か所を検出し、すべて 1 区だけを数えた誤り。除く条件を足したあと、647 件で同じ 12 か所を検出し、2 点の経路の 9 件は検出しない |
 | 出力が 8 KiB を超えない（超えたら切らずに失敗、`OutputTooLong`） | `execution_failure.sandbox_program` | sandbox | 2026-10-14 |
 | 出力の JSON の一覧に、まったく同じ行が無い（`DuplicateRows`） | `contracts.output.output_problem` | Worker（Critic の前） | 2026-10-14。ekidata の 1 行は路線上の駅 |
 | repair が、失敗に出た必須キーを `.get(k, 既定値)` や握りつぶす except で隠さない | `default_fallback.introduced_fallbacks` | runtime repair | [2026-10-09_runtime_repair_defaults.md](../reports/2026-10-09_runtime_repair_defaults.md) |

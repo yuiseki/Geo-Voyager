@@ -170,3 +170,17 @@ def test_a_step_gets_the_results_it_names_in_its_order():
     wanted = Intent('比べる', requires_context=True, inputs=('stations', 'wards'))
     assert [o.text for o in history.inputs_of(wanted)] == ['[2]', '[1]']
     assert history.inputs_of(Intent('次', service_ids=('overpass',), inputs=())) == ()
+
+
+def test_the_planner_sees_the_critics_reason_of_a_rejected_step_but_not_of_an_accepted_one():
+    # a_run3: a change to the Critic's prompt changed the words of its acceptances, and the Planner's next Intents
+    # changed with them from step 2. An accepted step is shown as accepted, with what it output.
+    from geo_voyager.goal_history import render_history
+    history = GoalHistory()
+    history.append(entry(1, critique=Critique(True, 'ACCEPTED_SECRET 23 区の一覧が得られている')))
+    history.append(entry(2, ok=False, critique=Critique(False, '駅が 0 件で、根拠が無い')))
+    text = render_history(history)
+    assert 'ACCEPTED_SECRET' not in text
+    first, second = text.split('step 2:')
+    assert '結果: 成功' in first and '"name": "渋谷区"' in first
+    assert 'Critic: 失敗: 駅が 0 件で、根拠が無い' in second

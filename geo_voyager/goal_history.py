@@ -197,8 +197,10 @@ def render_history(history: GoalHistory) -> str:
             lines.append(f'  入力: {", ".join(intent.inputs)}')
         if entry.failure is not None:
             lines.append('  実行失敗: ' + (error_line(entry.failure) or entry.failure.message))
-        if entry.critique is not None:
-            lines.append(f'  Critic: {"成功" if entry.critique.success else "失敗"}: {entry.critique.reason}')
+        # Why a step was rejected is what the Planner needs to try again. An acceptance is shown by the status and the
+        # Observations only: its free words changed with the Critic's prompt and moved the Planner's next steps.
+        if entry.critique is not None and not entry.critique.success:
+            lines.append(f'  Critic: 失敗: {entry.critique.reason}')
         lines += [f'  Observation: {_bounded(observation.text)}' for observation in entry.observations[:OBSERVATIONS_SHOWN]]
         if entry.called_skills:
             lines.append(f'  呼んだ Skill: {", ".join(entry.called_skills)}')

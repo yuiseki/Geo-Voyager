@@ -109,5 +109,32 @@ def positional_input_picks(code: str) -> list[str]:
                     if isinstance(inner, ast.Call) and isinstance(inner.func, ast.Attribute) and inner.func.attr == 'append' \
                             and isinstance(inner.func.value, ast.Name) and any(_mentions(arg, per_row) for arg in inner.args):
                         rows.add(inner.func.value.id)
-    return [ast.unparse(node) for node in ast.walk(tree)
-            if isinstance(node, ast.Subscript) and is_rows(node.value) and _is_position(node.slice)]
+    picks = [node for node in ast.walk(tree)
+             if isinstance(node, ast.Subscript) and is_rows(node.value) and _is_position(node.slice)]
+    whole = _every_place_of_a_checked_length(tree, picks)
+    return [ast.unparse(node) for node in picks if ast.unparse(node.value) not in whole]
+
+
+def _checked_lengths(tree: ast.AST) -> dict[str, set[int]]:
+    """len(x) == k or len(x) != k anywhere in the code (either side): {x: {k}}."""
+    lengths: dict[str, set[int]] = {}
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Compare) and len(node.ops) == 1 and isinstance(node.ops[0], (ast.Eq, ast.NotEq))):
+            continue
+        for sized, size in ((node.left, node.comparators[0]), (node.comparators[0], node.left)):
+            if isinstance(sized, ast.Call) and isinstance(sized.func, ast.Name) and sized.func.id == 'len' \
+                    and len(sized.args) == 1 and isinstance(size, ast.Constant) and type(size.value) is int:
+                lengths.setdefault(ast.unparse(sized.args[0]), set()).add(size.value)
+    return lengths
+
+
+def _every_place_of_a_checked_length(tree: ast.AST, picks: list[ast.Subscript]) -> set[str]:
+    """The inputs whose length the code checks to be k and whose rows 0 to k-1 it all takes by place: the start and
+    the end of a route. Every row is used, so no place is a choice (a_run3, Goal 5). Taking row 0 of 23 checked
+    wards is still a choice."""
+    places: dict[str, set[int]] = {}
+    for node in picks:
+        index = node.slice.value if isinstance(node.slice, ast.Constant) else None
+        places.setdefault(ast.unparse(node.value), set()).add(index)
+    lengths = _checked_lengths(tree)
+    return {rows for rows, taken in places.items() if any(taken == set(range(k)) for k in lengths.get(rows, ()))}

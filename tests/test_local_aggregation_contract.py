@@ -118,3 +118,40 @@ def test_other_positional_picks_of_input_rows_are_found(code, expected):
 def test_what_uses_every_row_or_selects_by_condition_is_not_found(code):
     from geo_voyager.contracts.code import positional_input_picks
     assert positional_input_picks(code) == []
+
+
+# a_run3, Goal 5, steps 5 and 6: the two ward centres were the start and the end of one route. The code checked there
+# were two and used both by place; the check refused it twice, and the third reply, told to select rows by name,
+# wrote 世田谷区 and 大田区 into the body of the function.
+START_AND_END = '''
+def route_between_two_points(results, costing="auto"):
+    """Route between the two points of the input."""
+    centers = results["max_pair_ward_centers"]
+    if len(centers) != 2:
+        raise ValueError("Expected 2 ward centers")
+    origin = centers[0]
+    destination = centers[1]
+    return route_summary(origin["lat"], origin["lon"], destination["lat"], destination["lon"], costing=costing)
+'''
+
+
+@pytest.mark.parametrize('code', [
+    START_AND_END,
+    'points = results["p"]\nassert len(points) == 2\na, b = points[0], points[1]',
+    'points = results["p"]\nif 2 != len(points):\n    raise ValueError\nroute(points[1], points[0])',
+    'origin, destination = results["p"]',                                      # unpacking takes every row
+])
+def test_every_row_used_by_place_after_checking_how_many_there_are_is_not_found(code):
+    from geo_voyager.contracts.code import positional_input_picks
+    assert positional_input_picks(code) == []
+
+
+@pytest.mark.parametrize('code, expected', [
+    ('points = results["p"]\nroute(points[0], points[1])', ['points[0]', 'points[1]']),   # how many is not checked
+    ('points = results["p"]\nassert len(points) == 3\nroute(points[0], points[1])', ['points[0]', 'points[1]']),
+    ('wards = results["w"]\nassert len(wards) == 23\nfirst = wards[0]', ['wards[0]']),     # one of the 23 wards
+    ('points = results["p"]\nassert len(points) == 2\nroute(points[0], points[-1])', ['points[0]', 'points[-1]']),
+])
+def test_some_rows_by_place_are_still_found_when_how_many_is_checked(code, expected):
+    from geo_voyager.contracts.code import positional_input_picks
+    assert positional_input_picks(code) == expected
