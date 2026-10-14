@@ -74,3 +74,18 @@ def test_zones_with_a_geometry_alone_are_summed_in_their_order(tmp_path, monkeyp
     sums = population_grid.sum_population_grid(connection, zones)
     assert sums.columns == ['estimated_population']
     assert [row[0] for row in sums.fetchall()] == [3.0, 8.0]          # the missing pixel is no one
+
+
+def test_the_generator_is_told_the_limit_of_zones_the_primitive_has():
+    # The limit was raised to 2,000 for the 1,741 municipalities of Japan, and the prompt still said 100.
+    from geo_voyager.control_primitives.population_grid import MAX_ZONES
+    from geo_voyager.intent import Intent
+    from geo_voyager.skill_candidate_generator import SkillCandidateGenerator
+    client = Mock()
+    client.generate.return_value = '説明:\nx\n---\nコード:\n```python\ndef f():\n    return 1\n```'
+    try:
+        SkillCandidateGenerator(client).generate(Intent('市区町村ごとの推計人口', dataset_ids=(WORLDPOP,)))
+    except Exception:
+        pass
+    prompt = client.generate.call_args.args[0]
+    assert f'一度に{MAX_ZONES:,}区域まで' in prompt and '一度に100区域まで' not in prompt

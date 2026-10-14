@@ -3,6 +3,7 @@ import json
 from .id_type_literals import id_type_comparisons
 from .intent import Intent
 from .contracts.code import local_aggregation_violations, positional_input_picks
+from .control_primitives.population_grid import MAX_ZONES
 from .background_facts import facts_section
 from .contracts.tables import table_contract
 from .skill_candidate import entry_problems, main_function_name, rewritten_skills, service_calls, skill_shape_problems, unpassed_runtime_reads, called_service_ids, intent_element_type, overpass_element_mismatch, read_datasets, calls_any, DATASET_READERS_NOTE
@@ -248,7 +249,7 @@ class SkillCandidateGenerator:
             '地域は filter の条件で絞る（下の「名前のついた地域」）。行政コードを推測・生成しない。\n'
             '- sum_population_grid(connection, zones): 人口格子 Dataset（yuiseki/worldpop-jp-2026-01、WorldPop の2020年100m推計人口）の画素を、'
             'zones（geometry 列を持つ relation。例: read_table で読んだ境界）の区域ごとに、画素の中心が入るものだけ足す。\n'
-            'zones の geometry 以外の列と estimated_population（推計人口、小数）を返す。国勢調査の population とは別の値。一度に100区域まで。\n'
+            f'zones の geometry 以外の列と estimated_population（推計人口、小数）を返す。国勢調査の population とは別の値。一度に{MAX_ZONES:,}区域まで。\n'
             'Intent が宣言した Dataset だけを読む。宣言していない Dataset を読まない。\n'
             + (f'Intent の Dataset の表:\n{table_contract(intent.dataset_ids)}\n' if intent.dataset_ids else '') +
             '返り値は DuckDB relation であり pandas DataFrame ではない。\n'
