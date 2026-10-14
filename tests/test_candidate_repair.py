@@ -294,6 +294,17 @@ def test_a_step_that_is_not_a_local_aggregation_is_not_checked_for_position():
     assert llm.generate.call_count == 1
 
 
+def test_a_repair_that_answers_for_the_first_row_of_an_input_is_asked_again():
+    first = 'ids = [w["id"] for w in results["wards"]]\nprint(ids[0])'
+    every = 'ids = [w["id"] for w in results["wards"]]\nprint(ids)'
+    llm = Mock(); llm.generate.side_effect = [code_reply(first), code_reply(every)]
+    repairer = SkillCandidateRepairer(llm)
+    intent = Intent('入力の区を数える', service_ids=('overpass',), inputs=('wards',),
+                    previous_observations=(Observation('[{"id": 1}, {"id": 2}]'),))
+    result = repairer.repair(intent, SkillCandidate('print(results["x"])', '入力の区を数える'), COUNT_ALL)
+    assert result.code == every and repairer.rejected_fallbacks == [['ids[0]']]
+
+
 def test_a_repair_that_turns_a_function_back_into_a_script_is_asked_again():
     original = 'def count(intent_target):\n    """Count."""\n    return intent_target["x"]'
     script = 'print(1)'

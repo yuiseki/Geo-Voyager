@@ -1,7 +1,8 @@
+import json
 
 from .id_type_literals import id_type_comparisons
 from .intent import Intent
-from .local_aggregation_contract import local_aggregation_violations
+from .local_aggregation_contract import local_aggregation_violations, positional_input_picks
 from .background_facts import facts_section
 from .table_contracts import table_contract
 from .skill_candidate import entry_problems, main_function_name, rewritten_skills, service_calls, skill_shape_problems, unpassed_runtime_reads, called_service_ids, intent_element_type, overpass_element_mismatch, read_datasets, calls_any, DATASET_READERS_NOTE
@@ -74,6 +75,26 @@ def _local_note(found: list[str]) -> str:
     return ('\n\n前回の応答は拒否された。ローカル集計のコードが契約を破っている: ' + '; '.join(found)
             + '。測定値の欠落を get の既定値（0 など）で代用しない。Observation を番号や位置で選ばない。'
               '前段の object は name と ID で選び（条件で絞った一覧の先頭は可）、必須のキーは [] で取り、無ければ例外にする。')
+
+
+def _input_rows_note(found: list[str]) -> str:
+    return ('\n\n前回の応答は拒否された。入力の行を位置で選んでいる: ' + '; '.join(found)
+            + '。入力は前の手が見つけたもの全体で、並び順に意味は無い。先頭の 1 行だけを使うと、全体の答えに見える 1 行分の値になる。'
+              'すべての行を使うか、行は名前や ID の条件で選ぶ。')
+
+
+def several_input_rows(intent: Intent) -> bool:
+    """Whether an input of the step is a list of more than one row: then a row picked by its place is a choice."""
+    if not intent.inputs:
+        return False
+    for observation in intent.previous_observations:
+        try:
+            value = json.loads(observation.text)
+        except ValueError:
+            continue
+        if isinstance(value, list) and len(value) > 1:
+            return True
+    return False
 
 
 def _shape_note(found: list[str]) -> str:
@@ -205,6 +226,10 @@ def contract_problems(intent: Intent, code: str, shown: tuple[str, ...] = ()) ->
         found = local_aggregation_violations(code, len(intent.previous_observations))
         if found:
             problems.append(('local aggregation: ' + '; '.join(found), _local_note(found)))
+    if several_input_rows(intent):
+        found = positional_input_picks(code)
+        if found:
+            problems.append(('input rows: ' + '; '.join(found), _input_rows_note(found)))
     return problems
 
 

@@ -2,7 +2,7 @@ from typing import Sequence
 
 from .default_fallback import introduced_fallbacks
 from .id_type_literals import id_type_comparisons
-from .local_aggregation_contract import local_aggregation_violations
+from .local_aggregation_contract import local_aggregation_violations, positional_input_picks
 from .skill_candidate import entry_problems
 from .execution_attempt import ExecutionAttempt
 from .execution_failure import ExecutionFailure, bounded_output
@@ -13,7 +13,7 @@ from .llama_client import LlamaClient
 from .services import load_service_graph
 from .skill_candidate import SkillCandidate
 from .contracts import primitive_contract
-from .skill_candidate_generator import _parse_candidate, named_inputs
+from .skill_candidate_generator import _parse_candidate, named_inputs, several_input_rows
 
 
 # Zero, as everywhere in the loop: the same failure gets the same repair, so a run can be replayed and two runs
@@ -88,6 +88,7 @@ class SkillCandidateRepairer:
             hidden = introduced_fallbacks(candidate.code, repaired.code, failure.stderr)
             guesses = id_type_comparisons(repaired.code) if intent.target is not None and intent.target.resolved else []
             guesses += local_aggregation_violations(repaired.code, len(intent.previous_observations)) if intent.requires_context else []
+            guesses += positional_input_picks(repaired.code) if several_input_rows(intent) else []
             # code written as a function stays a function the environment can call
             guesses += entry_problems(repaired.code) if not entry_problems(candidate.code) else []
             if not hidden and not guesses:

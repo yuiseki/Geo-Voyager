@@ -76,3 +76,45 @@ def test_observations_passed_to_a_function_are_followed_into_it():
 def test_a_keyword_argument_is_followed_too():
     code = 'def f(xs):\n    """F."""\n    return xs[1]\n\nf(xs=previous_observations)'
     assert local_aggregation_violations(code) == ['xs[1]']
+
+
+# memory_run1b, goal 4: the code made 23 area ids from the 23 wards it was given and counted footways in the first
+# only (豊島区). It printed {"count": 2463}; the 23 wards have 93,108. The Critic saw the count, not the code.
+FIRST_OF_THE_INPUT = '''
+def count_footway(results=None):
+    """Count footways in the wards."""
+    wards = results["tokyo_23_ward_relation_ids"]
+    area_ids = []
+    for item in wards:
+        relation_id = int(item["relation_id"])
+        area_id = relation_id + 3600000000
+        area_ids.append(area_id)
+    query = f'nwr["highway"="footway"](area:{area_ids[0]});out count;'
+    return query
+'''
+
+
+def test_the_first_row_of_an_input_is_found_through_a_loop():
+    from geo_voyager.local_aggregation_contract import positional_input_picks
+    assert positional_input_picks(FIRST_OF_THE_INPUT) == ['area_ids[0]']
+
+
+@pytest.mark.parametrize('code, expected', [
+    ('wards = results["w"]\nfirst = wards[0]', ['wards[0]']),
+    ('first = results["w"][-1]', ["results['w'][-1]"]),
+    ('ids = [w["id"] for w in results["w"]]\nx = ids[1]', ['ids[1]']),
+])
+def test_other_positional_picks_of_input_rows_are_found(code, expected):
+    from geo_voyager.local_aggregation_contract import positional_input_picks
+    assert positional_input_picks(code) == expected
+
+
+@pytest.mark.parametrize('code', [
+    'tokyo = [w for w in results["w"] if w["name"] == "東京"][0]',            # selected by a condition
+    'ids = [w["id"] for w in results["w"]]\nq = ",".join(map(str, ids))',     # every row used
+    'payload = json.loads(call_service("overpass"))\nn = payload["elements"][0]',  # a response, not an input
+    'for w in results["w"]:\n    parts = w["name"].split()\n    head = parts[0]',  # a field of one row
+])
+def test_what_uses_every_row_or_selects_by_condition_is_not_found(code):
+    from geo_voyager.local_aggregation_contract import positional_input_picks
+    assert positional_input_picks(code) == []

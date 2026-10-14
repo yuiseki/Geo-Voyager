@@ -66,3 +66,48 @@ def local_aggregation_violations(code: str, observation_count: int | None = None
                 and _is_false_default(node.args[1]):
             found.append(ast.unparse(node))
     return found
+
+
+def _is_input(node: ast.AST) -> bool:
+    """results["name"]: an input of the step, a list of rows when the earlier step returned one."""
+    return isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name) and node.value.id == 'results' \
+        and isinstance(node.slice, ast.Constant) and isinstance(node.slice.value, str)
+
+
+def positional_input_picks(code: str) -> list[str]:
+    """The rows of an input picked by their place: wards[0], or ids[0] of a list made from every row.
+
+    An input is the whole of what an earlier step found (the 23 wards), and its order means nothing. Code that
+    takes its first row answers for one row and still prints a value that looks like the answer for all: in
+    memory_run1b, goal 4 counted the footways of 豊島区 alone, 2,463 of 93,108, and the Critic passed it.
+    A row selected by a condition, a field of one row, and a response of a service are not inputs. Empty if the code
+    does not parse.
+    """
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return []
+    rows: set[str] = set()
+
+    def is_rows(node: ast.AST) -> bool:
+        if _is_input(node) or (isinstance(node, ast.Name) and node.id in rows):
+            return True
+        return isinstance(node, (ast.ListComp, ast.GeneratorExp)) and not _filters(node) \
+            and any(is_rows(generator.iter) for generator in node.generators)
+
+    for _ in range(3):
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Assign) and is_rows(node.value):
+                rows.update(target.id for target in node.targets if isinstance(target, ast.Name))
+            if isinstance(node, ast.For) and is_rows(node.iter) and isinstance(node.target, ast.Name):
+                # a list that gets a value made from each row holds every row, in the input's order
+                per_row = {node.target.id}
+                for inner in ast.walk(node):
+                    if isinstance(inner, ast.Assign) and _mentions(inner.value, per_row):
+                        per_row.update(target.id for target in inner.targets if isinstance(target, ast.Name))
+                for inner in ast.walk(node):
+                    if isinstance(inner, ast.Call) and isinstance(inner.func, ast.Attribute) and inner.func.attr == 'append' \
+                            and isinstance(inner.func.value, ast.Name) and any(_mentions(arg, per_row) for arg in inner.args):
+                        rows.add(inner.func.value.id)
+    return [ast.unparse(node) for node in ast.walk(tree)
+            if isinstance(node, ast.Subscript) and is_rows(node.value) and _is_position(node.slice)]

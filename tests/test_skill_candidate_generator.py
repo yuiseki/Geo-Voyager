@@ -459,6 +459,32 @@ def test_a_step_that_is_not_a_local_aggregation_is_not_checked_for_it():
     assert client.generate.call_count == 1
 
 
+FIRST_WARD = ('import json\nfrom geo_voyager.control_primitives import call_service\n\n\n'
+              'def count_footway(results=None):\n    """Count footways in the wards."""\n'
+              '    ids = [int(w["relation_id"]) + 3600000000 for w in results["wards"]]\n'
+              '    return json.loads(call_service("overpass", body=f"area:{ids[0]}"))["elements"][0]["tags"]["total"]')
+EVERY_WARD = FIRST_WARD.replace('area:{ids[0]}', 'area:{ids}')
+
+
+def _wards_intent(rows: str) -> Intent:
+    return Intent('入力の23区で highway=footway の要素を数える', service_ids=('overpass',), inputs=('wards',),
+                  previous_observations=(Observation(rows),))
+
+
+def test_code_that_answers_for_the_first_row_of_an_input_is_generated_again():
+    client = Mock(); client.generate.side_effect = [_reply(FIRST_WARD), _reply(EVERY_WARD)]
+    candidate = SkillCandidateGenerator(client).generate(
+        _wards_intent('[{"name": "豊島区", "relation_id": "1759506"}, {"name": "千代田区", "relation_id": "1761742"}]'))
+    assert candidate.code == EVERY_WARD and client.generate.call_count == 2
+    assert 'ids[0]' in client.generate.call_args_list[1].args[0]
+
+
+def test_the_first_row_of_an_input_of_one_row_is_that_row():
+    client = Mock(); client.generate.return_value = _reply(FIRST_WARD)
+    SkillCandidateGenerator(client).generate(_wards_intent('[{"name": "豊島区", "relation_id": "1759506"}]'))
+    assert client.generate.call_count == 1
+
+
 def test_one_earlier_observation_may_be_read_as_previous_observations_0():
     one = Intent('前段の件数を整形する', service_ids=('overpass',), requires_context=True,
                  previous_observations=(Observation('{"name": "渋谷区", "count": 459}'),))
