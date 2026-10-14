@@ -295,3 +295,15 @@ def test_facts_of_single_places_from_the_models_knowledge_are_no_reason_to_fail(
     Critic(client).check(intent(), [Observation('世田谷区 943664')])
     prompt = client.generate.call_args.args[0]
     assert '個々の地物についての事実' in prompt and '値が 0 や空のこと、件数の桁が明らかに合わないことは疑ってよい' in prompt
+
+
+def test_the_names_of_columns_to_read_and_values_carried_from_earlier_steps_are_no_reason_to_fail():
+    # Goal 5, step 4: the Intent read rep_lon and rep_lat to output lon and lat, and the code carried each ward's
+    # relation_id from the step before. The Critic rejected the right points for the column names and because the
+    # dataset read has no relation_id, and the Goal lost two steps each run. It needed both sentences to accept.
+    client = Mock(); client.generate.return_value = '判定: 成功\n理由: ok'
+    Critic(client).check(intent(), [Observation('世田谷区 943664')])
+    prompt = client.generate.call_args.args[0]
+    names = prompt.index('読む元の列の名前が出力のキーに無いことを、失敗の理由にしない')
+    carried = prompt.index('今回読んだデータやサービスがその種類の ID を持たないことを、失敗の理由にしない')
+    assert prompt.index('キー名の違いは失敗の理由にしない') < names < carried < prompt.index('Intent:\n')

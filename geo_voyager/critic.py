@@ -26,6 +26,13 @@ PLACE_FACTS = ('個々の地物についての事実（どの区とどの区が�
 CODE_HEADER = ('\n\nこの Observation を出力したコード（どう測ったかの根拠として読む。'
                'コードが Intent の対象の一部だけを測っている、または Intent と違う条件で測っているなら失敗。'
                'コードが Intent どおりに測っているなら、値の正しさを自分の知識で否定しない）:\n')
+# Goal 5, step 4: an Intent read the columns rep_lon and rep_lat to output lon and lat, and carried each ward's
+# relation_id from the step before; the Critic rejected the right points for both and the Goal lost two steps each run.
+# Either sentence alone left the other reason standing (docs/reports/2026-10-14_critic_stage5.md).
+READ_NAMES = ('Intent には、読む元のデータの列の名前（例: pop_2020）と、出力のキー名（例: population）の両方が出てくることがある。'
+              '読む元の列の名前が出力のキーに無いことを、失敗の理由にしない。\n')
+CARRIED = ('コードが入力（results や前段の Observation）から引き継いだ名前や ID は、前段で得た値である。'
+           '今回読んだデータやサービスがその種類の ID を持たないことを、失敗の理由にしない。\n')
 RESOURCES_HEADER = '\n\nコードが読んだサービスとデータの説明（コードが Intent の対象を正しく選んだかを照合するために読む）:\n'
 
 
@@ -99,6 +106,7 @@ class Critic:
             'Intent が出力のキー名を指定していても（例: cafe_count）、その値が別の意味の分かるキー（例: tag が amenity=cafe の count）で出力されていれば、'
             'キー名の違いは失敗の理由にしない。キー名ではなく、値と対象と条件が Intent の要求に合うかで判定する。'
             '実行環境の関数は、件数を count、条件を tag のような決まったキーで出力する。値そのものが無い、または別の値なら失敗。\n'
+            + READ_NAMES + CARRIED +
             '返答は次の2行だけにし、前置き・コードフェンスを付けないでください。\n'
             '判定: 成功\n理由: 理由の本文\n'
             '失敗の場合は1行目を「判定: 失敗」にしてください。理由も1行にしてください。\n\n'

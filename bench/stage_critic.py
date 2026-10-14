@@ -15,7 +15,7 @@ from pathlib import Path
 import re
 import time
 
-from geo_voyager.critic import CODE_HEADER, PLACE_FACTS, RESOURCES_HEADER
+from geo_voyager.critic import CARRIED, CODE_HEADER, PLACE_FACTS, READ_NAMES, RESOURCES_HEADER
 from geo_voyager.critique import Critique
 from geo_voyager.datasets import load_dataset_graph
 from geo_voyager.services import load_service_graph
@@ -23,15 +23,12 @@ from geo_voyager.skill_candidate import called_service_ids, read_datasets
 from geo_voyager.llama_client import LlamaClient
 
 ANCHOR = '入力の Intent と Observation だけで要求した出力が得られたか判定する。外部知識で答えを推測・追加しない。Intent にない期待件数を仮定しない。\n'
-# Made in geo_voyager.critic after stage 4 (the variant all); a prompt the current Critic wrote already has them.
+# Made in geo_voyager.critic after stage 4 (the variant all) and stage 5 (all+both, hypotheses 3 and 4: an Intent
+# names the column to read and the key to output; a relation_id carried from the step before is not of the dataset
+# read). A prompt the current Critic wrote already has them.
 KEY_ANCHOR = '値そのものが無い、または別の値なら失敗。\n'
-# Hypothesis 3: an Intent names the column to read (rep_lon) and the key to output (lon); the Critic read the first as
-# the second. Hypothesis 4: it rejected a relation_id the code carried from the step before, because the dataset the
-# code read has no relation_id.
-READ_NAMES = ('Intent には、読む元のデータの列の名前（例: pop_2020）と、出力のキー名（例: population）の両方が出てくることがある。'
-              '読む元の列の名前が出力のキーに無いことを、失敗の理由にしない。\n')
-CARRIED = ('コードが入力（results や前段の Observation）から引き継いだ名前や ID は、前段で得た値である。'
-           '今回読んだデータやサービスがその種類の ID を持たないことを、失敗の理由にしない。\n')
+# Hypothesis 5: with both, case 29 broke the two lines; told at the end of the prompt to write the two lines only, the
+# Critic stopped checking the list and misread it (stage 5). The verdict is now read from the last two lines instead.
 VARIANTS = ['base', 'rule', 'code', 'code+rule', 'all', 'all+names', 'all+carried', 'all+both']
 
 
@@ -72,7 +69,7 @@ def changed(prompt: str, variant: str, path: Path) -> str:
             if notes:
                 prompt += RESOURCES_HEADER + notes
     added = {'all+names': READ_NAMES, 'all+carried': CARRIED, 'all+both': READ_NAMES + CARRIED}.get(variant, '')
-    if added:
+    if added and added not in prompt:
         if KEY_ANCHOR not in prompt:
             raise ValueError(f'{path}: the anchor of the key rule is not in the prompt')
         prompt = prompt.replace(KEY_ANCHOR, KEY_ANCHOR + added)
