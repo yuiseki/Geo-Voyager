@@ -284,7 +284,7 @@ def test_a_dataset_the_code_reads_by_its_argument_is_described_too():
     assert 'yuiseki/jp-admin-2026-09: デジタル庁のアドレス・ベース・レジストリ' in client.generate.call_args.args[0]
 
 
-# The small tasks of GeoAI-skills (2026-10-14), task 15: code that kept the rows with ward IS NULL counted the
+# The small tasks of GeoAI-master-skills (2026-10-14), task 15: code that kept the rows with ward IS NULL counted the
 # 4,428 pairs of the reference answer, and the Critic failed it three times as "not leaving out the wards' rows". It
 # was told the dataset's description only, not that ward is empty on the parent city's row.
 WARDS_LEFT_OUT = ('from geo_voyager.control_primitives import connect_duckdb, read_table\n\n\n'

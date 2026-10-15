@@ -1,4 +1,4 @@
-"""What the Planner is told about a dataset comes from its reference in GeoAI-skills (measured facts: what a row is,
+"""What the Planner is told about a dataset comes from its reference in GeoAI-master-skills (measured facts: what a row is,
 its ids, the keys it does not have, what the columns mean), cut down to the columns the sandbox's primitive returns."""
 from unittest.mock import Mock
 
@@ -9,7 +9,7 @@ from geo_voyager.planner import Planner
 
 
 def test_the_references_say_which_commit_of_geoai_skills_they_were_copied_from():
-    assert SOURCE['repository'] == 'https://github.com/yuiseki/GeoAI-skills' and len(SOURCE['commit']) == 40
+    assert SOURCE['repository'] == 'https://github.com/yuiseki/GeoAI-master-skills' and len(SOURCE['commit']) == 40
 
 
 def test_every_dataset_the_sandbox_can_read_has_a_reference():
@@ -89,7 +89,7 @@ def test_the_planner_is_told_a_columns_note_on_how_to_use_it_as_the_generator_is
 
 
 def test_a_join_keys_note_reaches_the_planner_and_the_generator():
-    # The small tasks of GeoAI-skills (2026-10-14), task 14: the WDI reference says, on country_code, to keep the
+    # The small tasks of GeoAI-master-skills (2026-10-14), task 14: the WDI reference says, on country_code, to keep the
     # countries whose Region is not empty; neither the Planner nor the Generator was told, and the run left out the
     # aggregates by matching Natural Earth instead, dropping Kosovo and the Channel Islands without a word.
     from geo_voyager.contracts.tables import table_contract

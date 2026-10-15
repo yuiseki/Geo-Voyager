@@ -1,6 +1,6 @@
 """What the Planner is told about each dataset the sandbox can read.
 
-The facts are the dataset's reference in GeoAI-skills (the How-to Graph), copied with its commit into
+The facts are the dataset's reference in GeoAI-master-skills (the How-to Graph), copied with its commit into
 dataset_references.json by scripts/sync_dataset_references.py: what a row is, the keys it does not have, what the
 main columns mean, all measured on the data. read_table returns every column under these names (ADR 0010). What the
 primitives add (an area read at once, the zonal sums of the population grid) is said here.

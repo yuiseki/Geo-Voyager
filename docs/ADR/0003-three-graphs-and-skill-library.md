@@ -15,7 +15,7 @@ Geo-Voyager の究極のゴールは、study-geoai-algo-py（Claude Code が台�
 
 ### How-to Graph（2026-10-10 に追加）
 
-お嬢様の構想に、もう 1 つの資産がある。[GeoAI-skills](https://github.com/yuiseki/GeoAI-skills)（旧名 Autonomous-GeoAI、`/Workspaces/repos/__yuiseki/_research/GeoAI-skills`）の `.agents/skills` で、Knowledge Graph または How-to Graph と呼ぶべきもの。Skill library がモデル自身の獲得したスキルであるのに対して、How-to Graph は、人間が教科書やレシピや作業マニュアルを読むように、モデルが読む与えられた手順の知識である。Agent Skills の形式（name と description、手順、必要なときに読む references、テスト済みの scripts）で、分析の段階ごとに 24 本ある（データを知る、単位を決めてそろえる、予測して評価を疑う、構造を探す、ネットワークと最適化、残す）。study-geoai-algo-py で得た教訓を一般化したもの。
+お嬢様の構想に、もう 1 つの資産がある。[GeoAI-master-skills](https://github.com/yuiseki/GeoAI-master-skills)（旧名 GeoAI-skills、その前は Autonomous-GeoAI。手元の作業ディレクトリは `/Workspaces/repos/__yuiseki/_research/GeoAI-skills` のまま）の `.agents/skills` で、Knowledge Graph または How-to Graph と呼ぶべきもの。Skill library がモデル自身の獲得したスキルであるのに対して、How-to Graph は、人間が教科書やレシピや作業マニュアルを読むように、モデルが読む与えられた手順の知識である。Agent Skills の形式（name と description、手順、必要なときに読む references、テスト済みの scripts）で、分析の段階ごとに 24 本ある（データを知る、単位を決めてそろえる、予測して評価を疑う、構造を探す、ネットワークと最適化、残す）。study-geoai-algo-py で得た教訓を一般化したもの。
 
 3 つのリポジトリは繋がっている。Geo-Voyager v0.1.0 の Control Primitives は、もともと study-geoai から持ち込んだもの。Geo-Voyager は How-to Graph を直接読んでよい（お嬢様の判断、2026-10-10）。scripts も例として読ませてよく、必要なら整理して Control Primitive にしてよい。study-geoai からの独立（コードとキャッシュを使わない）とは別の扱い。
 
@@ -24,7 +24,7 @@ Geo-Voyager の究極のゴールは、study-geoai-algo-py（Claude Code が台�
 | | 与えられたもの | 獲得したもの |
 |---|---|---|
 | 何があるか（宣言的な知識） | Dataset Graph（データ資産。oracle の YuisekinGeoSPARQL もここ） | World Graph（探索でわかった世界の知識） |
-| どうやるか（手続きの知識） | How-to Graph（GeoAI-skills の手順書） | Skill library（成功した関数） |
+| どうやるか（手続きの知識） | How-to Graph（GeoAI-master-skills の手順書） | Skill library（成功した関数） |
 | 過程 | | Exploration Graph（探索の記録） |
 
 Voyager にも近い仕組みがある。curriculum agent は、次のタスクを決める前に、Minecraft についての質問を自分で立て、その答え（知識）を集めてから決める（`voyager/prompts/curriculum_qa_step1_ask_questions.txt`、`curriculum_qa_step2_answer_questions.txt`）。How-to Graph は、その知識を人が書いた手順として与えるものに当たる。

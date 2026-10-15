@@ -121,7 +121,7 @@ def test_output_at_the_limit_is_kept():
 
 
 def test_a_table_of_the_countries_of_the_world_passes_to_the_next_step_while_a_diagnostic_stays_short():
-    # The small tasks of GeoAI-skills (2026-10-14), task 17: the 217 countries' population (10.9 KB) and the
+    # The small tasks of GeoAI-master-skills (2026-10-14), task 17: the 217 countries' population (10.9 KB) and the
     # areas of Natural Earth's countries (26.7 KB) could not reach the next step under a limit of 8 KiB. The prompts
     # show an Observation cut to their budgets; the next step's code reads it whole.
     import subprocess
@@ -135,7 +135,7 @@ def test_a_table_of_the_countries_of_the_world_passes_to_the_next_step_while_a_d
 
 
 def test_code_killed_for_its_memory_is_a_failure_of_that_code():
-    # GeoAI-skills' small task 11 (2026-10-15): code that read too much of the population grid was killed at the
+    # GeoAI-master-skills' small task 11 (2026-10-15): code that read too much of the population grid was killed at the
     # sandbox's 1 GB (exit 137), and the whole Goal ended as an infrastructure error after 68 minutes.
     with patch('geo_voyager.worker.DockerSandbox') as sandbox:
         sandbox.return_value.profile.memory = '1g'

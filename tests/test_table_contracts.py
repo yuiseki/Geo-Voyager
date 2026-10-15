@@ -51,14 +51,14 @@ def test_a_table_split_by_a_column_says_to_filter_on_it():
 
 
 def test_a_column_note_is_shown_even_for_the_geometry():
-    # Measured in GeoAI-skills (2026-10-14): neighbouring boundaries overlap, and ST_Touches misses 8 in 10 pairs.
+    # Measured in GeoAI-master-skills (2026-10-14): neighbouring boundaries overlap, and ST_Touches misses 8 in 10 pairs.
     text = table_contract(('yuiseki/jp-admin-2026-09',))
     assert 'geometry（' in text
     assert 'ST_Intersects' in text
 
 
 def test_the_population_grid_says_how_its_catalog_and_its_pixels_are_read():
-    # GeoAI-skills' small task 11 (2026-10-15), three runs: the Generator looked for the grid in the files catalog
+    # GeoAI-master-skills' small task 11 (2026-10-15), three runs: the Generator looked for the grid in the files catalog
     # with sex = 'total' (the total population's sex is NULL), found no row and stopped; another read too much and
     # was killed at 1 GB. Measured through the Gateway in the sandbox the same day.
     text = table_contract(('yuiseki/worldpop-jp-2026-01',))

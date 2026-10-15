@@ -2,7 +2,7 @@
 latitude. Measured on DuckDB 1.5.6 (2026-10-15): from Tokyo to Osaka, 396 km, ST_Distance_Sphere without the
 coordinates flipped says 473 km, and ST_Area_Spheroid of Japan is NaN. Nothing fails; the value is wrong.
 
-The small tasks of GeoAI-skills, task 17: the Generator called ST_Area_Spheroid on Natural Earth's countries.
+The small tasks of GeoAI-master-skills, task 17: the Generator called ST_Area_Spheroid on Natural Earth's countries.
 """
 import pytest
 
@@ -36,7 +36,7 @@ def test_the_generator_is_told_how_to_measure_an_area_a_distance_and_a_circle():
 
 
 def test_the_population_grids_catalog_path_is_refused_as_what_rasterio_opens():
-    # GeoAI-skills' small task 11 (2026-10-15): told that cog_path can not be read, the Generator opened
+    # GeoAI-master-skills' small task 11 (2026-10-15): told that cog_path can not be read, the Generator opened
     # '/vsicurl/' + cog_path and failed on the host "cog".
     from geo_voyager.contracts.code import catalog_path_problems
     bad = "rasterio.open('/vsicurl/' + files.project('cog_path').fetchone()[0])"

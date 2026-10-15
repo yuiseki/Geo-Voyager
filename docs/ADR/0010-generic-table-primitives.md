@@ -13,7 +13,7 @@
 4. 地域の知識（`load_admin_units.py` の `AREAS = {'東京都23区': "code5 BETWEEN '13101' AND '13123'"}`）。対応している地域はこれだけで、ほかの地域は関数を直さないと使えない。
 5. Generator、repair、`contracts.py`（2026-10-14 から `contracts/prompt.py`）のプロンプトに書き写した Primitive の契約。Primitive の外から名前で参照している箇所が 22 ある。
 
-一方、GeoAI-skills（How-to Graph）の dataset-discovery の reference には、YAML frontmatter で、各表の読み先（`tables[].read`）、1 行が何か（grain）、ID、結合キー、持たないキー、列の意味が、実測して書いてある。これはすでに、固定したコミットで `geo_voyager/dataset_references.json` に写し、Planner への説明に使っている（f76eef4）。
+一方、GeoAI-master-skills（How-to Graph）の dataset-discovery の reference には、YAML frontmatter で、各表の読み先（`tables[].read`）、1 行が何か（grain）、ID、結合キー、持たないキー、列の意味が、実測して書いてある。これはすでに、固定したコミットで `geo_voyager/dataset_references.json` に写し、Planner への説明に使っている（f76eef4）。
 
 ## 決定
 
@@ -26,7 +26,7 @@ frontmatter を、sandbox で読める表の正本にする。
    - Gateway の API は `GET/HEAD /datasets/<dataset_id>/<table>`。登録した表の名前以外は 404。任意のパスは受け付けない。
 2. 汎用の Primitive は `read_table(connection, dataset_id, table)` とし、表のすべての列を DuckDB の relation で返す。
    - 列の名前は付け替えない。コードは、reference と同じ列の名前で読む。
-   - 経度と緯度の地理座標系（EPSG:4612、EPSG:4326、OGC:CRS84）の geometry は、`OGC:CRS84` に名前をそろえて返す。DuckDB は名前の違う CRS どうしの空間結合を拒むためで、これらの違いは駅の位置の精度より小さい（GeoAI-skills の jp-admin の reference に実測がある）。そろえたことは docstring とプロンプトに書く。
+   - 経度と緯度の地理座標系（EPSG:4612、EPSG:4326、OGC:CRS84）の geometry は、`OGC:CRS84` に名前をそろえて返す。DuckDB は名前の違う CRS どうしの空間結合を拒むためで、これらの違いは駅の位置の精度より小さい（GeoAI-master-skills の jp-admin の reference に実測がある）。そろえたことは docstring とプロンプトに書く。
 3. 地域の絞り込みは、関数に埋め込まず、データの列の条件で書く。
    - 例えば、東京23区は `pref_code = '13' AND name LIKE '%区'`。これはコードや Intent の側で書く。
    - 名前のついた地域とその条件は、Geo-Voyager の 1 か所に、データとして置く。プロンプトはそこから組み立てる。
@@ -42,7 +42,7 @@ frontmatter を、sandbox で読める表の正本にする。
 
 ## 結果
 
-- 新しい Parquet の表を使うのに要るのは、GeoAI-skills に reference を書き、同期することだけになる。Geo-Voyager のコードは変わらない。
+- 新しい Parquet の表を使うのに要るのは、GeoAI-master-skills に reference を書き、同期することだけになる。Geo-Voyager のコードは変わらない。
 - 列の名前が reference と同じになるので、Planner、Generator、reference のあいだで名前を付け替える層がなくなる。
 - 地域の知識が関数から出て、コードと Intent に現れる。条件を誤れば、結果の件数（例: 23 区なら 23 行）で見えるようにする。
 - osm-japan（PBF と大きな GeoParquet）は、範囲を読むだけでも大きいので、この決定の範囲外とする。読めるようにするかは、別に決める。

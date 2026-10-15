@@ -1,7 +1,7 @@
 """sum_population_grid in the worker, reading the WorldPop COG by Range through the Gateway.
 
 The reference sums were made on the host with rasterio from the whole downloaded COG and the same boundaries
-(pixel centres, 2026-10-12). Taito's 214,562 is also the number GeoAI-skills' (formerly Autonomous-GeoAI) WorldPop notes record.
+(pixel centres, 2026-10-12). Taito's 214,562 is also the number GeoAI-master-skills' (formerly GeoAI-skills, and before that Autonomous-GeoAI) WorldPop notes record.
 """
 import json
 

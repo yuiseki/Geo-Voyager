@@ -4,7 +4,7 @@ from .dataset_url import dataset_url
 
 # Longitude and latitude on the GRS80/WGS 84 ellipsoids. jp-admin is labelled JGD2000 (EPSG:4612), ekidata OGC:CRS84;
 # DuckDB refuses a spatial join between two labels, and the two differ by less than a station's position is precise
-# (GeoAI-skills, dataset-discovery/references/jp-admin-2026-09.md).
+# (GeoAI-master-skills, dataset-discovery/references/jp-admin-2026-09.md).
 LONGITUDE_LATITUDE = ("EPSG:4612", "EPSG:4326", "OGC:CRS84")
 
 

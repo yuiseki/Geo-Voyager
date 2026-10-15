@@ -1,10 +1,10 @@
-"""Copy the YAML frontmatter of the dataset references in GeoAI-skills (the How-to Graph) into
+"""Copy the YAML frontmatter of the dataset references in GeoAI-master-skills (the How-to Graph) into
 geo_voyager/dataset_references.json, at a fixed commit.
 
-    uvx --with pyyaml --with 'duckdb==1.5.6' python scripts/sync_dataset_references.py ../GeoAI-skills <commit>
+    uvx --with pyyaml --with 'duckdb==1.5.6' python scripts/sync_dataset_references.py <a clone of GeoAI-master-skills> <commit>
 
 The references are measured facts about each dataset (what a row is, its ids and join keys, the keys it does not
-have, what the main columns mean). GeoAI-skills is where they are kept; this copies the ones of the datasets the
+have, what the main columns mean). GeoAI-master-skills is where they are kept; this copies the ones of the datasets the
 sandbox can read, so that a run does not depend on another checkout and the commit it was made from is recorded.
 
 A reference lists the main columns; the code needs every column's name and type. Those are measured here, from the
@@ -76,7 +76,7 @@ def main() -> None:
             table['schema'] = {'measured_by': 'Geo-Voyager', 'measured_on': measured,
                                'columns': [[name, kind] for name, kind, *_ in columns],
                                'row_groups': row_groups, 'split_by': split_by}
-    source = {'repository': 'https://github.com/yuiseki/GeoAI-skills', 'commit': commit,
+    source = {'repository': 'https://github.com/yuiseki/GeoAI-master-skills', 'commit': commit,
               'paths': {dataset_id: DIRECTORY + path for dataset_id, path in REFERENCES.items()}}
     OUT.write_text(json.dumps({'source': source, 'datasets': datasets}, ensure_ascii=False, indent=1, default=str) + '\n')
     print(OUT, commit)

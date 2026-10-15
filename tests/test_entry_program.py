@@ -54,7 +54,7 @@ def test_a_callable_main_function_has_no_problem():
     assert entry_problems(COUNT) == []
 
 
-# The small tasks of GeoAI-skills (2026-10-15), task 17: an Intent on two datasets has no dataset_id at run time, and
+# The small tasks of GeoAI-master-skills (2026-10-15), task 17: an Intent on two datasets has no dataset_id at run time, and
 # the function's dataset_id="yuiseki/worldbank-wdi" was called with None: "None has no table 'countries'".
 TWO_DATASETS = ('def read(dataset_id="yuiseki/worldbank-wdi", ne_dataset_id="yuiseki/natural-earth"):\n'
                 '    """R."""\n    return [dataset_id, ne_dataset_id]\n')

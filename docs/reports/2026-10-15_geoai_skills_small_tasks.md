@@ -1,6 +1,6 @@
-# GeoAI-skills の小課題 4 つを、ローカル LLM の自律ループで解く
+# GeoAI-master-skills の小課題 4 つを、ローカル LLM の自律ループで解く
 
-2026-10-14 から 15。GeoAI-skills の評価課題のうち、Geo-Voyager の sandbox で読めるデータだけで解ける 4 つ（課題 15、14、17、11）を Goal にして（`bench/tasks/geoai_skills_small.txt`）、`bench/run_explore.py --replay` で流した。モデルは gvt-llm（Qwen3.8-27B、文脈 16,384 トークン）。採点は GeoAI-skills の採点基準（`evals/tasks/small-rubric.md`、`evals/tasks/rubric.md` の課題 11）で、値だけでなく、落とし穴を拾ったか、定義と限界を書いたかを見る。採点基準は Geo-Voyager に写していない。
+2026-10-14 から 15。GeoAI-master-skills の評価課題のうち、Geo-Voyager の sandbox で読めるデータだけで解ける 4 つ（課題 15、14、17、11）を Goal にして（`bench/tasks/geoai_skills_small.txt`）、`bench/run_explore.py --replay` で流した。モデルは gvt-llm（Qwen3.8-27B、文脈 16,384 トークン）。採点は GeoAI-master-skills の採点基準（`evals/tasks/small-rubric.md`、`evals/tasks/rubric.md` の課題 11）で、値だけでなく、落とし穴を拾ったか、定義と限界を書いたかを見る。採点基準は Geo-Voyager に写していない。
 
 ## 結果
 

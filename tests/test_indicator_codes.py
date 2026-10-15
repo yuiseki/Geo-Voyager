@@ -1,6 +1,6 @@
 """An indicator code of the World Bank's WDI that the data does not have is refused before anything runs.
 
-The small tasks of GeoAI-skills (2026-10-14), task 14: the Planner and the Generator wrote the land area as
+The small tasks of GeoAI-master-skills (2026-10-14), task 14: the Planner and the Generator wrote the land area as
 EN.LND.TOTL.K2 and the density as SP.POP.DNST from memory. The WDI calls them AG.LND.TOTL.K2 and EN.POP.DNST. The
 filter matched no row, the code reported the land area of Japan as missing, and the Goal ended without an answer.
 """

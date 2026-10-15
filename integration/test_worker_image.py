@@ -35,7 +35,7 @@ assert rasterio.__version__ == '1.5.1' and 'GTiff' in rasterio.drivers.raster_dr
 
 
 def test_duckdb_spills_to_the_sandboxs_tmpfs_when_a_query_outgrows_its_memory():
-    # The small tasks of GeoAI-skills (2026-10-14), task 15: a self join of the 1,918 municipalities' faces outgrew
+    # The small tasks of GeoAI-master-skills (2026-10-14), task 15: a self join of the 1,918 municipalities' faces outgrew
     # the memory limit, and DuckDB failed to create its temporary directory ".tmp" in the read-only working directory.
     code = '''
 from geo_voyager.control_primitives import connect_duckdb

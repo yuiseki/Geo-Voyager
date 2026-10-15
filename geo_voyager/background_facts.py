@@ -1,7 +1,7 @@
 """Background facts: what the loop is given to know before it explores (a seed of the World Graph, which holds what
 it finds out). Each fact was checked on the data, and says how and when, in background_facts.jsonl, one per line.
 
-The edge cases of a place do not belong in the How-to Graph (GeoAI-skills), which keeps general procedures and the
+The edge cases of a place do not belong in the How-to Graph (GeoAI-master-skills), which keeps general procedures and the
 facts of datasets: there would be no end to them. A fact is shown when the text names one of its terms, so a prompt
 carries only the few a Goal needs.
 """

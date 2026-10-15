@@ -30,7 +30,7 @@ ANCHOR = '入力の Intent と Observation だけで要求した出力が得ら�
 KEY_ANCHOR = '値そのものが無い、または別の値なら失敗。\n'
 # Hypothesis 5: with both, case 29 broke the two lines; told at the end of the prompt to write the two lines only, the
 # Critic stopped checking the list and misread it (stage 5). The verdict is now read from the last two lines instead.
-# Hypothesis 6 (the small tasks of GeoAI-skills, task 15): told what a row of the table is and what the columns the
+# Hypothesis 6 (the small tasks of GeoAI-master-skills, task 15): told what a row of the table is and what the columns the
 # code uses mean, the Critic stops failing ward IS NULL as not leaving out the wards' rows (geo_voyager.critic).
 VARIANTS = ['base', 'rule', 'code', 'code+rule', 'all', 'all+names', 'all+carried', 'all+both', 'all+both+columns']
 

@@ -31,7 +31,7 @@ class AdaptiveGoalExecution:
     events: tuple = ()
 
 
-# GeoAI-skills' small tasks (2026-10-15) took 5 steps when they went straight, and stopped at 8 steps or 3 Planner
+# GeoAI-master-skills' small tasks (2026-10-15) took 5 steps when they went straight, and stopped at 8 steps or 3 Planner
 # failures on the way to it (a target named that the Goal does not name, an input the Critic rejected). The Planner's
 # prompt was 8,392 tokens after 8 steps and grows by about 600 a step: 12 steps fit the 16,384 of the context
 # beside a reply of 4,096.

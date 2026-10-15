@@ -60,7 +60,7 @@ def small_grid(path):
 
 
 def test_zones_with_a_geometry_alone_are_summed_in_their_order(tmp_path, monkeypatch):
-    # The small tasks of GeoAI-skills (2026-10-14), task 11: zones of a geometry and no other column made the table
+    # The small tasks of GeoAI-master-skills (2026-10-14), task 11: zones of a geometry and no other column made the table
     # of sums "(, estimated_population DOUBLE)", a syntax error the model could not read as its own.
     import duckdb
     from geo_voyager.control_primitives import population_grid
@@ -155,7 +155,7 @@ def test_a_zone_wholly_outside_the_grid_is_an_error_not_no_one(tmp_path, monkeyp
 
 
 def test_a_zone_without_a_geometry_is_named(tmp_path, monkeypatch):
-    # GeoAI-skills' small task 11 (2026-10-15): a zone with a NULL geometry (jp-admin has 9 municipalities without a
+    # GeoAI-master-skills' small task 11 (2026-10-15): a zone with a NULL geometry (jp-admin has 9 municipalities without a
     # face) failed inside the primitive as "the JSON object must be str ... not NoneType", twice.
     import duckdb
     import pytest

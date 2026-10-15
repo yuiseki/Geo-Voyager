@@ -1,6 +1,6 @@
 """The tables an Intent's datasets offer, as the Generator and the repair read them (ADR 0010).
 
-Made from the dataset references copied from GeoAI-skills (what a row is, the keys, the keys a table lacks, what
+Made from the dataset references copied from GeoAI-master-skills (what a row is, the keys, the keys a table lacks, what
 the main columns mean) and the schema measured at sync time (every column and its type), so a table becomes usable
 by syncing its reference, without writing its contract here. Only the datasets the Intent declares are shown: the
 prompt has 8192 tokens in all.
@@ -17,7 +17,7 @@ _DATA = json.loads((Path(__file__).parents[1] / 'dataset_references.json').read_
 NAMED_AREAS = {'東京23区': "pref_code = '13' AND name LIKE '%区'"}
 _AREAS_OF = {'yuiseki/jp-admin-2026-09': ('municipalities', NAMED_AREAS)}
 # How to measure on longitude, latitude in this DuckDB (1.5.6), measured 2026-10-15. Degrees are not metres: a
-# circle of 1/111 degree around Tokyo is 2.54 km², not 3.14 (GeoAI-skills, spatial-data-integration, crs-and-datum).
+# circle of 1/111 degree around Tokyo is 2.54 km², not 3.14 (GeoAI-master-skills, spatial-data-integration, crs-and-datum).
 MEASURING = ('座標は経度、緯度の度で、面積と距離と円は度のまま測らない。'
              "面積は ST_Area(ST_Transform(geometry, 'OGC:CRS84', 'EPSG:6933'))（m²、等積）。"
              '2 点の距離は ST_Distance_Sphere(ST_FlipCoordinates(a), ST_FlipCoordinates(b))（m）。'
@@ -27,7 +27,7 @@ MEASURING = ('座標は経度、緯度の度で、面積と距離と円は度の
              "WITH z AS (SELECT *, 'EPSG:' || (32601 + CAST(floor((ST_X(geometry) + 180) / 6) AS INTEGER)) AS utm FROM 点) "
              "SELECT ..., ST_Transform(ST_Buffer(ST_Transform(geometry, 'OGC:CRS84', utm), r), utm, 'OGC:CRS84') AS geometry FROM z"
              '（東京で半径 998 m、面積 3.12 km²）。')
-# The population grid, measured through the Gateway in the sandbox (2026-10-15). On GeoAI-skills' small task 11 the
+# The population grid, measured through the Gateway in the sandbox (2026-10-15). On GeoAI-master-skills' small task 11 the
 # Generator looked for it in the files catalog with sex = 'total' and found no row, three runs out of three.
 _RASTER_NOTES = {
     'yuiseki/worldpop-jp-2026-01': (

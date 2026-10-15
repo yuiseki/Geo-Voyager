@@ -146,7 +146,7 @@ def test_after_the_last_step_a_final_critic_failure_or_a_rejected_reply_ends_the
         assert result.stop_reason == 'max_steps' and executor.execute.call_count == 1 and len(planner.seen) == 2
 
 
-# GeoAI-skills' small tasks (2026-10-15): a repeat ended tasks 17 and 11, after the Planner had named the pitfall
+# GeoAI-master-skills' small tasks (2026-10-15): a repeat ended tasks 17 and 11, after the Planner had named the pitfall
 # (Natural Earth's ISO_A3_EH shared by a country and its dependencies) and the code broke on quoting a name. A repeat
 # is now sent back to the Planner as a Planner failure, which it can answer by splitting the step or changing it.
 

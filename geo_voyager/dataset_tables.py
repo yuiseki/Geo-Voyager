@@ -1,5 +1,5 @@
 """The tables the sandbox can read: every table the dataset references list (dataset_references.json, copied from
-GeoAI-skills), read at the revision of the dataset's card (ADR 0010).
+GeoAI-master-skills), read at the revision of the dataset's card (ADR 0010).
 
 A reference names a table's file as hf://datasets/<repo>/<path>, or as a Hub URL that may be on a branch
 (resolve/main). Both are read at the card's revision here, so a run reads the files the references were measured on

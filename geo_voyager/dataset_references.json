@@ -1,6 +1,6 @@
 {
  "source": {
-  "repository": "https://github.com/yuiseki/GeoAI-skills",
+  "repository": "https://github.com/yuiseki/GeoAI-master-skills",
   "commit": "6926f3ec6cb1ee5fe2080ee2c581d1a1e5261a85",
   "paths": {
    "yuiseki/jp-admin-2026-09": ".agents/skills/dataset-discovery/references/jp-admin-2026-09.md",
