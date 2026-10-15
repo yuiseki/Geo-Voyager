@@ -1,4 +1,5 @@
 from collections import Counter
+import math
 from dataclasses import dataclass
 
 from .datasets import load_readable_dataset_graph
@@ -18,6 +19,11 @@ ANSWER_SHOWN = 300
 # near 5,700 tokens and leaves room to think and answer. A third of it goes to the attempts.
 HISTORY_CHARS = 6000
 ATTEMPTS_CHARS = HISTORY_CHARS // 3
+# Told not to go on with the same kind of question, the model went on: in exploration 11 (2026-10-15) Goals 18 to 31
+# asked households per person nine times, reworded. Those rewordings were 0.95 or more alike (cosine, embeddinggemma)
+# to one of the 5 Goals tried before them; a Goal on another subject or by another measure was 0.93 or less.
+SIMILAR_TRIES = 5
+SIMILAR_COSINE = 0.95
 
 
 @dataclass(frozen=True)
@@ -39,8 +45,9 @@ class Curriculum:
     It is not given a list of Goals to reach: what to find out is the model's choice.
     """
 
-    def __init__(self, llm_client: LlamaClient | None = None) -> None:
+    def __init__(self, llm_client: LlamaClient | None = None, embedding=None) -> None:
         self.llm_client = llm_client if llm_client is not None else LlamaClient()
+        self.embedding = embedding
 
     def propose(self, findings: list[dict], attempts: list[dict], *, note: str | None = None) -> ProposedGoal:
         # Each try is shown by what was checked without a model only, not by a Critic's reason (ADR 0011).
@@ -75,7 +82,25 @@ class Curriculum:
             prompt, temperature=0.7, max_tokens=4096, enable_thinking=True, reasoning_budget_tokens=768,
             system_prompt='You are the curriculum of an exploring agent. Propose exactly one new, concrete, measurable Goal '
                           'that builds on what is known. Reply with the two lines Goal: and 理由: only.')
-        return _parse(text, findings)
+        proposed = _parse(text, findings)
+        if self.embedding is not None:
+            _refuse_a_repeat(proposed.goal, [attempt['goal'] for attempt in attempts[-SIMILAR_TRIES:]], self.embedding, text)
+        return proposed
+
+
+def _refuse_a_repeat(goal: str, latest: list[str], embedding, reply: str) -> None:
+    """Refuse a Goal that asks again, reworded, what one of the latest tries asked."""
+    if not latest:
+        return
+    vectors = embedding.embed([goal, *latest])
+    similar = [tried for tried, vector in zip(latest, vectors[1:]) if _cosine(vectors[0], vector) >= SIMILAR_COSINE]
+    if similar:
+        raise CurriculumRejected(f'「{goal}」は、直近に試した「{similar[-1]}」と同じ型の問いの言い換え。'
+                                 '別の主題、別の測り方、まだ使っていないリソースの問いにする', reply)
+
+
+def _cosine(a: list[float], b: list[float]) -> float:
+    return sum(x * y for x, y in zip(a, b)) / math.sqrt(sum(x * x for x in a) * sum(y * y for y in b))
 
 
 def _resource_ids() -> list[str]:

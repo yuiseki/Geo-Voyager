@@ -111,3 +111,38 @@ def test_the_world_to_explore_is_as_wide_as_the_resources():
     agent.propose([], [])
     prompt = client.generate.call_args.args[0]
     assert '東京の世界' not in prompt and '日本と世界' in prompt
+
+
+class Embedding:
+    """Each text's vector is given by the test; the curriculum compares a Goal with the latest tries by cosine."""
+
+    def __init__(self, vectors):
+        self.vectors, self.calls = vectors, []
+
+    def embed(self, texts):
+        self.calls.append(texts)
+        return [self.vectors[text] for text in texts]
+
+
+def test_a_goal_that_says_again_what_one_of_the_latest_tries_asked_is_rejected_naming_that_try():
+    # Exploration 11 (2026-10-15): Goals 18 to 31 asked households per person nine times, reworded, and binned the
+    # municipalities' points by longitude, then latitude, then both. The prompt said not to go on with the same kind of
+    # question; the model went on. The rewordings were 0.95 or more alike (embeddinggemma) to one of the 5 tries before.
+    client = Mock(); client.generate.return_value = 'Goal: 人口千人あたり世帯数が最も高い市区町村\n理由: y'
+    embedding = Embedding({'人口千人あたり世帯数が最も高い市区町村': [1.0, 0.1], '人口1万人あたり世帯数の最大': [1.0, 0.0],
+                           '横浜市の駅までの距離': [0.0, 1.0]})
+    attempts = [dict(ATTEMPT, goal='人口1万人あたり世帯数の最大'), dict(ATTEMPT, goal='横浜市の駅までの距離')]
+    with pytest.raises(CurriculumRejected) as rejected:
+        Curriculum(client, embedding=embedding).propose([], attempts)
+    assert '人口1万人あたり世帯数の最大' in rejected.value.reason and '横浜市の駅までの距離' not in rejected.value.reason
+
+
+def test_a_goal_on_another_subject_passes_and_only_the_latest_tries_are_compared():
+    from geo_voyager.curriculum import SIMILAR_TRIES
+    client = Mock(); client.generate.return_value = 'Goal: 新しい問い\n理由: y'
+    vectors = {'新しい問い': [1.0, 0.0], 'old': [1.0, 0.0]} | {f'try {n}': [0.0, 1.0] for n in range(SIMILAR_TRIES)}
+    embedding = Embedding(vectors)
+    attempts = [dict(ATTEMPT, goal='old')] + [dict(ATTEMPT, goal=f'try {n}') for n in range(SIMILAR_TRIES)]
+    proposed = Curriculum(client, embedding=embedding).propose([], attempts)
+    assert proposed.goal == '新しい問い'
+    assert 'old' not in embedding.calls[0]

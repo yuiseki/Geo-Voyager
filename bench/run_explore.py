@@ -80,7 +80,7 @@ def explore_one(number: int, out: Path, names, library: SkillLibrary, embedding:
     llm = logged_llm(directory)
     if resumed is not None:
         given, memory = ProposedGoal(resumed.goal, resumed.reason), resumed.memory
-    proposed = given or propose(Curriculum(llm), world.findings(), exploration.attempts())
+    proposed = given or propose(Curriculum(llm, embedding=embedding), world.findings(), exploration.attempts())
     if proposed is None:
         return None
     critic = Critic(llm)

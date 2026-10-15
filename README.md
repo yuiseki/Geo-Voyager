@@ -54,6 +54,8 @@ GEO_VOYAGER_EMBEDDING_BASE_URL=http://localhost:30194 GEO_VOYAGER_EMBEDDING_MODE
 - `--goals N` は curriculum に N 件の Goal を立てさせる。`--replay FILE` は、ファイルの Goal（1 行 1 件）を順に流す。
 - 評価用の Goal は `--replay docs/evidence/explore_9/goals.txt` で流す。
 - 同じ `--out` と `--library` を指定すれば、前回の続きから再開する。`--library` が無ければ、`skill_library/` の seed から作る。
+- `--out` に `STOP` という名前のファイルを置くと、流している Goal が終わったところで止まる。
+- 終わりを待つときは、本体の PID を `tail --pid=PID -f /dev/null` で待つ。`pgrep -f` でコマンド行の文字列を探すと、待機自身のコマンド行にもその文字列があるため、いつまでも終わらない（2026-10-15、これで GPU が一晩遊んだ）。
 
 ## 構成
 
