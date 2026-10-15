@@ -102,3 +102,12 @@ def test_the_history_shown_stays_within_a_length_budget_newest_first():
     assert 'goal 19 ' in history and 'attempt 14 ' in history
     assert 'goal 0 ' not in history and 'attempt 0 ' not in history
     assert history.index('goal 18 ') < history.index('goal 19 ')
+
+
+def test_the_world_to_explore_is_as_wide_as_the_resources():
+    # The first resources were Tokyo's (the 23 wards in YuisekinGeoSPARQL, Overpass). The datasets now cover every
+    # municipality of Japan and the countries of the world, and a curriculum told to explore Tokyo would not ask of them.
+    agent, client = curriculum('Goal: x を求める\n理由: y')
+    agent.propose([], [])
+    prompt = client.generate.call_args.args[0]
+    assert '東京の世界' not in prompt and '日本と世界' in prompt

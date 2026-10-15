@@ -50,7 +50,7 @@ class Curriculum:
         known = (_newest_within(_render_findings(findings[-FINDINGS_SHOWN:]), budget) or 'まだ何も分かっていない。\n'
                  if findings else 'まだ何も分かっていない。\n')
         prompt = (
-            'あなたは、利用可能なデータとサービスを使って東京の世界を自律的に探索するエージェントの curriculum です。'
+            'あなたは、利用可能なデータとサービスを使って日本と世界を自律的に探索するエージェントの curriculum です。'
             '次に調べる Goal を1件だけ決めてください。\n'
             'Goal は、利用可能リソースだけで答えが1つに決まる、具体的で測れる問いにする（件数、距離、時間、比較、最大・最小、合計、割合、一覧など）。\n'
             'まだ分かっていないことを調べる。これまでの発見で答えが出た Goal を繰り返さない。\n'
