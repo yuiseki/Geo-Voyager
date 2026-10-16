@@ -21,8 +21,9 @@ HISTORY_CHARS = 6000
 ATTEMPTS_CHARS = HISTORY_CHARS // 3
 # Told not to go on with the same kind of question, the model went on: in exploration 11 (2026-10-15) Goals 18 to 31
 # asked households per person nine times, reworded. Those rewordings were 0.95 or more alike (cosine, embeddinggemma)
-# to one of the 5 Goals tried before them; a Goal on another subject or by another measure was 0.93 or less.
-SIMILAR_TRIES = 5
+# to a Goal tried before them; a Goal on another subject or by another measure was 0.94 or less. Compared only with
+# the 5 tries before, Goals 32 to 61 came back to rewordings 16 and 24 Goals later, so every try is compared.
+EMBEDDED_AT_ONCE = 32
 SIMILAR_COSINE = 0.95
 
 
@@ -84,18 +85,20 @@ class Curriculum:
                           'that builds on what is known. Reply with the two lines Goal: and 理由: only.')
         proposed = _parse(text, findings)
         if self.embedding is not None:
-            _refuse_a_repeat(proposed.goal, [attempt['goal'] for attempt in attempts[-SIMILAR_TRIES:]], self.embedding, text)
+            _refuse_a_repeat(proposed.goal, [attempt['goal'] for attempt in attempts], self.embedding, text)
         return proposed
 
 
-def _refuse_a_repeat(goal: str, latest: list[str], embedding, reply: str) -> None:
-    """Refuse a Goal that asks again, reworded, what one of the latest tries asked."""
-    if not latest:
+def _refuse_a_repeat(goal: str, tried_goals: list[str], embedding, reply: str) -> None:
+    """Refuse a Goal that asks again, reworded, what one of the Goals tried asked."""
+    if not tried_goals:
         return
-    vectors = embedding.embed([goal, *latest])
-    similar = [tried for tried, vector in zip(latest, vectors[1:]) if _cosine(vectors[0], vector) >= SIMILAR_COSINE]
+    asked = embedding.embed([goal])[0]
+    vectors = [vector for begin in range(0, len(tried_goals), EMBEDDED_AT_ONCE)
+               for vector in embedding.embed(tried_goals[begin:begin + EMBEDDED_AT_ONCE])]
+    similar = [tried for tried, vector in zip(tried_goals, vectors) if _cosine(asked, vector) >= SIMILAR_COSINE]
     if similar:
-        raise CurriculumRejected(f'「{goal}」は、直近に試した「{similar[-1]}」と同じ型の問いの言い換え。'
+        raise CurriculumRejected(f'「{goal}」は、前に試した「{similar[-1]}」と同じ型の問いの言い換え。'
                                  '別の主題、別の測り方、まだ使っていないリソースの問いにする', reply)
 
 

@@ -137,12 +137,23 @@ def test_a_goal_that_says_again_what_one_of_the_latest_tries_asked_is_rejected_n
     assert '人口1万人あたり世帯数の最大' in rejected.value.reason and '横浜市の駅までの距離' not in rejected.value.reason
 
 
-def test_a_goal_on_another_subject_passes_and_only_the_latest_tries_are_compared():
-    from geo_voyager.curriculum import SIMILAR_TRIES
+def test_a_goal_on_another_subject_passes():
     client = Mock(); client.generate.return_value = 'Goal: 新しい問い\n理由: y'
-    vectors = {'新しい問い': [1.0, 0.0], 'old': [1.0, 0.0]} | {f'try {n}': [0.0, 1.0] for n in range(SIMILAR_TRIES)}
-    embedding = Embedding(vectors)
-    attempts = [dict(ATTEMPT, goal='old')] + [dict(ATTEMPT, goal=f'try {n}') for n in range(SIMILAR_TRIES)]
-    proposed = Curriculum(client, embedding=embedding).propose([], attempts)
+    embedding = Embedding({'新しい問い': [1.0, 0.0], '横浜市の駅までの距離': [0.0, 1.0]})
+    proposed = Curriculum(client, embedding=embedding).propose([], [dict(ATTEMPT, goal='横浜市の駅までの距離')])
     assert proposed.goal == '新しい問い'
-    assert 'old' not in embedding.calls[0]
+
+
+def test_a_rewording_of_a_goal_tried_long_before_is_refused_too():
+    # Exploration 11, Goals 32 to 61, compared with the 5 tries before each: Goal 46 binned the points again as Goal 30
+    # had (0.967), Goal 47 asked households per person again as Goal 23 had (0.975), 16 and 24 Goals later.
+    from geo_voyager.curriculum import EMBEDDED_AT_ONCE
+    client = Mock(); client.generate.return_value = 'Goal: 世帯数の比の最大\n理由: y'
+    tries = [f'try {n}' for n in range(2 * EMBEDDED_AT_ONCE + 3)]
+    embedding = Embedding({'世帯数の比の最大': [1.0, 0.0], '人口あたり世帯数の最大': [1.0, 0.05]}
+                          | {text: [0.0, 1.0] for text in tries})
+    attempts = [dict(ATTEMPT, goal='人口あたり世帯数の最大')] + [dict(ATTEMPT, goal=text) for text in tries]
+    with pytest.raises(CurriculumRejected) as rejected:
+        Curriculum(client, embedding=embedding).propose([], attempts)
+    assert '人口あたり世帯数の最大' in rejected.value.reason
+    assert all(len(call) <= EMBEDDED_AT_ONCE for call in embedding.calls)
