@@ -24,6 +24,9 @@ ATTEMPTS_CHARS = HISTORY_CHARS // 3
 # to a Goal tried before them; a Goal on another subject or by another measure was 0.94 or less. Compared only with
 # the 5 tries before, Goals 32 to 61 came back to rewordings 16 and 24 Goals later, so every try is compared.
 EMBEDDED_AT_ONCE = 32
+# The reward of curiosity (ADR 0014): the findings whose predictions failed most are shown however old they are.
+SURPRISING_SHOWN = 5
+SURPRISING_CHARS = 1500
 SIMILAR_COSINE = 0.95
 
 
@@ -31,6 +34,9 @@ SIMILAR_COSINE = 0.95
 class ProposedGoal:
     goal: str
     reason: str
+    # The main value of the answer as the curriculum expected it, before the Goal is explored. It is kept for the
+    # surprise of the answer (geo_voyager.surprise, ADR 0014) and never shown to the Planner, so as not to steer it.
+    prediction: str = ''
 
 
 class CurriculumRejected(ValueError):
@@ -57,6 +63,7 @@ class Curriculum:
         budget = HISTORY_CHARS - len('これまでの発見:\nこれまでに試した Goal:\n') - len(tried)
         known = (_newest_within(_render_findings(findings[-FINDINGS_SHOWN:]), budget) or 'まだ何も分かっていない。\n'
                  if findings else 'まだ何も分かっていない。\n')
+        surprising = _surprising(findings)
         prompt = (
             'あなたは、利用可能なデータとサービスを使って日本と世界を自律的に探索するエージェントの curriculum です。'
             '次に調べる Goal を1件だけ決めてください。\n'
@@ -70,19 +77,27 @@ class Curriculum:
             'まだ使っていないリソースがあれば、それで何が分かるかを試す。\n'
             '未達の Goal を同じ文で繰り返さない。問いを変えるか分ける。確かめた失敗が書かれていれば、その手を避けられる問いにする。\n'
             'Goal には何を知りたいかだけを書く。API のパスやパラメータ、コードは書かない。\n'
+            'Goal と一緒に、その答えの主な値（数か名前を1つ）を、調べる前に予想する。予想は、当てにいく本気の見積もりを書く。\n'
+            '発見の「外れ度」は、そのときの予想と実際の答えの食い違い（0 は的中、1 は 10 倍以上の外れか、違う名前）。'
+            '外れ度が大きい発見は、世界が予想と違っていた所で、まだ学べることが多い。なぜ外れたのかを確かめる、'
+            '似た対象でも同じことが起きるかを見る、別の尺度で測る、などして掘り下げる。外れ度が小さい主題は、もう分かっているので離れる。\n'
             + (f'{note}\n' if note else '')
-            + '返答は次の2行だけ。前置き、番号、コードフェンス禁止。\nGoal: 問いの本文\n理由: この問いを選んだ理由（これまでの発見とのつながり）\n'
+            + '返答は次の3行だけ。前置き、番号、コードフェンス禁止。\nGoal: 問いの本文\n'
+            '理由: この問いを選んだ理由（これまでの発見、特に予想が外れた発見とのつながり）\n'
+            '予想: 答えの主な値の予想（数か名前を1つだけ。例: 約 370 万人、横浜市）\n'
             + f'INPUT: 利用可能リソース:\n{Planner._resource_text(load_readable_dataset_graph(), load_service_graph(), full=True, measured=True)}\n'
             + f'リソースを使った発見の数: {_usage(findings)}\n'
             + f'まだ使っていないリソース: {_unused(findings)}\n'
+            + f'予想が大きく外れた発見（外れ度の大きい順）:\n{surprising}'
             + f'これまでの発見:\n{known}'
             + f'これまでに試した Goal:\n{tried}'
-            + 'OUTPUT: Goal: と 理由: の2行だけ。'
+            + 'OUTPUT: Goal: と 理由: と 予想: の3行だけ。'
         )
         text = self.llm_client.generate(
             prompt, temperature=0.7, max_tokens=4096, enable_thinking=True, reasoning_budget_tokens=768,
             system_prompt='You are the curriculum of an exploring agent. Propose exactly one new, concrete, measurable Goal '
-                          'that builds on what is known. Reply with the two lines Goal: and 理由: only.')
+                          'that builds on what is known, and predict its answer. Reply with the three lines Goal:, 理由: '
+                          'and 予想: only.')
         proposed = _parse(text, findings)
         if self.embedding is not None:
             _refuse_a_repeat(proposed.goal, [attempt['goal'] for attempt in attempts], self.embedding, text)
@@ -135,6 +150,8 @@ def _render_findings(findings: list[dict]) -> list[str]:
     entries = []
     for finding in findings:
         entry = f'- {finding["goal"]}\n  答え: {finding["answer"][:ANSWER_SHOWN]}\n'
+        if finding.get('prediction') and finding.get('surprise') is not None:
+            entry += f'  予想: {finding["prediction"]} → 外れ度 {finding["surprise"]:.2f}\n'
         targets = [TargetRef(**item).display() for item in finding['targets']]
         if targets:
             entry += '  判明した対象: ' + '、'.join(targets) + '\n'
@@ -142,18 +159,33 @@ def _render_findings(findings: list[dict]) -> list[str]:
     return entries
 
 
+def _surprising(findings: list[dict]) -> str:
+    """The findings whose predictions failed most, most surprising first, within their budget."""
+    scored = sorted((finding for finding in findings if finding.get('prediction') and (finding.get('surprise') or 0) > 0),
+                    key=lambda finding: finding['surprise'], reverse=True)[:SURPRISING_SHOWN]
+    kept, used = [], 0
+    for entry in _render_findings(scored):
+        if used + len(entry) > SURPRISING_CHARS:
+            break
+        kept.append(entry)
+        used += len(entry)
+    return ''.join(kept) or 'まだ無い。\n'
+
+
 def _parse(text: str, findings: list[dict]) -> ProposedGoal:
     lines = [line.strip() for line in text.strip().splitlines() if line.strip()]
     goals = [line for line in lines if line.startswith('Goal:')]
     reasons = [line for line in lines if line.startswith('理由:')]
-    if len(goals) != 1 or len(reasons) != 1:
-        raise CurriculumRejected('Goal: の行と 理由: の行を1行ずつ書く', text)
+    predictions = [line for line in lines if line.startswith('予想:')]
+    if len(goals) != 1 or len(reasons) != 1 or len(predictions) != 1:
+        raise CurriculumRejected('Goal: の行と 理由: の行と 予想: の行を1行ずつ書く', text)
     goal, reason = goals[0].removeprefix('Goal:').strip(), reasons[0].removeprefix('理由:').strip()
-    if not goal or not reason:
-        raise CurriculumRejected('Goal と理由の本文が空', text)
+    prediction = predictions[0].removeprefix('予想:').strip()
+    if not goal or not reason or not prediction:
+        raise CurriculumRejected('Goal と理由と予想の本文が空', text)
     if any(goal == finding['goal'] for finding in findings):
         raise CurriculumRejected(f'「{goal}」は既に答えが出ている。まだ分かっていないことを調べる', text)
     details = api_details_in(goal)
     if details:
         raise CurriculumRejected(f'Goal に API の詳細が書かれている: {", ".join(details)}。何を知りたいかだけを書く', text)
-    return ProposedGoal(goal, reason)
+    return ProposedGoal(goal, reason, prediction)

@@ -115,7 +115,7 @@ class ExplorationGraph:
 
     def record(self, number: int, result: AdaptiveGoalExecution | None, *, success: bool, explored_at: str,
                elapsed: float, goal: str | None = None, error: str | None = None, curriculum_reason: str = '',
-               memory: bool = False) -> dict:
+               memory: bool = False, prediction: str = '', surprise: float | None = None) -> dict:
         """Add the try of a Goal. result is the run or its log read back (geo_voyager.event_log.LoggedGoal), None when
         the Goal broke (error says how)."""
         row = {
@@ -124,6 +124,8 @@ class ExplorationGraph:
             'success': success, 'stop_reason': result.stop_reason if result is not None else 'error', 'error': error,
             'steps': len(result.history) if result is not None else None,
             'elapsed': elapsed, 'explored_at': explored_at, 'memory': memory,
+            # What the curriculum predicted and how far off the answer was (ADR 0014), for whoever reads the record.
+            'prediction': prediction, 'surprise': surprise,
             'checked_failures': [asdict(failure) for failure in checked_failures(result.events)] if result is not None else [],
         }
         self.path.parent.mkdir(parents=True, exist_ok=True)

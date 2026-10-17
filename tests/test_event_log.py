@@ -216,3 +216,12 @@ def test_the_records_made_at_the_end_of_a_goal_come_out_the_same_from_its_log_al
 
     from_result, from_log = records(result, 'result'), records(logged, 'log')
     assert from_log == from_result and from_log[0] is not None and from_log[1]['steps'] == 3
+
+
+def test_the_start_keeps_what_the_curriculum_predicted_and_an_older_log_reads_without_it(tmp_path):
+    from geo_voyager.event_log import EventLog
+    log = EventLog(tmp_path / 'new.jsonl')
+    log.start('G', reason='r', prediction='約 370 万人')
+    assert EventLog(tmp_path / 'new.jsonl').read().prediction == '約 370 万人'
+    (tmp_path / 'old.jsonl').write_text('{"kind": "goal_started", "goal": "G", "memory": null, "reason": "r"}\n')
+    assert EventLog(tmp_path / 'old.jsonl').read().prediction == ''

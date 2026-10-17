@@ -51,3 +51,18 @@ def test_targets_are_known_once_by_their_id_across_findings(tmp_path):
     world.record(execution('b', [entry(1, 'y', '{"count": 2}', targets=(TargetRef('渋谷区, 東京都', 'relation_id', '1759477'),
                                                                         TargetRef('新宿区', 'relation_id', '1758858')))]))
     assert world.targets() == [SHIBUYA, TargetRef('新宿区', 'relation_id', '1758858')]
+
+
+def test_a_finding_keeps_what_the_curriculum_predicted_and_how_far_off_the_answer_was(tmp_path):
+    # The reward of curiosity (ADR 0014), measured without a model when the Goal is answered.
+    world = WorldGraph(tmp_path / 'world.jsonl')
+    result = execution('渋谷区のカフェの数', [entry(1, '渋谷区の amenity=cafe の数', '{"tag": "amenity=cafe", "count": 459}')])
+    finding = world.record(result, explored_at='t', prediction='約 4590 件')
+    assert finding['prediction'] == '約 4590 件' and finding['surprise'] == 1.0
+
+
+def test_a_finding_without_a_prediction_has_no_surprise(tmp_path):
+    world = WorldGraph(tmp_path / 'world.jsonl')
+    result = execution('渋谷区のカフェの数', [entry(1, '渋谷区の amenity=cafe の数', '{"count": 459}')])
+    finding = world.record(result, explored_at='t')
+    assert finding['prediction'] == '' and finding['surprise'] is None

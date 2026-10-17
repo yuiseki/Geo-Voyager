@@ -79,7 +79,7 @@ def explore_one(number: int, out: Path, names, library: SkillLibrary, embedding:
     directory.mkdir(parents=True, exist_ok=resumed is not None)
     llm = logged_llm(directory)
     if resumed is not None:
-        given, memory = ProposedGoal(resumed.goal, resumed.reason), resumed.memory
+        given, memory = ProposedGoal(resumed.goal, resumed.reason, resumed.prediction), resumed.memory
     proposed = given or propose(Curriculum(llm, embedding=embedding), world.findings(), exploration.attempts())
     if proposed is None:
         return None
@@ -89,7 +89,7 @@ def explore_one(number: int, out: Path, names, library: SkillLibrary, embedding:
     # Each event is written as it happens. A Goal that breaks gets no end, so it can be taken up again from its log.
     log = EventLog(directory / 'events.jsonl')
     if resumed is None:
-        log.start(proposed.goal, memory, reason=proposed.reason)
+        log.start(proposed.goal, memory, reason=proposed.reason, prediction=proposed.prediction)
     started = time.time()
     try:
         result = GoalExecutor(Planner(llm), executor, critic).execute_adaptive(
@@ -102,13 +102,15 @@ def explore_one(number: int, out: Path, names, library: SkillLibrary, embedding:
     elapsed = round(time.time() - started, 1)
     if result is None:
         return exploration.record(number, None, goal=proposed.goal, success=False, explored_at=at, elapsed=elapsed,
-                                  error=error, curriculum_reason=proposed.reason, memory=memory is not None)
+                                  error=error, curriculum_reason=proposed.reason, memory=memory is not None,
+                                  prediction=proposed.prediction)
     log.end(result.stop_reason, success=WorldGraph.answered(result))
     # The records are made from the log, the steps before a stop included, as if the Goal had never stopped.
     logged = log.read()
-    finding = world.record(logged, explored_at=at)
+    finding = world.record(logged, explored_at=at, prediction=logged.prediction)
     attempt = exploration.record(number, logged, success=finding is not None, explored_at=at, elapsed=elapsed,
-                                 curriculum_reason=proposed.reason, memory=memory is not None)
+                                 curriculum_reason=proposed.reason, memory=memory is not None,
+                                 prediction=proposed.prediction, surprise=finding['surprise'] if finding else None)
     (directory / 'trace.json').write_text(json.dumps(
         {'goal': logged.goal, 'steps': trace_steps(logged), 'events': trace_events(logged)}, ensure_ascii=False, indent=1))
     return attempt

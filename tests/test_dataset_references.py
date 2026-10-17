@@ -48,7 +48,7 @@ def test_the_planner_is_shown_these_texts_and_they_fit_the_context():
 
 def test_the_curriculum_is_shown_them_too_and_the_first_plan_route_keeps_the_catalog():
     from geo_voyager.curriculum import Curriculum
-    client = Mock(); client.generate.return_value = 'Goal: x\n理由: y'
+    client = Mock(); client.generate.return_value = 'Goal: x\n理由: y\n予想: 3'
     try:
         Curriculum(client).propose([], [])
     except Exception:

@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 from .goal_executor import AdaptiveGoalExecution
+from .surprise import surprise
 from .target_ref import TargetRef
 
 
@@ -18,10 +19,11 @@ class WorldGraph:
     def __init__(self, path: Path) -> None:
         self.path = Path(path)
 
-    def record(self, result: AdaptiveGoalExecution, *, explored_at: str | None = None) -> dict | None:
+    def record(self, result: AdaptiveGoalExecution, *, explored_at: str | None = None, prediction: str = '') -> dict | None:
         """Add the finding of an answered Goal and return it. A Goal that was not answered adds nothing.
         result is the run or its log read back (geo_voyager.event_log.LoggedGoal). A Goal stops as done only when
-        the final Critic found it answered."""
+        the final Critic found it answered. prediction is what the curriculum predicted the answer to be; the finding
+        keeps it with the surprise of the answer, the reward of curiosity (geo_voyager.surprise, ADR 0014)."""
         if not self.answered(result):
             return None
         succeeded = [entry for entry in result.history if entry.succeeded and entry.observations]
@@ -31,14 +33,17 @@ class WorldGraph:
                 if target.key not in seen:
                     seen.add(target.key)
                     targets.append({'name': target.name, 'id_type': target.id_type, 'id_value': target.id_value})
+        answer = succeeded[-1].observations[0].text
         finding = {
             'goal': result.goal,
-            'answer': succeeded[-1].observations[0].text,
+            'answer': answer,
             'steps': [{'intent': entry.intent.text, 'observation': entry.observations[0].text} for entry in succeeded],
             'resources': list(dict.fromkeys(resource for entry in succeeded
                                             for resource in entry.intent.dataset_ids + entry.intent.service_ids)),
             'targets': targets,
             'explored_at': explored_at,
+            'prediction': prediction,
+            'surprise': surprise(prediction, answer),
         }
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.path.open('a') as file:

@@ -83,6 +83,8 @@ class LoggedGoal:
     success: bool | None
     # Why the curriculum chose the Goal, for whoever reads the record; no model is shown it again.
     reason: str = ''
+    # What the curriculum predicted the answer to be (ADR 0014); no model is shown it again.
+    prediction: str = ''
 
     @property
     def history(self) -> tuple[HistoryEntry, ...]:
@@ -104,8 +106,8 @@ class EventLog:
         with self.path.open('a') as file:
             file.write(json.dumps(row, ensure_ascii=False) + '\n')
 
-    def start(self, goal: str, memory: str | None = None, *, reason: str = '') -> None:
-        self._write({'kind': 'goal_started', 'goal': goal, 'memory': memory, 'reason': reason})
+    def start(self, goal: str, memory: str | None = None, *, reason: str = '', prediction: str = '') -> None:
+        self._write({'kind': 'goal_started', 'goal': goal, 'memory': memory, 'reason': reason, 'prediction': prediction})
 
     def append(self, event) -> None:
         self._write(event_to_dict(event))
@@ -120,4 +122,5 @@ class EventLog:
         end = rows[-1] if rows[-1].get('kind') == 'goal_ended' else None
         events = tuple(event_from_dict(row) for row in rows[1:len(rows) - (end is not None)])
         return LoggedGoal(rows[0]['goal'], rows[0]['memory'], events, end is not None,
-                          end['stop_reason'] if end else None, end['success'] if end else None, rows[0]['reason'])
+                          end['stop_reason'] if end else None, end['success'] if end else None, rows[0]['reason'],
+                          rows[0].get('prediction', ''))

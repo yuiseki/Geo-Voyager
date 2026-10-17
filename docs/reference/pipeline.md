@@ -7,6 +7,7 @@
 決まった Goal を解く代わりに、モデルが自分で次の Goal を立てる（[0003](../ADR/0003-three-graphs-and-skill-library.md)、記録は [2026-10-11_exploration.md](../reports/2026-10-11_exploration.md)）。
 
 - `geo_voyager/curriculum.py`: 次の Goal を 1 件だけ決める。読むのは、利用できるリソース、これまでの発見（新しいものから 20 件）、試した Goal とその結果（新しいものから 15 件）。結果は「答えが出た」か「未達」で、未達ならモデルを使わずに確かめた失敗の種類と資源だけを添える。Critic の理由と止まり方は読まない（[0011](../ADR/0011-exploration-graph-checked-failures.md)）。
+  - curriculum は、Goal と一緒に答えの主な値を予想する（数か名前を 1 つ）。予想は Planner には渡さない。答えが出たら、予想との食い違い（外れ度、0〜1）を `geo_voyager/surprise.py` がモデルを使わずに測り、発見に残す。curriculum には発見ごとの予想と外れ度、外れ度の大きい発見の上位 5 件を見せ、外れた所を掘り下げるよう促す（[0014](../ADR/0014-curiosity-from-prediction-error.md)）。
   - 立てた Goal が、これまでに試したどれかの Goal と、埋め込み（Skill の検索と同じモデル）のコサイン類似度で 0.95 以上なら、似ている Goal を名指しして断り、立て直させる（3 回まで）。プロンプトで「同じ型の問いを続けない」と書いても、探索 11 回目（2026-10-15）では人口あたりの世帯数を 9 回、言い換えて聞いた。言い換えは 0.95 以上、主題や測り方を変えた問いは 0.94 以下だった。比べる相手を直近の 5 件に限ると、16〜24 件あとに同じ問いへ戻った（32〜61 番）。
 - `geo_voyager/event_log.py`: Goal ごとに、始まり（Goal と渡した記憶）、出来事（手、計画の失敗、最終判定の失敗）、終わり（止まり方と答えが出たか）を、起きるたびに `NNN/events.jsonl` へ 1 行ずつ書く。終わりに Critic の文は書かない。途中で壊れた Goal には終わりの行が無く、`bench/run_explore.py --resume` がその次の手から再開する。trace.json、exploration.jsonl の行、world.jsonl の発見は、このログから作る（[0012](../ADR/0012-goal-event-log-and-resume.md)）。
 - `geo_voyager/world_graph.py`: 答えが出た Goal（DONE で終わり、最終 Critic も成功）を、答え、成功した step、使ったリソース、判明した対象（名前と安定 ID）とともに記録する。
