@@ -65,3 +65,28 @@ def test_the_population_grid_says_how_its_catalog_and_its_pixels_are_read():
     assert "sex = 'total' で絞ると 0 行" in text and '126,574,853' in text
     assert "rasterio.open('/vsicurl/' + dataset_url('yuiseki/worldpop-jp-2026-01'))" in text
     assert '3.8 GB' in text and '窓' in text
+
+
+LAND_PRICE = 'yuiseki/ksj-l01-land-price'
+
+
+def test_the_land_prices_are_read_for_their_latest_year_at_the_cards_revision():
+    # The reference reads parquet/<year>.parquet. Geo-Voyager reads the latest year, 2026: a row has its change from
+    # the year before (change_pct), and the other years' original columns differ in number and meaning.
+    from geo_voyager.dataset_tables import TABLE_URLS
+    url = TABLE_URLS[(LAND_PRICE, 'land_price')]
+    assert url.startswith('https://huggingface.co/datasets/yuiseki/ksj-l01-land-price/resolve/7e32fd1')
+    assert url.endswith('/parquet/2026.parquet')
+
+
+def test_columns_that_differ_only_by_their_number_are_shown_as_one_range():
+    text = table_contract((LAND_PRICE,))
+    assert 'price_yen BIGINT' in text and 'municipality_code VARCHAR' in text
+    assert 'L01_001〜L01_148 VARCHAR（148 列）' in text and 'L01_002 VARCHAR' not in text
+    assert 'price_yen（公示価格 (円/m²)）' in text
+    assert len(text) < 4500
+
+
+def test_the_land_prices_are_in_the_catalog_the_curriculum_and_the_planner_see():
+    from geo_voyager.datasets import load_readable_dataset_graph
+    assert LAND_PRICE in [dataset.id for dataset in load_readable_dataset_graph().all()]

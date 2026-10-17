@@ -114,6 +114,20 @@ CATALOG = (
         data_url=("https://huggingface.co/datasets/yuiseki/natural-earth/resolve/"
                   "efdd0668c57c9d42307e12eacbf66d8d151de5b9/parquet/v5.1.2/10m_cultural/ne_10m_admin_0_countries.parquet"),
     ),
+    # 7e32fd1266b1eea107d83ebecd6974e94744c3a7 (the card's revision). Read for its latest year, 2026 (Geo-Voyager's choice)
+    Dataset(
+        id="yuiseki/ksj-l01-land-price",
+        description=("地価公示。国土交通省が毎年 1 月 1 日時点で公示する、全国約 2 万 6 千の標準地の価格（円/m²）と対前年変動率、"
+                     "所在、地積、用途、経度と緯度。2026 年の表を読める。"),
+        url="https://huggingface.co/datasets/yuiseki/ksj-l01-land-price",
+        license="CC BY 4.0（国土数値情報の利用約款で PDL1.0）。出典の表示と、加工したことの明記が要る",
+        formats=("Parquet",),
+        spatial_coverage="日本全国の標準地（主に都市計画区域の中）。点",
+        temporal_coverage="2026 年 1 月 1 日時点",
+        contents=("標準地の公示価格", "対前年変動率", "所在と用途"),
+        data_url=("https://huggingface.co/datasets/yuiseki/ksj-l01-land-price/resolve/"
+                  "7e32fd1266b1eea107d83ebecd6974e94744c3a7/parquet/2026.parquet"),
+    ),
 )
 
 

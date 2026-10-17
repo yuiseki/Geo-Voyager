@@ -6,6 +6,7 @@ by syncing its reference, without writing its contract here. Only the datasets t
 prompt has 8192 tokens in all.
 """
 import json
+import re
 from pathlib import Path
 
 from ..docker_sandbox import DEFAULT_PROFILE
@@ -41,6 +42,30 @@ _RASTER_NOTES = {
 _SHORT_TYPES = {'VARCHAR': 'VARCHAR', 'INTEGER': 'INTEGER', 'BIGINT': 'BIGINT', 'DOUBLE': 'DOUBLE'}
 
 
+_NUMBERED = re.compile(r'(.+_)(\d+)')
+
+
+def _column_runs(columns: list) -> list[str]:
+    """Each column as `name TYPE`, with a run of columns that differ only by their number and share a type shown as one
+    range: the land prices carry 148 original columns L01_001 to L01_148, whose meanings differ by year."""
+    shown, index = [], 0
+    while index < len(columns):
+        name, kind = columns[index]
+        kind = 'GEOMETRY' if kind.startswith('GEOMETRY') else kind
+        numbered = _NUMBERED.fullmatch(name)
+        end = index + 1
+        while (numbered and end < len(columns) and columns[end][1] == columns[index][1]
+               and (following := _NUMBERED.fullmatch(columns[end][0])) and following.group(1) == numbered.group(1)):
+            end += 1
+        if end - index >= 3:
+            shown.append(f'{name}〜{columns[end - 1][0]} {kind}（{end - index} 列）')
+        else:
+            shown.extend(f'{other} {"GEOMETRY" if other_kind.startswith("GEOMETRY") else other_kind}'
+                         for other, other_kind in columns[index:end])
+        index = end
+    return shown
+
+
 def _table_text(dataset_id: str, table: dict) -> str:
     meanings = {key['column']: key['meaning'] for key in table.get('join_keys', [])}
     meanings.update({column['name']: column['meaning'] + (f"。欠損: {column['missing']}" if column.get('missing') else '')
@@ -59,8 +84,7 @@ def _table_text(dataset_id: str, table: dict) -> str:
     if table.get('no_key'):
         lines.append('  持たないキー: ' + '、'.join(f'{key["name"]}（{key["note"]}）' for key in table['no_key']))
     columns = table['schema']['columns']
-    lines.append('  列: ' + ', '.join(f'{name} {"GEOMETRY" if kind.startswith("GEOMETRY") else kind}'
-                                     for name, kind in columns))
+    lines.append('  列: ' + ', '.join(_column_runs(columns)))
     described = [f'{name}（{meanings[name]}）' for name, kind in columns if name in meanings and (not kind.startswith('GEOMETRY') or name in noted)]
     if described:
         lines.append('  列の意味: ' + '、'.join(described))

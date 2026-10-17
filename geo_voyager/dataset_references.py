@@ -20,6 +20,7 @@ _MAIN_TABLE = {
     'yuiseki/worldpop-jp-2026-01': 'population_100m_2020',
     'yuiseki/worldbank-wdi': 'data',
     'yuiseki/natural-earth': 'ne_10m_admin_0_countries',
+    'yuiseki/ksj-l01-land-price': 'land_price',
 }
 _NOTES = {
     'yuiseki/jp-admin-2026-09': ('東京23区の23区は1回で読める。区や市区町村の中心点は、この Dataset の代表点 rep_lon と rep_lat を使う。'

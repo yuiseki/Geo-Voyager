@@ -1,13 +1,14 @@
 {
  "source": {
   "repository": "https://github.com/yuiseki/GeoAI-master-skills",
-  "commit": "6926f3ec6cb1ee5fe2080ee2c581d1a1e5261a85",
+  "commit": "bdb1e777925458578255e46680fe11e1b38416f2",
   "paths": {
    "yuiseki/jp-admin-2026-09": ".agents/skills/dataset-discovery/references/jp-admin-2026-09.md",
    "yuiseki/ekidata-jp": ".agents/skills/dataset-discovery/references/ekidata-jp.md",
    "yuiseki/worldpop-jp-2026-01": ".agents/skills/dataset-discovery/references/worldpop/japan.md",
    "yuiseki/worldbank-wdi": ".agents/skills/dataset-discovery/references/worldbank-wdi.md",
-   "yuiseki/natural-earth": ".agents/skills/dataset-discovery/references/natural-earth.md"
+   "yuiseki/natural-earth": ".agents/skills/dataset-discovery/references/natural-earth.md",
+   "yuiseki/ksj-l01-land-price": ".agents/skills/dataset-discovery/references/ksj-l01-land-price.md"
   }
  },
  "datasets": {
@@ -120,7 +121,7 @@
      ],
      "schema": {
       "measured_by": "Geo-Voyager",
-      "measured_on": "2026-10-14",
+      "measured_on": "2026-10-17",
       "columns": [
        [
         "lg_code",
@@ -254,7 +255,7 @@
      ],
      "schema": {
       "measured_by": "Geo-Voyager",
-      "measured_on": "2026-10-14",
+      "measured_on": "2026-10-17",
       "columns": [
        [
         "pref_code",
@@ -421,7 +422,7 @@
      ],
      "schema": {
       "measured_by": "Geo-Voyager",
-      "measured_on": "2026-10-14",
+      "measured_on": "2026-10-17",
       "columns": [
        [
         "station_cd",
@@ -519,7 +520,7 @@
      ],
      "schema": {
       "measured_by": "Geo-Voyager",
-      "measured_on": "2026-10-14",
+      "measured_on": "2026-10-17",
       "columns": [
        [
         "line_cd",
@@ -595,7 +596,7 @@
      ],
      "schema": {
       "measured_by": "Geo-Voyager",
-      "measured_on": "2026-10-14",
+      "measured_on": "2026-10-17",
       "columns": [
        [
         "company_cd",
@@ -664,7 +665,7 @@
      ],
      "schema": {
       "measured_by": "Geo-Voyager",
-      "measured_on": "2026-10-14",
+      "measured_on": "2026-10-17",
       "columns": [
        [
         "line_cd",
@@ -693,7 +694,7 @@
      ],
      "schema": {
       "measured_by": "Geo-Voyager",
-      "measured_on": "2026-10-14",
+      "measured_on": "2026-10-17",
       "columns": [
        [
         "pref_cd",
@@ -786,7 +787,7 @@
      ],
      "schema": {
       "measured_by": "Geo-Voyager",
-      "measured_on": "2026-10-14",
+      "measured_on": "2026-10-17",
       "columns": [
        [
         "project",
@@ -969,7 +970,7 @@
      ],
      "schema": {
       "measured_by": "Geo-Voyager",
-      "measured_on": "2026-10-14",
+      "measured_on": "2026-10-17",
       "columns": [
        [
         "country_code",
@@ -1002,7 +1003,7 @@
      ],
      "schema": {
       "measured_by": "Geo-Voyager",
-      "measured_on": "2026-10-14",
+      "measured_on": "2026-10-17",
       "columns": [
        [
         "Series Code",
@@ -1106,7 +1107,7 @@
      ],
      "schema": {
       "measured_by": "Geo-Voyager",
-      "measured_on": "2026-10-14",
+      "measured_on": "2026-10-17",
       "columns": [
        [
         "Country Code",
@@ -1333,7 +1334,7 @@
      ],
      "schema": {
       "measured_by": "Geo-Voyager",
-      "measured_on": "2026-10-14",
+      "measured_on": "2026-10-17",
       "columns": [
        [
         "featurecla",
@@ -2026,7 +2027,7 @@
      ],
      "schema": {
       "measured_by": "Geo-Voyager",
-      "measured_on": "2026-10-14",
+      "measured_on": "2026-10-17",
       "columns": [
        [
         "featurecla",
@@ -2529,7 +2530,7 @@
      "id": [],
      "schema": {
       "measured_by": "Geo-Voyager",
-      "measured_on": "2026-10-14",
+      "measured_on": "2026-10-17",
       "columns": [
        [
         "SCALERANK",
@@ -3091,6 +3092,744 @@
    ],
    "card_revision": "efdd0668c57c9d42307e12eacbf66d8d151de5b9",
    "card_revision_pinned_by": "Geo-Voyager"
+  },
+  "yuiseki/ksj-l01-land-price": {
+   "kind": "dataset",
+   "id": "yuiseki/ksj-l01-land-price",
+   "description": "地価公示 (国土交通省の土地鑑定委員会が毎年 1 月 1 日時点で公示する標準地の価格) を、国土数値情報 L01 から年ごとの Parquet にしたもの。1 行が 1 つの標準地の 1 年。",
+   "url": "https://huggingface.co/datasets/yuiseki/ksj-l01-land-price",
+   "card_revision": "7e32fd1266b1eea107d83ebecd6974e94744c3a7",
+   "license": "CC BY 4.0 (国土数値情報の利用約款で PDL1.0 が適用される年だけ)。出典の表示と、加工したことの明記が要る",
+   "formats": [
+    "Parquet (年ごと、経度と緯度の列)",
+    "GML、Shapefile、GeoJSON (元の zip)"
+   ],
+   "crs": "経度と緯度の列。測地系は .prj で 2023 年まで JGD2000、2024 年から JGD2011。ただし同じ標準地の座標は 2023 年と 2024 年で動いていない",
+   "spatial_coverage": "日本全国の標準地 (主に都市計画区域の中)。点の位置は測量ではなく住宅地図などから取ったもの",
+   "temporal_coverage": "2019〜2026 年の各年 1 月 1 日時点の価格。1983〜2018 年は利用条件が違うので入っていない",
+   "as_of": {
+    "retrieved": "2026-10-16",
+    "latest_year": 2026
+   },
+   "contents": [
+    "標準地ごとの公示価格 (円/m²) と対前年変動率",
+    "所在と地番、地積、利用の現況、用途区分",
+    "都市計画の用途地域、建蔽率、容積率、最寄り駅と道路距離ほか、年によって 128〜148 の元の列"
+   ],
+   "tables": [
+    {
+     "name": "land_price",
+     "read": "hf://datasets/yuiseki/ksj-l01-land-price/parquet/2026.parquet",
+     "grain": "1 つの標準地の 1 年 (その年の 1 月 1 日時点の価格)",
+     "rows": 207087,
+     "id": [],
+     "join_keys": [
+      {
+       "column": "municipality_code",
+       "type": "VARCHAR",
+       "meaning": "5 桁の市区町村コード (文字列、先頭の 0 を保つ)",
+       "unique": false,
+       "joins": [
+        "jp-admin-2026-09:municipalities.code5"
+       ],
+       "note": "2024〜2026 年はすべて一致する。2019〜2023 年は浜松市の旧 7 区 (22131〜22137、2024 年に再編) の各年 136 行が一致しない"
+      }
+     ],
+     "no_key": [
+      {
+       "name": "lot_id",
+       "note": "標準地番号を 1 つの列にしたものは無い。年の中では (市区町村コード、用途区分、連番) が一意だが、列の位置が年で違う (下の本文)。番号は年ごとに振り直されるので、同じ番号で年をまたいで結ばない。前年の番号の列で結ぶ"
+      }
+     ],
+     "columns": [
+      {
+       "name": "year",
+       "type": "SMALLINT",
+       "meaning": "公示の年。価格はその年の 1 月 1 日時点"
+      },
+      {
+       "name": "prefecture",
+       "type": "VARCHAR",
+       "meaning": "都道府県コード (01〜47)。行を取った都道府県のファイルから"
+      },
+      {
+       "name": "price_yen",
+       "type": "BIGINT",
+       "meaning": "公示価格 (円/m²)"
+      },
+      {
+       "name": "change_pct",
+       "type": "DOUBLE",
+       "meaning": "対前年変動率 (%)",
+       "missing": "2019〜2021 年は元に列が無く NULL。新しい地点 (前年の番号が無い) は NULL ではなく 0.0 で、変化が無いことと区別できない。前年の番号で結べたかで見分ける"
+      },
+      {
+       "name": "address",
+       "type": "VARCHAR",
+       "meaning": "所在。2019〜2021 年は住居表示、2022 年から所在並びに地番。書式が年で違う"
+      },
+      {
+       "name": "area_m2",
+       "type": "DOUBLE",
+       "meaning": "地積 (m²)"
+      },
+      {
+       "name": "lon",
+       "type": "DOUBLE",
+       "meaning": "経度。測地系は年の .prj による"
+      },
+      {
+       "name": "lat",
+       "type": "DOUBLE",
+       "meaning": "緯度"
+      },
+      {
+       "name": "L01_001 ほか",
+       "type": "VARCHAR",
+       "meaning": "元の列そのまま、文字列。番号の意味は年ごとに違い、parquet/columns.json のラベルで引く。欠けは '_'"
+      }
+     ],
+     "read_chosen_by": "Geo-Voyager: <year> = 2026",
+     "schema": {
+      "measured_by": "Geo-Voyager",
+      "measured_on": "2026-10-17",
+      "columns": [
+       [
+        "year",
+        "SMALLINT"
+       ],
+       [
+        "prefecture",
+        "VARCHAR"
+       ],
+       [
+        "municipality_code",
+        "VARCHAR"
+       ],
+       [
+        "price_yen",
+        "BIGINT"
+       ],
+       [
+        "change_pct",
+        "DOUBLE"
+       ],
+       [
+        "address",
+        "VARCHAR"
+       ],
+       [
+        "area_m2",
+        "DOUBLE"
+       ],
+       [
+        "lon",
+        "DOUBLE"
+       ],
+       [
+        "lat",
+        "DOUBLE"
+       ],
+       [
+        "L01_001",
+        "VARCHAR"
+       ],
+       [
+        "L01_002",
+        "VARCHAR"
+       ],
+       [
+        "L01_003",
+        "VARCHAR"
+       ],
+       [
+        "L01_004",
+        "VARCHAR"
+       ],
+       [
+        "L01_005",
+        "VARCHAR"
+       ],
+       [
+        "L01_006",
+        "VARCHAR"
+       ],
+       [
+        "L01_007",
+        "VARCHAR"
+       ],
+       [
+        "L01_008",
+        "VARCHAR"
+       ],
+       [
+        "L01_009",
+        "VARCHAR"
+       ],
+       [
+        "L01_010",
+        "VARCHAR"
+       ],
+       [
+        "L01_011",
+        "VARCHAR"
+       ],
+       [
+        "L01_012",
+        "VARCHAR"
+       ],
+       [
+        "L01_013",
+        "VARCHAR"
+       ],
+       [
+        "L01_014",
+        "VARCHAR"
+       ],
+       [
+        "L01_015",
+        "VARCHAR"
+       ],
+       [
+        "L01_016",
+        "VARCHAR"
+       ],
+       [
+        "L01_017",
+        "VARCHAR"
+       ],
+       [
+        "L01_018",
+        "VARCHAR"
+       ],
+       [
+        "L01_019",
+        "VARCHAR"
+       ],
+       [
+        "L01_020",
+        "VARCHAR"
+       ],
+       [
+        "L01_021",
+        "VARCHAR"
+       ],
+       [
+        "L01_022",
+        "VARCHAR"
+       ],
+       [
+        "L01_023",
+        "VARCHAR"
+       ],
+       [
+        "L01_024",
+        "VARCHAR"
+       ],
+       [
+        "L01_025",
+        "VARCHAR"
+       ],
+       [
+        "L01_026",
+        "VARCHAR"
+       ],
+       [
+        "L01_027",
+        "VARCHAR"
+       ],
+       [
+        "L01_028",
+        "VARCHAR"
+       ],
+       [
+        "L01_029",
+        "VARCHAR"
+       ],
+       [
+        "L01_030",
+        "VARCHAR"
+       ],
+       [
+        "L01_031",
+        "VARCHAR"
+       ],
+       [
+        "L01_032",
+        "VARCHAR"
+       ],
+       [
+        "L01_033",
+        "VARCHAR"
+       ],
+       [
+        "L01_034",
+        "VARCHAR"
+       ],
+       [
+        "L01_035",
+        "VARCHAR"
+       ],
+       [
+        "L01_036",
+        "VARCHAR"
+       ],
+       [
+        "L01_037",
+        "VARCHAR"
+       ],
+       [
+        "L01_038",
+        "VARCHAR"
+       ],
+       [
+        "L01_039",
+        "VARCHAR"
+       ],
+       [
+        "L01_040",
+        "VARCHAR"
+       ],
+       [
+        "L01_041",
+        "VARCHAR"
+       ],
+       [
+        "L01_042",
+        "VARCHAR"
+       ],
+       [
+        "L01_043",
+        "VARCHAR"
+       ],
+       [
+        "L01_044",
+        "VARCHAR"
+       ],
+       [
+        "L01_045",
+        "VARCHAR"
+       ],
+       [
+        "L01_046",
+        "VARCHAR"
+       ],
+       [
+        "L01_047",
+        "VARCHAR"
+       ],
+       [
+        "L01_048",
+        "VARCHAR"
+       ],
+       [
+        "L01_049",
+        "VARCHAR"
+       ],
+       [
+        "L01_050",
+        "VARCHAR"
+       ],
+       [
+        "L01_051",
+        "VARCHAR"
+       ],
+       [
+        "L01_052",
+        "VARCHAR"
+       ],
+       [
+        "L01_053",
+        "VARCHAR"
+       ],
+       [
+        "L01_054",
+        "VARCHAR"
+       ],
+       [
+        "L01_055",
+        "VARCHAR"
+       ],
+       [
+        "L01_056",
+        "VARCHAR"
+       ],
+       [
+        "L01_057",
+        "VARCHAR"
+       ],
+       [
+        "L01_058",
+        "VARCHAR"
+       ],
+       [
+        "L01_059",
+        "VARCHAR"
+       ],
+       [
+        "L01_060",
+        "VARCHAR"
+       ],
+       [
+        "L01_061",
+        "VARCHAR"
+       ],
+       [
+        "L01_062",
+        "VARCHAR"
+       ],
+       [
+        "L01_063",
+        "VARCHAR"
+       ],
+       [
+        "L01_064",
+        "VARCHAR"
+       ],
+       [
+        "L01_065",
+        "VARCHAR"
+       ],
+       [
+        "L01_066",
+        "VARCHAR"
+       ],
+       [
+        "L01_067",
+        "VARCHAR"
+       ],
+       [
+        "L01_068",
+        "VARCHAR"
+       ],
+       [
+        "L01_069",
+        "VARCHAR"
+       ],
+       [
+        "L01_070",
+        "VARCHAR"
+       ],
+       [
+        "L01_071",
+        "VARCHAR"
+       ],
+       [
+        "L01_072",
+        "VARCHAR"
+       ],
+       [
+        "L01_073",
+        "VARCHAR"
+       ],
+       [
+        "L01_074",
+        "VARCHAR"
+       ],
+       [
+        "L01_075",
+        "VARCHAR"
+       ],
+       [
+        "L01_076",
+        "VARCHAR"
+       ],
+       [
+        "L01_077",
+        "VARCHAR"
+       ],
+       [
+        "L01_078",
+        "VARCHAR"
+       ],
+       [
+        "L01_079",
+        "VARCHAR"
+       ],
+       [
+        "L01_080",
+        "VARCHAR"
+       ],
+       [
+        "L01_081",
+        "VARCHAR"
+       ],
+       [
+        "L01_082",
+        "VARCHAR"
+       ],
+       [
+        "L01_083",
+        "VARCHAR"
+       ],
+       [
+        "L01_084",
+        "VARCHAR"
+       ],
+       [
+        "L01_085",
+        "VARCHAR"
+       ],
+       [
+        "L01_086",
+        "VARCHAR"
+       ],
+       [
+        "L01_087",
+        "VARCHAR"
+       ],
+       [
+        "L01_088",
+        "VARCHAR"
+       ],
+       [
+        "L01_089",
+        "VARCHAR"
+       ],
+       [
+        "L01_090",
+        "VARCHAR"
+       ],
+       [
+        "L01_091",
+        "VARCHAR"
+       ],
+       [
+        "L01_092",
+        "VARCHAR"
+       ],
+       [
+        "L01_093",
+        "VARCHAR"
+       ],
+       [
+        "L01_094",
+        "VARCHAR"
+       ],
+       [
+        "L01_095",
+        "VARCHAR"
+       ],
+       [
+        "L01_096",
+        "VARCHAR"
+       ],
+       [
+        "L01_097",
+        "VARCHAR"
+       ],
+       [
+        "L01_098",
+        "VARCHAR"
+       ],
+       [
+        "L01_099",
+        "VARCHAR"
+       ],
+       [
+        "L01_100",
+        "VARCHAR"
+       ],
+       [
+        "L01_101",
+        "VARCHAR"
+       ],
+       [
+        "L01_102",
+        "VARCHAR"
+       ],
+       [
+        "L01_103",
+        "VARCHAR"
+       ],
+       [
+        "L01_104",
+        "VARCHAR"
+       ],
+       [
+        "L01_105",
+        "VARCHAR"
+       ],
+       [
+        "L01_106",
+        "VARCHAR"
+       ],
+       [
+        "L01_107",
+        "VARCHAR"
+       ],
+       [
+        "L01_108",
+        "VARCHAR"
+       ],
+       [
+        "L01_109",
+        "VARCHAR"
+       ],
+       [
+        "L01_110",
+        "VARCHAR"
+       ],
+       [
+        "L01_111",
+        "VARCHAR"
+       ],
+       [
+        "L01_112",
+        "VARCHAR"
+       ],
+       [
+        "L01_113",
+        "VARCHAR"
+       ],
+       [
+        "L01_114",
+        "VARCHAR"
+       ],
+       [
+        "L01_115",
+        "VARCHAR"
+       ],
+       [
+        "L01_116",
+        "VARCHAR"
+       ],
+       [
+        "L01_117",
+        "VARCHAR"
+       ],
+       [
+        "L01_118",
+        "VARCHAR"
+       ],
+       [
+        "L01_119",
+        "VARCHAR"
+       ],
+       [
+        "L01_120",
+        "VARCHAR"
+       ],
+       [
+        "L01_121",
+        "VARCHAR"
+       ],
+       [
+        "L01_122",
+        "VARCHAR"
+       ],
+       [
+        "L01_123",
+        "VARCHAR"
+       ],
+       [
+        "L01_124",
+        "VARCHAR"
+       ],
+       [
+        "L01_125",
+        "VARCHAR"
+       ],
+       [
+        "L01_126",
+        "VARCHAR"
+       ],
+       [
+        "L01_127",
+        "VARCHAR"
+       ],
+       [
+        "L01_128",
+        "VARCHAR"
+       ],
+       [
+        "L01_129",
+        "VARCHAR"
+       ],
+       [
+        "L01_130",
+        "VARCHAR"
+       ],
+       [
+        "L01_131",
+        "VARCHAR"
+       ],
+       [
+        "L01_132",
+        "VARCHAR"
+       ],
+       [
+        "L01_133",
+        "VARCHAR"
+       ],
+       [
+        "L01_134",
+        "VARCHAR"
+       ],
+       [
+        "L01_135",
+        "VARCHAR"
+       ],
+       [
+        "L01_136",
+        "VARCHAR"
+       ],
+       [
+        "L01_137",
+        "VARCHAR"
+       ],
+       [
+        "L01_138",
+        "VARCHAR"
+       ],
+       [
+        "L01_139",
+        "VARCHAR"
+       ],
+       [
+        "L01_140",
+        "VARCHAR"
+       ],
+       [
+        "L01_141",
+        "VARCHAR"
+       ],
+       [
+        "L01_142",
+        "VARCHAR"
+       ],
+       [
+        "L01_143",
+        "VARCHAR"
+       ],
+       [
+        "L01_144",
+        "VARCHAR"
+       ],
+       [
+        "L01_145",
+        "VARCHAR"
+       ],
+       [
+        "L01_146",
+        "VARCHAR"
+       ],
+       [
+        "L01_147",
+        "VARCHAR"
+       ],
+       [
+        "L01_148",
+        "VARCHAR"
+       ]
+      ],
+      "row_groups": 47,
+      "split_by": [
+       "prefecture"
+      ]
+     }
+    }
+   ]
   }
  }
 }

@@ -2,7 +2,7 @@ from geo_voyager.dataset_tables import TABLE_URLS, table_names
 
 # The datasets the first primitives read, each from its one file (Dataset.data_url).
 _WHOLE = ("yuiseki/jp-admin-2026-09", "yuiseki/ekidata-jp", "yuiseki/worldpop-jp-2026-01", "yuiseki/worldbank-wdi",
-          "yuiseki/natural-earth")
+          "yuiseki/natural-earth", "yuiseki/ksj-l01-land-price")
 
 
 def dataset_url(dataset_id: str, table: str | None = None) -> str:
