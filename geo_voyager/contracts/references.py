@@ -3,9 +3,11 @@
 Stage 1 asked jp-admin for an OSM relation_id now and then whatever the dataset lines said, and once wrote a range of
 municipal codes that does not exist. A sentence in a prompt moved with every change of wording; these do not.
 """
+import io
 import json
 from pathlib import Path
 import re
+import tokenize
 
 from ..intent import Intent
 
@@ -43,3 +45,23 @@ def lacked_keys(intent: Intent) -> list[str]:
 def unsourced_codes(intent: Intent, goal: str, sources: str) -> list[str]:
     """Numbers of five digits or more in the Intent that neither the Goal nor the history gave."""
     return [code for code in dict.fromkeys(re.findall(r'\d{5,}', intent.text)) if code not in goal and code not in sources]
+
+
+def _without_comments(code: str) -> str:
+    try:
+        tokens = list(tokenize.generate_tokens(io.StringIO(code).readline))
+    except (tokenize.TokenError, IndentationError, SyntaxError):
+        return re.sub(r'#[^\n]*', '', code)
+    lines = code.splitlines(keepends=True)
+    for token in reversed([token for token in tokens if token.type == tokenize.COMMENT]):
+        (row, start), (_, end) = token.start, token.end
+        lines[row - 1] = lines[row - 1][:start] + lines[row - 1][end:]
+    return ''.join(lines)
+
+
+def unsourced_numbers(code: str, sources: str) -> list[str]:
+    """Numbers of five digits or more in the code, outside its comments, that the sources (what the code was given)
+    do not have. A round number (a unit, Overpass's area offset 3600000000) and an EPSG code are not codes."""
+    found = re.findall(r'(?<![\d.])(?<!EPSG:)\d{5,}(?![\d.])', _without_comments(code))
+    return [number for number in dict.fromkeys(found)
+            if number not in sources and len(number.rstrip('0')) > 2]

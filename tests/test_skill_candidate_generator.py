@@ -629,7 +629,8 @@ def test_contract_refuses_a_query_for_other_element_types_than_the_intent_names(
             '    return json.loads(call_service("overpass", path="/api/interpreter", params={"data": query}))\n')
     problems = contract_problems(Intent('港区の amenity=pharmacy のノード件数', service_ids=('overpass',)), code)
     assert any('nwr' in found for found, _ in problems)
-    assert contract_problems(Intent('港区の amenity=pharmacy の件数', service_ids=('overpass',)), code) == []
+    # The area id is given (by an earlier step): one written from memory is refused (test_unsourced_numbers_in_code).
+    assert contract_problems(Intent('港区（area 3601761717）の amenity=pharmacy の件数', service_ids=('overpass',)), code) == []
 
 
 @pytest.mark.parametrize('text, selector', [('港区の amenity=pharmacy のノード件数', 'node'),

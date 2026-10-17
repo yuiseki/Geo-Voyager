@@ -6,6 +6,7 @@ from .contracts.code import axis_order_problems, catalog_path_problems, local_ag
 from .control_primitives.population_grid import MAX_ZONES
 from .indicator_codes import DATASET as INDICATOR_DATASET, unknown_indicator_text, unknown_indicators
 from .background_facts import facts_section
+from .contracts.references import unsourced_numbers
 from .contracts.tables import table_contract
 from .skill_candidate import entry_problems, main_function_name, rewritten_skills, service_calls, skill_shape_problems, unpassed_runtime_reads, called_service_ids, intent_element_type, overpass_element_mismatch, read_datasets, calls_any, DATASET_READERS_NOTE
 from .place_names import place_words_in
@@ -196,6 +197,18 @@ def dataset_problems(intent: Intent, code: str, shown: tuple[str, ...] = ()) -> 
     return problems
 
 
+def _given(intent: Intent) -> str:
+    """What the code is given to work from: the Intent, its target, and the Observations and notes passed to it."""
+    return ' '.join([intent.text, str(intent.target or ''), *intent.input_notes,
+                     *(observation.text for observation in intent.previous_observations)])
+
+
+def _unsourced_note(found: list[str]) -> str:
+    return (f'\n\n前回の応答は拒否された。Intent にも前の結果にも無いコードや ID や値をコードに書いた: {", ".join(found)}。'
+            '市区町村コードなどを記憶で書かない（探索で書かれた区のコードは全て誤りだった）。'
+            '名前で行を選ぶか、名前からデータで引いた値を使う。')
+
+
 def contract_problems(intent: Intent, code: str, shown: tuple[str, ...] = ()) -> list[tuple[str, str]]:
     """What the code breaks, as (the code found, the note for the model), for the kinds of Intent that have a contract."""
     problems = []
@@ -224,6 +237,9 @@ def contract_problems(intent: Intent, code: str, shown: tuple[str, ...] = ()) ->
     shape = shape + overpass_element_mismatch(intent.text, code)
     if shape:
         problems.append(('skill shape: ' + '; '.join(shape), _shape_note(shape)))
+    invented = unsourced_numbers(code, _given(intent))
+    if invented:
+        problems.append(('unsourced: ' + ', '.join(invented), _unsourced_note(invented)))
     if intent.target is not None and intent.target.resolved:
         found = id_type_comparisons(code)
         if found:
