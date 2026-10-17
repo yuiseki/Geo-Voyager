@@ -52,6 +52,10 @@ def planner_text(dataset_id: str) -> str:
     notes += [f"{column['name']}: {column['note']}" for column in table.get('columns', []) if column.get('note')]
     if notes:
         text += '注意: ' + ' '.join(notes) + '。'
+    if table.get('read_chosen_by'):
+        # The reference describes every year, the sandbox reads one (scripts/sync_dataset_references.py READ_AS).
+        placeholder, value = table['read_chosen_by'].removeprefix('Geo-Voyager: ').split(' = ')
+        text += f'実行環境で読めるのは {placeholder} が {value} の表だけで、ほかの {placeholder} は読めない。'
     return text + _NOTES.get(dataset_id, '')
 
 

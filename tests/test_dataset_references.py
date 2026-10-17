@@ -99,3 +99,10 @@ def test_a_join_keys_note_reaches_the_planner_and_the_generator():
         assert 'countries の Region が空でないものに絞る' in text
     for text in (planner_text('yuiseki/jp-admin-2026-09'), table_contract(('yuiseki/jp-admin-2026-09',))):
         assert '親と区が重なるので ward is null に絞る' in text
+
+
+def test_a_table_read_for_one_value_of_its_placeholder_says_the_others_cannot_be_read():
+    # Exploration 13 (2026-10-17): the curriculum proposed the land prices of 2024 three times, read in the description
+    # of 2019 to 2026, and the Planner spent 12 steps on each looking for a table the sandbox does not read.
+    text = planner_text('yuiseki/ksj-l01-land-price')
+    assert '実行環境で読めるのは <year> が 2026 の表だけ' in text
