@@ -119,9 +119,12 @@ def test_an_empty_goal_is_rejected_before_asking_the_model():
 
 
 def test_a_long_observation_is_bounded_in_the_prompt():
+    # Measured against the same prompt with a short Observation: the resources shown grow with the datasets.
     plan, client = planner(NEXT)
+    plan.next('港区の病院数', history(entry(1, FIRST, '{"rows": [1]}')))
+    short = len(client.generate.call_args.args[0])
     plan.next('港区の病院数', history(entry(1, FIRST, '{"rows": [' + ', '.join(['1'] * 5000) + ']}')))
-    assert len(client.generate.call_args.args[0]) < 12000
+    assert len(client.generate.call_args.args[0]) - short < 1000
 
 
 def test_the_history_is_not_changed_by_planning():

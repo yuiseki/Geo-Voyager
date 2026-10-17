@@ -29,6 +29,7 @@ REFERENCES = {
     'yuiseki/worldbank-wdi': 'worldbank-wdi.md',
     'yuiseki/natural-earth': 'natural-earth.md',
     'yuiseki/ksj-l01-land-price': 'ksj-l01-land-price.md',
+    'yuiseki/osm-tokyo23-src-2026-08': 'osm-tokyo23-src-2026-08.md',
 }
 # The revision a reference without card_revision is read at: the dataset's main when it was first synced
 # (2026-10-14). Its tables are under a directory of their version (parquet/2026-10-01/, parquet/v5.1.2/), so the

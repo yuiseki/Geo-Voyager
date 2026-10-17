@@ -128,6 +128,21 @@ CATALOG = (
         data_url=("https://huggingface.co/datasets/yuiseki/ksj-l01-land-price/resolve/"
                   "7e32fd1266b1eea107d83ebecd6974e94744c3a7/parquet/2026.parquet"),
     ),
+    # 38f7a5f961b6e33343d82a11152e768c37d22664 (the card's revision)
+    Dataset(
+        id="yuiseki/osm-tokyo23-src-2026-08",
+        description=("OpenStreetMap の東京 23 区の凍結版（2026-08-31）。osm2pgsql の点、線、面、道路の 4 つの表。"
+                     "施設、店、公園、運動場、寺社、建物などを、タグの列（amenity、leisure、shop、sport など）で引ける。"
+                     "全国版の約 30 分の 1 で、23 区の中で閉じる問いなら Overpass より軽い。"),
+        url="https://huggingface.co/datasets/yuiseki/osm-tokyo23-src-2026-08",
+        license="ODbL-1.0。派生物にも同じ条件と出典の表示（© OpenStreetMap contributors）が及ぶ",
+        formats=("GeoParquet",),
+        spatial_coverage="東京 23 区（区に掛かる way は丸ごと入るので、区の外の地物もある）",
+        temporal_coverage="2026-08-31 の 1 時点",
+        contents=("点", "線", "面", "道路"),
+        data_url=("https://huggingface.co/datasets/yuiseki/osm-tokyo23-src-2026-08/resolve/"
+                  "38f7a5f961b6e33343d82a11152e768c37d22664/parquet/planet_osm_polygon.parquet"),
+    ),
 )
 
 

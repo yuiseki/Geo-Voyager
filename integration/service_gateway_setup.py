@@ -1,8 +1,20 @@
+import json
 from pathlib import Path
 import subprocess
 import time
 
 from integration.test_tokyo23_gateway import docker
+
+
+def _where_tables_are_read(references: str) -> str:
+    """Of the dataset references, what geo_voyager.dataset_tables reads: each table's name and file, and the card's
+    revision. The Gateway's code goes to `python -c` as one argument, which Linux caps at 128 KiB; the whole
+    references (91 KB of mostly Japanese text, 2026-10-17) took it over."""
+    data = json.loads(references)
+    kept = {dataset_id: {'card_revision': reference['card_revision'],
+                         'tables': [{'name': table['name'], 'read': table['read']} for table in reference['tables']]}
+            for dataset_id, reference in data['datasets'].items()}
+    return json.dumps({'source': {}, 'datasets': kept})
 
 
 def gateway_code(*, with_datasets=False, mirror_dir=None):
@@ -18,6 +30,8 @@ def gateway_code(*, with_datasets=False, mirror_dir=None):
     if with_datasets:
         names += ['datasets.py', 'dataset_tables.py', 'dataset_references.json']
     files = {name: (root / name).read_text() for name in names}
+    if 'dataset_references.json' in files:
+        files['dataset_references.json'] = _where_tables_are_read(files['dataset_references.json'])
     return f'''
 from pathlib import Path
 import sys

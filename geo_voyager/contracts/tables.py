@@ -66,7 +66,25 @@ def _column_runs(columns: list) -> list[str]:
     return shown
 
 
-def _table_text(dataset_id: str, table: dict) -> str:
+def _columns_text(columns: list, shown_before: dict) -> str:
+    """The columns, or, when a table shown before has nearly the same ones, that table's name and the difference: the
+    four tables of osm2pgsql share about 70 columns, 6,667 characters when listed for each."""
+    names = [name for name, _ in columns]
+    for other, other_columns in shown_before.items():
+        other_names = [name for name, _ in other_columns]
+        added = [column for column in columns if column[0] not in other_names]
+        missing = [name for name in other_names if name not in names]
+        if len(added) + len(missing) <= 5:
+            text = f'{other} と同じ'
+            if added:
+                text += '。ただし ' + ', '.join(_column_runs(added)) + ' がある'
+            if missing:
+                text += '。' + ', '.join(missing) + ' は無い'
+            return text
+    return ', '.join(_column_runs(columns))
+
+
+def _table_text(dataset_id: str, table: dict, shown_before: dict | None = None) -> str:
     meanings = {key['column']: key['meaning'] for key in table.get('join_keys', [])}
     meanings.update({column['name']: column['meaning'] + (f"。欠損: {column['missing']}" if column.get('missing') else '')
                      + (f"。注意: {column['note']}" if column.get('note') else '')
@@ -84,7 +102,11 @@ def _table_text(dataset_id: str, table: dict) -> str:
     if table.get('no_key'):
         lines.append('  持たないキー: ' + '、'.join(f'{key["name"]}（{key["note"]}）' for key in table['no_key']))
     columns = table['schema']['columns']
-    lines.append('  列: ' + ', '.join(_column_runs(columns)))
+    lines.append('  列: ' + _columns_text(columns, shown_before or {}))
+    projected = [name for name, kind in columns if kind.startswith('GEOMETRY') and 'EPSG:3857' in kind]
+    if projected:
+        lines.append(f'  {", ".join(projected)} は read_table が OGC:CRS84 の経度、緯度に直して返す（元は EPSG:3857 のメートル）。'
+                     'bbox は EPSG:3857 のメートルのまま')
     described = [f'{name}（{meanings[name]}）' for name, kind in columns if name in meanings and (not kind.startswith('GEOMETRY') or name in noted)]
     if described:
         lines.append('  列の意味: ' + '、'.join(described))
@@ -104,9 +126,11 @@ def table_contract(dataset_ids) -> str:
         reference = _DATA['datasets'].get(dataset_id)
         if reference is None:
             continue
+        shown = {}
         for table in reference['tables']:
             if 'schema' in table:
-                texts.append(_table_text(dataset_id, table))
+                texts.append(_table_text(dataset_id, table, shown))
+                shown.setdefault(table['name'], table['schema']['columns'])
             else:
                 texts.append(f'{dataset_id} の {table["name"]} はラスタで、表として読まない（1 画素は{table["grain"]}）。'
                              'sum_population_grid(connection, zones) が、zones（geometry 列を持つ relation）の区域ごとに画素を足す。'

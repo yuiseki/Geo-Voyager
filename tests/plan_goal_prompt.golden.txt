@@ -31,6 +31,7 @@ Dataset yuiseki/worldpop-jp-2026-01: WorldPop R2025A の日本人口ラスター
 Dataset yuiseki/worldbank-wdi: 世界銀行の世界開発指標。国と年ごとの人口、GDP、保健、教育、環境など約 1,400 指標。座標は無い。版 2026-10-01 の data（国 × 指標 × 年の値）、series（指標の定義）、countries（国と集計単位）を読める。
 Dataset yuiseki/natural-earth: 全世界の小縮尺ベクター。版 v5.1.2 の 10m の国（属領や係争地を含む）、州・省、都市の点を読める。
 Dataset yuiseki/ksj-l01-land-price: 地価公示。国土交通省が毎年 1 月 1 日時点で公示する、全国約 2 万 6 千の標準地の価格（円/m²）と対前年変動率、所在、地積、用途、経度と緯度。2026 年の表を読める。
+Dataset yuiseki/osm-tokyo23-src-2026-08: OpenStreetMap の東京 23 区の凍結版（2026-08-31）。osm2pgsql の点、線、面、道路の 4 つの表。施設、店、公園、運動場、寺社、建物などを、タグの列（amenity、leisure、shop、sport など）で引ける。全国版の約 30 分の 1 で、23 区の中で閉じる問いなら Overpass より軽い。
 Service overpass: overpass: 既存 planet DB の read-only OSM 検索。GET /api/interpreter は params の data に QL、POST text/plain は body に QL
 Service nominatim: nominatim: セルフホスト地名検索・逆ジオコーディング。/search, /reverse, /lookup
 Service valhalla: valhalla: セルフホスト経路検索。/route, /locate, /status

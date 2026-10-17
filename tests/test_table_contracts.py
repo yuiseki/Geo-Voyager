@@ -90,3 +90,23 @@ def test_columns_that_differ_only_by_their_number_are_shown_as_one_range():
 def test_the_land_prices_are_in_the_catalog_the_curriculum_and_the_planner_see():
     from geo_voyager.datasets import load_readable_dataset_graph
     assert LAND_PRICE in [dataset.id for dataset in load_readable_dataset_graph().all()]
+
+
+OSM_TOKYO = 'yuiseki/osm-tokyo23-src-2026-08'
+
+
+def test_a_table_with_the_columns_of_one_shown_before_points_to_it_and_names_only_the_difference():
+    # osm2pgsql's four tables share about 70 columns; listed for each, they were 6,667 characters.
+    text = table_contract((OSM_TOKYO,))
+    assert text.count('amenity VARCHAR') == 1
+    assert '列: planet_osm_polygon と同じ' in text
+    point = text[text.index('"planet_osm_point"'):]
+    point = point[:point.index('read_table(', 1)] if 'read_table(' in point[1:] else point
+    assert 'ele VARCHAR' in point and 'way_area' in point                       # the difference, both ways
+    assert len(text) < 4500
+
+
+def test_a_web_mercator_geometry_is_said_to_come_back_in_longitude_and_latitude():
+    text = table_contract((OSM_TOKYO,))
+    polygon = text[:text.index('"planet_osm_point"')]
+    assert 'way は read_table が OGC:CRS84' in polygon and 'bbox は EPSG:3857 のメートルのまま' in polygon

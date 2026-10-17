@@ -43,8 +43,9 @@ def test_the_planner_is_shown_these_texts_and_they_fit_the_context():
     prompt = client.generate.call_args.args[0]
     texts = [planner_text(dataset.id) for dataset in load_readable_dataset_graph().all()]
     assert all(f'Dataset {dataset.id}: {text}' in prompt for dataset, text in zip(load_readable_dataset_graph().all(), texts))
-    # 2,500 until the land prices (715 characters, 2026-10-17). The context is 16,384 tokens; the largest prompts are ~26 KB.
-    assert sum(len(text) for text in texts) < 3500
+    # 2,500 until the land prices (715 characters) and OSM of the 23 wards (630), 2026-10-17. The context is 16,384
+    # tokens; the largest prompts are ~26 KB.
+    assert sum(len(text) for text in texts) < 4000
 
 
 def test_the_curriculum_is_shown_them_too_and_the_first_plan_route_keeps_the_catalog():

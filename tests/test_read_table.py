@@ -8,6 +8,7 @@ from geo_voyager.control_primitives import read_table
 from geo_voyager.control_primitives.dataset_url import dataset_url
 
 ADMIN, STATIONS = 'yuiseki/jp-admin-2026-09', 'yuiseki/ekidata-jp'
+OSM = 'yuiseki/osm-tokyo23-src-2026-08'
 
 
 @pytest.fixture
@@ -25,7 +26,13 @@ def connection(tmp_path, monkeypatch):
         FROM (VALUES (1, 1, 11, '東京', 0, 139.1, 35.9), (3, 3, 13, '築地', 2, 139.3, 35.9))
         AS t(station_cd, station_g_cd, line_cd, station_name, e_status, lon, lat)) TO '{stations}' (FORMAT parquet)""")
     db.execute(f"COPY (SELECT 11 AS line_cd, '山手線' AS line_name) TO '{lines}' (FORMAT parquet)")
-    paths = {(ADMIN, 'municipalities'): str(admin), (STATIONS, 'station'): str(stations), (STATIONS, 'line'): str(lines)}
+    # A node of OSM as osm2pgsql writes it, in Web Mercator metres: (139.1, 35.9) in the first ward.
+    osm = tmp_path / 'osm.parquet'
+    db.execute(f"""COPY (SELECT 1 AS osm_id, 'cafe' AS amenity,
+                        ST_SetCRS(ST_Transform(ST_Point(139.1, 35.9), 'OGC:CRS84', 'EPSG:3857', always_xy := true), 'EPSG:3857') AS way)
+                  TO '{osm}' (FORMAT parquet)""")
+    paths = {(ADMIN, 'municipalities'): str(admin), (STATIONS, 'station'): str(stations), (STATIONS, 'line'): str(lines),
+             (OSM, 'planet_osm_point'): str(osm)}
     monkeypatch.setattr(sys.modules['geo_voyager.control_primitives.read_table'], 'dataset_url', lambda d, t: paths[(d, t)])
     yield db
     db.close()
@@ -66,3 +73,13 @@ def test_the_url_is_the_gateways_path_of_the_table():
     assert dataset_url(STATIONS, 'line') == 'http://gateway:8000/datasets/yuiseki/ekidata-jp/line'
     with pytest.raises(ValueError):
         dataset_url(STATIONS, 'nothing')
+
+
+def test_a_web_mercator_geometry_is_turned_to_longitude_latitude_so_it_joins_the_others(connection):
+    # osm2pgsql writes EPSG:3857 metres; the areas and distances the contract teaches are from OGC:CRS84.
+    points, wards = read_table(connection, OSM, 'planet_osm_point'), read_table(connection, ADMIN, 'municipalities')
+    assert 'OGC:CRS84' in str(dict(zip(points.columns, points.types))['way'])
+    lon, lat = connection.sql('SELECT ST_X(way), ST_Y(way) FROM points').fetchone()
+    assert abs(lon - 139.1) < 1e-9 and abs(lat - 35.9) < 1e-9
+    joined = connection.sql('SELECT w.name FROM wards w JOIN points p ON ST_Within(p.way, w.geometry)').fetchall()
+    assert joined == [('千代田区',)]
