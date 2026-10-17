@@ -193,3 +193,39 @@ def test_a_finding_explored_before_predictions_is_shown_without_one():
     agent, client = curriculum('Goal: x を求める\n理由: y\n予想: 3')
     agent.propose([FINDING], [])
     assert '外れ度' not in client.generate.call_args.args[0].split('これまでの発見:', 1)[1]
+
+
+def drawn():
+    from geo_voyager.ingredients import Ingredients
+    return Ingredients(('amenity=place_of_worship', 'leisure=pitch', 'shop=bakery'), ('足立区', '港区'),
+                       ('周りの推計人口', '公示地価'), ('SP.POP.TOTL',))
+
+
+def test_on_exploration_the_drawn_ingredients_are_shown_and_the_goal_names_those_it_used():
+    agent, client = curriculum('Goal: 足立区で、周りの推計人口が最も多い寺社はどこか\n理由: y\n予想: 西新井大師\n'
+                               '材料: amenity=place_of_worship、足立区、周りの推計人口')
+    proposed = agent.propose([], [], ingredients=drawn())
+    assert proposed.ingredients == ('amenity=place_of_worship', '足立区', '周りの推計人口')
+    prompt = client.generate.call_args.args[0]
+    assert '今回の材料' in prompt and 'shop=bakery' in prompt and '材料:' in prompt
+
+
+@pytest.mark.parametrize('line', ['', '材料: ', '材料: amenity=cafe', '材料: 渋谷区、公示地価、amenity=cafe'])
+def test_on_exploration_a_goal_that_names_no_drawn_ingredient_or_one_not_drawn_is_refused(line):
+    agent, _ = curriculum(f'Goal: x を求める\n理由: y\n予想: 3\n{line}')
+    with pytest.raises(CurriculumRejected):
+        agent.propose([], [], ingredients=drawn())
+
+
+def test_when_nothing_is_drawn_the_curriculum_digs_and_no_ingredient_is_asked_for():
+    agent, client = curriculum('Goal: x を求める\n理由: y\n予想: 3')
+    assert agent.propose([], []).ingredients == ()
+    assert '今回の材料' not in client.generate.call_args.args[0]
+
+
+def test_the_example_of_a_drawn_question_is_not_a_task_held_for_evaluation():
+    # GeoAI-master-skills' small task 27 asks for the most expensive tennis court of Tokyo; it is not shown as the example.
+    agent, client = curriculum('Goal: x\n理由: y\n予想: 3\n材料: 港区')
+    agent.propose([], [], ingredients=drawn())
+    prompt = client.generate.call_args.args[0]
+    assert 'テニスコート' not in prompt

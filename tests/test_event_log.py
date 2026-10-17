@@ -225,3 +225,13 @@ def test_the_start_keeps_what_the_curriculum_predicted_and_an_older_log_reads_wi
     assert EventLog(tmp_path / 'new.jsonl').read().prediction == '約 370 万人'
     (tmp_path / 'old.jsonl').write_text('{"kind": "goal_started", "goal": "G", "memory": null, "reason": "r"}\n')
     assert EventLog(tmp_path / 'old.jsonl').read().prediction == ''
+
+
+def test_the_start_keeps_the_ingredients_drawn_and_those_the_goal_used(tmp_path):
+    import json
+    from geo_voyager.event_log import EventLog
+    log = EventLog(tmp_path / 'events.jsonl')
+    log.start('G', prediction='3', ingredients={'drawn': ['leisure=pitch', '港区'], 'used': ['港区']})
+    assert json.loads((tmp_path / 'events.jsonl').read_text())['ingredients'] == {'drawn': ['leisure=pitch', '港区'],
+                                                                                   'used': ['港区']}
+    assert EventLog(tmp_path / 'events.jsonl').read().goal == 'G'

@@ -18,3 +18,4 @@
 | [0012](0012-goal-event-log-and-resume.md) | Goal の出来事の記録を正本にし、途中から再開する | 2026-10-14 |
 | [0013](0013-results-passed-whole-shown-within-budgets.md) | 手の結果は次の手へ丸ごと渡し、プロンプトには予算の中で見せる | 2026-10-14 |
 | [0014](0014-curiosity-from-prediction-error.md) | 予想の外れを curriculum のご褒美にして、好奇心を持たせる | 2026-10-17 |
+| [0015](0015-exploration-from-drawn-ingredients.md) | 探検の回は、無作為に引いた材料から問いを立てる | 2026-10-17 |

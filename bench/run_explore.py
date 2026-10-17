@@ -16,6 +16,7 @@ import argparse
 import datetime
 import json
 import os
+import random
 from pathlib import Path
 import shutil
 import signal
@@ -31,6 +32,7 @@ from geo_voyager.event_log import EventLog, LoggedGoal
 from geo_voyager.exploration_graph import ExplorationGraph
 from geo_voyager.embedding_client import EmbeddingClient
 from geo_voyager.goal_executor import GoalExecutor
+from geo_voyager.ingredients import draw
 from geo_voyager.intent_executor import IntentExecutor
 from geo_voyager.planner import Planner
 from geo_voyager.skill_candidate_generator import SkillCandidateGenerator
@@ -43,11 +45,11 @@ from geo_voyager.world_graph import WorldGraph
 CURRICULUM_TRIES = 3
 
 
-def propose(curriculum: Curriculum, findings: list[dict], attempts: list[dict]):
+def propose(curriculum: Curriculum, findings: list[dict], attempts: list[dict], ingredients=None):
     note = None
     for _ in range(CURRICULUM_TRIES):
         try:
-            return curriculum.propose(findings, attempts, note=note)
+            return curriculum.propose(findings, attempts, note=note, ingredients=ingredients)
         except CurriculumRejected as rejected:
             note = f'前回の応答は使えなかった: {rejected.reason}'
     return None
@@ -80,7 +82,9 @@ def explore_one(number: int, out: Path, names, library: SkillLibrary, embedding:
     llm = logged_llm(directory)
     if resumed is not None:
         given, memory = ProposedGoal(resumed.goal, resumed.reason, resumed.prediction), resumed.memory
-    proposed = given or propose(Curriculum(llm, embedding=embedding), world.findings(), exploration.attempts())
+    # Odd Goals explore, from ingredients drawn by their number; even Goals dig where predictions failed (ADR 0014).
+    drawn = draw(random.Random(number)) if given is None and number % 2 == 1 else None
+    proposed = given or propose(Curriculum(llm, embedding=embedding), world.findings(), exploration.attempts(), drawn)
     if proposed is None:
         return None
     critic = Critic(llm)
@@ -89,7 +93,8 @@ def explore_one(number: int, out: Path, names, library: SkillLibrary, embedding:
     # Each event is written as it happens. A Goal that breaks gets no end, so it can be taken up again from its log.
     log = EventLog(directory / 'events.jsonl')
     if resumed is None:
-        log.start(proposed.goal, memory, reason=proposed.reason, prediction=proposed.prediction)
+        log.start(proposed.goal, memory, reason=proposed.reason, prediction=proposed.prediction,
+                  ingredients={'drawn': list(drawn.names()), 'used': list(proposed.ingredients)} if drawn else None)
     started = time.time()
     try:
         result = GoalExecutor(Planner(llm), executor, critic).execute_adaptive(

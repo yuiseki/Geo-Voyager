@@ -1,5 +1,6 @@
 from collections import Counter
 import math
+import re
 from dataclasses import dataclass
 
 from .datasets import load_readable_dataset_graph
@@ -37,6 +38,8 @@ class ProposedGoal:
     # The main value of the answer as the curriculum expected it, before the Goal is explored. It is kept for the
     # surprise of the answer (geo_voyager.surprise, ADR 0014) and never shown to the Planner, so as not to steer it.
     prediction: str = ''
+    # The drawn ingredients the Goal used, on a Goal of exploration (geo_voyager.ingredients); none on one of digging.
+    ingredients: tuple[str, ...] = ()
 
 
 class CurriculumRejected(ValueError):
@@ -56,7 +59,9 @@ class Curriculum:
         self.llm_client = llm_client if llm_client is not None else LlamaClient()
         self.embedding = embedding
 
-    def propose(self, findings: list[dict], attempts: list[dict], *, note: str | None = None) -> ProposedGoal:
+    def propose(self, findings: list[dict], attempts: list[dict], *, note: str | None = None,
+                ingredients=None) -> ProposedGoal:
+        """The next Goal. ingredients, drawn at random, make it a Goal of exploration: it must use one or more of them."""
         # Each try is shown by what was checked without a model only, not by a Critic's reason (ADR 0011).
         tried = _newest_within([f'- {attempt["goal"]} → {outcome(attempt)}\n' for attempt in attempts[-ATTEMPTS_SHOWN:]],
                                ATTEMPTS_CHARS) or 'まだ無い。\n'
@@ -81,17 +86,20 @@ class Curriculum:
             '発見の「外れ度」は、そのときの予想と実際の答えの食い違い（0 は的中、1 は 10 倍以上の外れか、違う名前）。'
             '外れ度が大きい発見は、世界が予想と違っていた所で、まだ学べることが多い。なぜ外れたのかを確かめる、'
             '似た対象でも同じことが起きるかを見る、別の尺度で測る、などして掘り下げる。外れ度が小さい主題は、もう分かっているので離れる。\n'
+            + (_exploring(ingredients) if ingredients is not None else '')
             + (f'{note}\n' if note else '')
-            + '返答は次の3行だけ。前置き、番号、コードフェンス禁止。\nGoal: 問いの本文\n'
+            + f'返答は次の{"4" if ingredients is not None else "3"}行だけ。前置き、番号、コードフェンス禁止。\nGoal: 問いの本文\n'
             '理由: この問いを選んだ理由（これまでの発見、特に予想が外れた発見とのつながり）\n'
             '予想: 答えの主な値の予想（数か名前を1つだけ。例: 約 370 万人、横浜市）\n'
+            + ('材料: 使った今回の材料を、書かれた名前のまま「、」で区切って書く\n' if ingredients is not None else '')
             + f'INPUT: 利用可能リソース:\n{Planner._resource_text(load_readable_dataset_graph(), load_service_graph(), full=True, measured=True)}\n'
             + f'リソースを使った発見の数: {_usage(findings)}\n'
             + f'まだ使っていないリソース: {_unused(findings)}\n'
             + f'予想が大きく外れた発見（外れ度の大きい順）:\n{surprising}'
             + f'これまでの発見:\n{known}'
             + f'これまでに試した Goal:\n{tried}'
-            + 'OUTPUT: Goal: と 理由: と 予想: の3行だけ。'
+            + ('OUTPUT: Goal: と 理由: と 予想: と 材料: の4行だけ。' if ingredients is not None
+               else 'OUTPUT: Goal: と 理由: と 予想: の3行だけ。')
         )
         text = self.llm_client.generate(
             prompt, temperature=0.7, max_tokens=4096, enable_thinking=True, reasoning_budget_tokens=768,
@@ -99,6 +107,8 @@ class Curriculum:
                           'that builds on what is known, and predict its answer. Reply with the three lines Goal:, 理由: '
                           'and 予想: only.')
         proposed = _parse(text, findings)
+        if ingredients is not None:
+            proposed = ProposedGoal(proposed.goal, proposed.reason, proposed.prediction, _used(text, ingredients))
         if self.embedding is not None:
             _refuse_a_repeat(proposed.goal, [attempt['goal'] for attempt in attempts], self.embedding, text)
         return proposed
@@ -157,6 +167,26 @@ def _render_findings(findings: list[dict]) -> list[str]:
             entry += '  判明した対象: ' + '、'.join(targets) + '\n'
         entries.append(entry)
     return entries
+
+
+def _exploring(ingredients) -> str:
+    return ('今回は探検の回。下の今回の材料から 1 つ以上を使い、まだ聞いていない組み合わせの問いを立てる。'
+            '最大・最小を問うものでもよい（例: 足立区で、周りの推計人口が最も多い神社はどこか）。'
+            '材料は、利用可能リソースで測れる形にして使う。\n今回の材料:\n' + ingredients.text())
+
+
+def _used(text: str, ingredients) -> tuple[str, ...]:
+    """The ingredients the reply names on its line 材料:, each one drawn; refused when it names none or one not drawn."""
+    lines = [line.strip() for line in text.strip().splitlines() if line.strip().startswith('材料:')]
+    if len(lines) != 1:
+        raise CurriculumRejected('探検の回は、材料: の行を1行書き、使った今回の材料を名前のまま並べる', text)
+    named = tuple(name.strip() for name in re.split('[、,，]', lines[0].removeprefix('材料:')) if name.strip())
+    if not named:
+        raise CurriculumRejected('材料: の行に、使った今回の材料を1つ以上書く', text)
+    undrawn = [name for name in named if name not in ingredients.names()]
+    if undrawn:
+        raise CurriculumRejected(f'材料: の {"、".join(undrawn)} は今回の材料に無い。今回の材料: {"、".join(ingredients.names())}', text)
+    return named
 
 
 def _surprising(findings: list[dict]) -> str:

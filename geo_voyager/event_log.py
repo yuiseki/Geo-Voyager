@@ -106,8 +106,13 @@ class EventLog:
         with self.path.open('a') as file:
             file.write(json.dumps(row, ensure_ascii=False) + '\n')
 
-    def start(self, goal: str, memory: str | None = None, *, reason: str = '', prediction: str = '') -> None:
-        self._write({'kind': 'goal_started', 'goal': goal, 'memory': memory, 'reason': reason, 'prediction': prediction})
+    def start(self, goal: str, memory: str | None = None, *, reason: str = '', prediction: str = '',
+              ingredients: dict | None = None) -> None:
+        """ingredients are those drawn for a Goal of exploration and those it used, for whoever reads the log."""
+        row = {'kind': 'goal_started', 'goal': goal, 'memory': memory, 'reason': reason, 'prediction': prediction}
+        if ingredients is not None:
+            row['ingredients'] = ingredients
+        self._write(row)
 
     def append(self, event) -> None:
         self._write(event_to_dict(event))
