@@ -48,10 +48,11 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 .venv/bin/python -m pytest tests -q -W error
 ```bash
 GEO_VOYAGER_EMBEDDING_BASE_URL=http://localhost:30194 GEO_VOYAGER_EMBEDDING_MODEL=embeddinggemma \
   PYTHONPATH=. .venv/bin/python -u -m bench.run_explore \
-  --out ~/tmp/geo-voyager-bench/NAME --library ~/tmp/geo-voyager-bench/NAME_library --goals 30
+  --out ~/tmp/geo-voyager-bench/NAME --library ~/tmp/geo-voyager-bench/NAME_library --goals 6
 ```
 
 - `--goals N` は curriculum に N 件の Goal を立てさせる。`--replay FILE` は、ファイルの Goal（1 行 1 件）を順に流す。
+- 1 回は 6 Goal ほどにして、変えたことを 1 つずつ確かめる。1 Goal には 30 分の上限がかかる（`time_limit`）ので、1 回は 2〜3 時間で終わる。30 Goal の探索 13 回目（2026-10-17）は 15.2 時間かかり、変更が効いたかを見るのが翌日になった。
 - 評価用の Goal は `--replay docs/evidence/explore_9/goals.txt` で流す。
 - 同じ `--out` と `--library` を指定すれば、前回の続きから再開する。`--library` が無ければ、`skill_library/` の seed から作る。
 - `--out` に `STOP` という名前のファイルを置くと、流している Goal が終わったところで止まる。

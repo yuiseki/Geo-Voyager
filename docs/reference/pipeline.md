@@ -34,7 +34,7 @@ Goal
     └ DONE のとき Critic.check(goal, 全 Observation, final=True)。失敗なら履歴に入れて Planner に戻る
 ```
 
-- 停止の理由（`AdaptiveGoalExecution.stop_reason`）: `done`、`max_steps`（既定 12）、`planner_failure`（計画の失敗が 6 回か、同じ理由の計画の失敗が 2 回）。成功した Intent か、2 回失敗した Intent をもう一度出すと、計画の失敗として Planner に差し戻す（2026-10-15 までは `repeated_intent` で止めていた）、`final_critic_failed`（最終判定の失敗が 3 回）、`planner_error`。
+- 停止の理由（`AdaptiveGoalExecution.stop_reason`）: `done`、`max_steps`（既定 12）、`time_limit`（bench/run_explore.py が 1 Goal に 30 分の上限をかける。上限を過ぎたら次の step を始めず、Planner に一度だけ聞いて DONE なら最終判定へ。走っている step は切らない）、`planner_failure`（計画の失敗が 6 回か、同じ理由の計画の失敗が 2 回）。成功した Intent か、2 回失敗した Intent をもう一度出すと、計画の失敗として Planner に差し戻す（2026-10-15 までは `repeated_intent` で止めていた）、`final_critic_failed`（最終判定の失敗が 3 回）、`planner_error`。
 - 外部は自前のサービスだけを使う（[services.md](services.md)、[0002](../ADR/0002-self-hosted-services-only.md)）。
 - 古い経路（`Planner.plan_goal` で Goal 全体を最初に計画する `GoalExecutor.execute`）も残っている（[planner_and_intents.md](planner_and_intents.md)）。
 

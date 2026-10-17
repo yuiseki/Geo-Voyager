@@ -138,6 +138,34 @@ def test_the_planner_can_still_say_done_after_the_last_step():
     assert result.stop_reason == 'done' and executor.execute.call_count == 2
 
 
+class Clock:
+    """A clock that moves on by the given seconds each time it is read."""
+
+    def __init__(self, *readings):
+        self.readings = list(readings)
+
+    def __call__(self):
+        return self.readings.pop(0) if len(self.readings) > 1 else self.readings[0]
+
+
+def test_the_goal_stops_at_the_time_limit_and_the_planner_may_still_say_done():
+    # Exploration 13 (2026-10-17): the 6 Goals that ran out of steps took 58 minutes each, 38% of the 15.2 hours.
+    planner = Script(intent('a'), intent('b'), intent('c'))
+    result, executor, critic = run(planner, [ok('1'), ok('2'), ok('3')], time_limit=1800, clock=Clock(0, 0, 900, 1900))
+    assert result.stop_reason == 'time_limit' and executor.execute.call_count == 2
+    assert not result.critique.success and 'time_limit' in result.critique.reason
+    assert len(planner.seen) == 3                         # asked once more when the time was up, and it was not DONE
+    planner = Script(intent('a'), DONE)
+    result, executor, _ = run(planner, [ok('1')], time_limit=1800, clock=Clock(0, 0, 1900))
+    assert result.stop_reason == 'done' and executor.execute.call_count == 1
+
+
+def test_without_a_time_limit_the_clock_is_not_a_limit():
+    planner = Script(intent('a'), intent('b'), DONE)
+    result, _, _ = run(planner, [ok('1'), ok('2')], clock=Clock(0, 10 ** 9))
+    assert result.stop_reason == 'done'
+
+
 def test_after_the_last_step_a_final_critic_failure_or_a_rejected_reply_ends_the_goal():
     for decision in (DONE, PlannerRejected('ValueError: x', 'reply')):
         critic = Mock(); critic.check.return_value = Critique(False, 'not answered')

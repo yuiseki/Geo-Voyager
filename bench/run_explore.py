@@ -31,7 +31,7 @@ from geo_voyager.curriculum import Curriculum, CurriculumRejected, ProposedGoal
 from geo_voyager.event_log import EventLog, LoggedGoal
 from geo_voyager.exploration_graph import ExplorationGraph
 from geo_voyager.embedding_client import EmbeddingClient
-from geo_voyager.goal_executor import GoalExecutor
+from geo_voyager.goal_executor import DEFAULT_TIME_LIMIT, GoalExecutor
 from geo_voyager.ingredients import draw
 from geo_voyager.intent_executor import IntentExecutor
 from geo_voyager.planner import Planner
@@ -98,7 +98,8 @@ def explore_one(number: int, out: Path, names, library: SkillLibrary, embedding:
     started = time.time()
     try:
         result = GoalExecutor(Planner(llm), executor, critic).execute_adaptive(
-            proposed.goal, memory=memory, on_event=log.append, events=resumed.events if resumed is not None else ())
+            proposed.goal, memory=memory, on_event=log.append, events=resumed.events if resumed is not None else (),
+            time_limit=DEFAULT_TIME_LIMIT)
     except Exception as problem:
         # One Goal that breaks (a model call that times out, say) is recorded as tried and the exploration goes on.
         result = None

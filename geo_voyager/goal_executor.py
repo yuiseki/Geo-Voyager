@@ -1,4 +1,5 @@
 from dataclasses import dataclass, replace
+import time
 
 from .critique import Critique
 from .execution_failure import ExecutionFailure
@@ -22,7 +23,7 @@ class AdaptiveGoalExecution:
     goal: str
     history: tuple[HistoryEntry, ...]
     executions: tuple[IntentExecution, ...]
-    # done | max_steps | planner_failure | final_critic_failed | planner_error (repeated_intent in logs before
+    # done | max_steps | time_limit | planner_failure | final_critic_failed | planner_error (repeated_intent in logs before
     # 2026-10-15: a repeat is now a Planner failure)
     stop_reason: str
     critique: Critique
@@ -39,6 +40,10 @@ DEFAULT_MAX_STEPS = 12
 DEFAULT_MAX_ATTEMPTS_PER_INTENT = 2
 DEFAULT_MAX_PLANNER_FAILURES = 6
 DEFAULT_MAX_FINAL_CRITIC_FAILURES = 3
+# In exploration 13 (2026-10-17) the Goals answered took 18 minutes at the median; the 6 that ran out of steps took 58
+# minutes each, 38% of the 15.2 hours of the run. Half an hour ends those tails, so that a run of a few Goals shows soon
+# whether a change worked. A step running when the time is up is not cut short.
+DEFAULT_TIME_LIMIT = 30 * 60
 
 
 def _execution_refusal(intent: Intent) -> str | None:
@@ -75,7 +80,8 @@ class GoalExecutor:
                          max_attempts_per_intent: int = DEFAULT_MAX_ATTEMPTS_PER_INTENT,
                          max_planner_failures: int = DEFAULT_MAX_PLANNER_FAILURES,
                          max_final_critic_failures: int = DEFAULT_MAX_FINAL_CRITIC_FAILURES,
-                         memory: str | None = None, on_event=None, events: tuple = ()) -> AdaptiveGoalExecution:
+                         memory: str | None = None, on_event=None, events: tuple = (),
+                         time_limit: float | None = None, clock=time.monotonic) -> AdaptiveGoalExecution:
         """Run a Goal one step at a time. After each step the Planner decides the next Intent, or DONE.
 
         The full plan is not used. Three kinds of setback do not end the Goal; each is recorded in the history so
@@ -91,7 +97,11 @@ class GoalExecutor:
         on_event, when given, is called with each event as it is added to the history (to write it down then).
         events are those of the same Goal stopped on the way (read back from its log): the Goal goes on from them, and
         the limits count them. executions then holds only the steps run now.
+
+        time_limit, in seconds of clock from now, ends the Goal as max_steps does: no step is started after it, and the
+        Planner is asked once more, of which only DONE is taken.
         """
+        started = clock()
         history, executions = GoalHistory(), []
         for event in events:
             history.append(event)
@@ -107,6 +117,8 @@ class GoalExecutor:
             # max_steps bounds the steps executed. After the last one the Planner is asked once more, and only DONE
             # is taken: a last step that printed the answer should not end the Goal as max_steps.
             last_call = len(history) >= max_steps
+            if not last_call and time_limit is not None and clock() - started >= time_limit:
+                last_call, stop = True, 'time_limit'
             try:
                 decision = self.planner.next(goal, history, **({'memory': memory} if memory else {}))
             except PlannerRejected as rejected:
