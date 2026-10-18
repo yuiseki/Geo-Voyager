@@ -1,4 +1,4 @@
-"""Write the kinds of things OSM maps in the 23 wards of Tokyo, as tags with their count and description, to
+"""Write the kinds of things OSM maps in the 23 wards of Tokyo, as tags with their count, how many of them are areas, and description, to
 geo_voyager/osm_kinds.tsv.
 
     .venv/bin/python scripts/sync_osm_kinds.py
@@ -44,15 +44,17 @@ def main() -> None:
     connection = duckdb.connect()
     lines = []
     for key in KEYS:
-        rows = connection.sql(f'SELECT "{key}", count(*) FROM read_parquet(?, union_by_name := true) '
+        # The areas apart: a Goal on the area of a kind found none where the kind was mapped as points (explore 24).
+        rows = connection.sql(f'SELECT "{key}", count(*), count(*) FILTER (WHERE filename = ?) '
+                              f'FROM read_parquet(?, union_by_name := true, filename := true) '
                               f'WHERE "{key}" IS NOT NULL GROUP BY 1 HAVING count(*) >= {MINIMUM} ORDER BY 2 DESC, 1',
-                              params=[paths]).fetchall()
+                              params=[paths[1], paths]).fetchall()
         described = descriptions(key)
-        for value, count in rows:
+        for value, count, areas in rows:
             if ';' in value or not value.isascii():
                 continue
-            lines.append(f'{key}={value}\t{count}\t{described.get(value, "")}')
-    PATH.write_text(f'# {DATASET}, points and areas, values seen {MINIMUM} times or more\ntag\tcount\tdescription\n'
+            lines.append(f'{key}={value}\t{count}\t{areas}\t{described.get(value, "")}')
+    PATH.write_text(f'# {DATASET}, points and areas, values seen {MINIMUM} times or more\ntag\tcount\tareas\tdescription\n'
                     + '\n'.join(lines) + '\n', encoding='utf-8')
     print(len(lines), 'tags')
 
