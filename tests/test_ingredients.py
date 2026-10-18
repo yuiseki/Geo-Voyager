@@ -5,7 +5,7 @@ have to think of tennis courts and of land prices together; drawn ingredients pu
 """
 import random
 
-from geo_voyager.ingredients import AREAS, KINDS, MEASURES, draw
+from geo_voyager.ingredients import AREAS, COUNTS, KINDS, MEASURES, Ingredients, draw
 
 
 def test_the_kinds_are_those_the_frozen_osm_of_the_23_wards_has_one_tag_a_line():
@@ -31,3 +31,11 @@ def test_a_draw_names_three_kinds_two_areas_two_measures_and_an_indicator():
     text = drawn.text()
     for kind in drawn.kinds:
         assert kind in text and KINDS[kind][:20] in text
+
+
+def test_a_kind_says_how_many_the_23_wards_have_for_half_have_fewer_than_fifty():
+    # Explore 22: asked of shop=food in 新宿区 and 大田区, and of leisure=amusement_arcade areas in 台東区, the Goals
+    # found none and ran out of time. 273 of the 546 kinds have fewer than 50 in all the 23 wards.
+    assert COUNTS['shop=food'] == 36 and COUNTS['amenity=parking'] == 23797
+    text = Ingredients(('shop=food',), ('新宿区',), ('件数',), ('AG.LND.AGRI.K2',)).text()
+    assert 'shop=food（23 区で 36 件。A shop selling food.）' in text

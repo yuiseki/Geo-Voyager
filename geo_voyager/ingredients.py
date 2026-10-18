@@ -13,14 +13,16 @@ import random
 from .indicator_codes import INDICATORS
 
 
-def _kinds() -> dict[str, str]:
+def _rows() -> list[list[str]]:
     lines = Path(__file__).with_name('osm_kinds.tsv').read_text(encoding='utf-8').splitlines()
-    rows = [line.split('\t') for line in lines if line and not line.startswith('#')][1:]
-    return {tag: description for tag, _count, description in rows}
+    return [line.split('\t') for line in lines if line and not line.startswith('#')][1:]
 
 
 # The kinds of things OSM maps in the 23 wards, by their tag (scripts/sync_osm_kinds.py).
-KINDS = _kinds()
+KINDS = {tag: description for tag, _count, description in _rows()}
+# How many points and areas of each kind the 23 wards have. Half the kinds have fewer than 50: asked of two wards,
+# shop=food (36) or the areas of leisure=amusement_arcade (80, two of them areas) found none (explore 22).
+COUNTS = {tag: int(count) for tag, count, _description in _rows()}
 # The 23 wards of Tokyo, where OpenStreetMap is read from a light frozen copy (yuiseki/osm-tokyo23-src-2026-08):
 # Japan's is 6.5 GB, and the Overpass of the whole country is slow for questions on every lot or court.
 AREAS = ('千代田区', '中央区', '港区', '新宿区', '文京区', '台東区', '墨田区', '江東区', '品川区', '目黒区', '大田区',
@@ -53,7 +55,7 @@ class Ingredients:
         return (*self.kinds, *self.areas, *self.measures, *self.indicators)
 
     def text(self) -> str:
-        return ('対象（OSM のタグ）: ' + '、'.join(f'{kind}（{KINDS[kind][:80]}）' for kind in self.kinds) + '\n'
+        return ('対象（OSM のタグ）: ' + '、'.join(f'{kind}（23 区で {COUNTS[kind]} 件。{KINDS[kind][:80]}）' for kind in self.kinds) + '\n'
                 + '範囲: ' + '、'.join(self.areas) + '\n'
                 + '測る量: ' + '、'.join(f'{measure}（{MEASURES[measure]}）' for measure in self.measures) + '\n'
                 + '世界銀行の指標: ' + '、'.join(f'{code}（{INDICATORS[code]}）' for code in self.indicators) + '\n')
