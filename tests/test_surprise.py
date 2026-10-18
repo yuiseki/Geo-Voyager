@@ -46,3 +46,12 @@ def test_a_zero_or_a_sign_that_differs_is_the_whole_surprise_unless_both_are_zer
 def test_nothing_to_compare_is_no_reward_at_all():
     assert surprise('', '{"count": 3}') is None
     assert surprise('12', '{"name": "横浜市"}') is None
+
+
+def test_a_name_the_answer_writes_shorter_at_its_end_is_no_surprise():
+    # Explore 19: the prediction 横浜市営地下鉄ブルーライン was counted the whole surprise for an answer that wrote
+    # ブルーライン. A name that ends the prediction is the same name, written shorter; one that begins it is not.
+    assert surprise('横浜市営地下鉄ブルーライン', '{"station_name": "新横浜", "line_names": ["JR横浜線", "ブルーライン"]}') == 0
+    assert surprise('横浜市港北区', '{"name": "港北区", "population": 358530}') == 0
+    assert surprise('東京都千代田区', '{"pref": "東京都", "name": "中央区"}') == 1
+    assert surprise('世田谷区', '{"name": "区"}') == 1

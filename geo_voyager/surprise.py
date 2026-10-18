@@ -7,7 +7,8 @@ It is measured without a model, so that no model's judgement reaches the curricu
 - A number: how many tens the answer is off by, |log10(answer / prediction)|, up to 1 (ten times or more). The answer
   may hold several numbers and which one the prediction meant is not known, so the nearest is taken: the surprise is
   never more than it was.
-- A name: 0 when the answer has it, 1 when it does not.
+- A name: 0 when the answer has it, or has a name of three letters or more that ends it (横浜市営地下鉄ブルーライン
+  written ブルーライン), 1 when it does not.
 """
 import json
 import math
@@ -28,12 +29,34 @@ def surprise(prediction: str, answer: str) -> float | None:
     found = _NUMBER.search(prediction)
     if found is None:
         name = prediction.removeprefix('約').strip(_QUOTES)
-        return (0.0 if name in answer else 1.0) if name else None
+        return (0.0 if name in answer or any(name.endswith(text) for text in _names(answer)) else 1.0) if name else None
     predicted = _value(found.group())
     numbers = _numbers(answer)
     if not numbers:
         return None
     return min(_off(predicted, number) for number in numbers)
+
+
+def _names(answer: str) -> list[str]:
+    """The texts of the answer's JSON of three letters or more, which may name what was predicted."""
+    try:
+        data = json.loads(answer)
+    except ValueError:
+        return []
+    texts = []
+
+    def walk(value) -> None:
+        if isinstance(value, str) and len(value.strip()) >= 3:
+            texts.append(value.strip())
+        elif isinstance(value, dict):
+            for item in value.values():
+                walk(item)
+        elif isinstance(value, list):
+            for item in value:
+                walk(item)
+
+    walk(data)
+    return texts
 
 
 def _value(text: str) -> float:
