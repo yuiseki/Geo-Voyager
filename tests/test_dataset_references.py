@@ -2,7 +2,7 @@
 its ids, the keys it does not have, what the columns mean), cut down to the columns the sandbox's primitive returns."""
 from unittest.mock import Mock
 
-from geo_voyager.dataset_references import SOURCE, planner_text
+from geo_voyager.dataset_references import SOURCE, critic_text, planner_text
 from geo_voyager.datasets import load_readable_dataset_graph
 from geo_voyager.goal_history import GoalHistory
 from geo_voyager.planner import Planner
@@ -106,3 +106,12 @@ def test_a_table_read_for_one_value_of_its_placeholder_says_the_others_cannot_be
     # of 2019 to 2026, and the Planner spent 12 steps on each looking for a table the sandbox does not read.
     text = planner_text('yuiseki/ksj-l01-land-price')
     assert '実行環境で読めるのは <year> が 2026 の表だけ' in text
+
+
+def test_the_critic_is_told_that_read_table_returns_a_web_mercator_geometry_in_longitude_and_latitude():
+    # Explore 19: told only that way is EPSG:3857 metres, the Critic failed code that measured the areas read_table
+    # returns in longitude and latitude with ST_Transform(way, 'OGC:CRS84', ...), and the Goal ran out of time.
+    code = "polygons = read_table('yuiseki/osm-tokyo23-src-2026-08', 'planet_osm_polygon')\nST_Area(ST_Transform(way, 'OGC:CRS84', 'EPSG:6933'))"
+    text = critic_text('yuiseki/osm-tokyo23-src-2026-08', code)
+    assert 'way（read_table が OGC:CRS84 の経度、緯度に直して返す' in text
+    assert 'EPSG:3857 (Web メルカトル) のメートル。面積も' not in text

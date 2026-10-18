@@ -76,6 +76,10 @@ def critic_text(dataset_id: str, code: str) -> str:
         meanings.update({column['name']: column['meaning'] for column in table.get('columns', [])})
         notes = {key['column']: key['note'] for key in table.get('join_keys', []) if key.get('note')}
         notes.update({column['name']: column['note'] for column in table.get('columns', []) if column.get('note')})
+        # As the Generator is told (contracts.tables): told only that way is in metres, the Critic failed code that
+        # measured it in the longitude and latitude read_table returns.
+        meanings.update({column['name']: 'read_table が OGC:CRS84 の経度、緯度に直して返す。元は EPSG:3857 のメートル'
+                         for column in table.get('columns', []) if 'EPSG:3857' in column.get('type', '')})
         used = [name for name in meanings if _used(name, code)]
         text += f" {table['name']} の 1 行は{table['grain']}。"
         if used:
