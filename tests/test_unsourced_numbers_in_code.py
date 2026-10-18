@@ -42,3 +42,9 @@ def test_the_generator_sends_such_code_back():
             '.filter("municipality_code in (\'13117\', \'13106\')").count("*").fetchone()[0]\n')
     found = ' '.join(found for found, _ in contract_problems(intent, code))
     assert '13106' in found and '13117' not in found
+
+
+def test_the_constants_of_the_earth_are_not_codes():
+    # Exploration 16 (2026-10-18) was sent back for metres in a degree, 111320, which nobody need give.
+    code = 'def f(a, lat):\n    return a * 111320 * 111320 + 6371000 + 6378137 + 111319\n'
+    assert unsourced_numbers(code, '') == []

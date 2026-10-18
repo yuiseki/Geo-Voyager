@@ -59,9 +59,14 @@ def _without_comments(code: str) -> str:
     return ''.join(lines)
 
 
+# The Earth's radius (mean and equatorial) and the metres in a degree of latitude, which code may know by heart.
+_CONSTANTS = frozenset({'6371000', '6378137', '111320', '111319', '111195', '111111'})
+
+
 def unsourced_numbers(code: str, sources: str) -> list[str]:
     """Numbers of five digits or more in the code, outside its comments, that the sources (what the code was given)
-    do not have. A round number (a unit, Overpass's area offset 3600000000) and an EPSG code are not codes."""
+    do not have. A round number (a unit, Overpass's area offset 3600000000), an EPSG code and a constant of the Earth
+    are not codes."""
     found = re.findall(r'(?<![\d.])(?<!EPSG:)\d{5,}(?![\d.])', _without_comments(code))
     return [number for number in dict.fromkeys(found)
-            if number not in sources and len(number.rstrip('0')) > 2]
+            if number not in sources and len(number.rstrip('0')) > 2 and number not in _CONSTANTS]
