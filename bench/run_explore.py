@@ -32,7 +32,7 @@ from geo_voyager.event_log import EventLog, LoggedGoal
 from geo_voyager.exploration_graph import ExplorationGraph
 from geo_voyager.embedding_client import EmbeddingClient
 from geo_voyager.goal_executor import DEFAULT_TIME_LIMIT, GoalExecutor
-from geo_voyager.ingredients import draw
+from geo_voyager.ingredients import Ingredients, draw
 from geo_voyager.intent_executor import IntentExecutor
 from geo_voyager.planner import Planner
 from geo_voyager.skill_candidate_generator import SkillCandidateGenerator
@@ -72,6 +72,12 @@ def still_to_replay(goals: list, out: Path) -> list:
     return goals[begun:]
 
 
+def ingredients_for(out: Path, number: int) -> Ingredients:
+    """The ingredients of a Goal of exploration, drawn by the run (its directory's name) and the Goal's number: a Goal
+    taken up again draws the same, and another run draws others."""
+    return draw(random.Random(f'{out.name}/{number}'))
+
+
 def explore_one(number: int, out: Path, names, library: SkillLibrary, embedding: EmbeddingClient,
                 world: WorldGraph, exploration: ExplorationGraph, given: ProposedGoal | None = None, memory: str | None = None,
                 resumed: LoggedGoal | None = None) -> dict | None:
@@ -83,7 +89,7 @@ def explore_one(number: int, out: Path, names, library: SkillLibrary, embedding:
     if resumed is not None:
         given, memory = ProposedGoal(resumed.goal, resumed.reason, resumed.prediction), resumed.memory
     # Odd Goals explore, from ingredients drawn by their number; even Goals dig where predictions failed (ADR 0014).
-    drawn = draw(random.Random(number)) if given is None and number % 2 == 1 else None
+    drawn = ingredients_for(out, number) if given is None and number % 2 == 1 else None
     proposed = given or propose(Curriculum(llm, embedding=embedding), world.findings(), exploration.attempts(), drawn)
     if proposed is None:
         return None
