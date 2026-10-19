@@ -9,7 +9,7 @@ from .intent_execution import IntentExecution
 from .skill_candidate import SkillCandidate, drop_copied_skills, entry_program, main_function_name, new_skill_code, only_calls_a_saved_skill
 from .skill_candidate_generator import SkillCandidateGenerator
 from .skill_function import parse_skill
-from .skill_library import SkillLibrary, linked_skills
+from .skill_library import SkillLibrary, link, linked_skills
 from .skill_retriever import SkillRetriever
 from .worker import Worker
 
@@ -48,7 +48,9 @@ class IntentExecutor:
                                        Critique(False, observations.message), failure=observations, attempts=tuple(attempts))
             candidate = self._without_copies(
                 self.repairer.repair(intent, candidate, observations, history=tuple(candidate_attempts)))
-        critique = self.critic.check(intent, observations, code=candidate.code)
+        # The saved Skills the code calls are shown in front of it: code that only called one was failed three times
+        # for not showing how it measured (explore 35).
+        critique = self.critic.check(intent, observations, code=link(candidate.code, self.skill_library))
         attempts[-1] = replace(attempts[-1], critique=critique)
         called = tuple(linked_skills(entry_program(candidate.code, candidate.entry), self.skill_library))
         learned, note = None, None

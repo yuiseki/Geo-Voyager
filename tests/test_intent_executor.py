@@ -133,3 +133,16 @@ def test_the_critic_reads_the_code_of_the_attempt_that_ran(tmp_path):
     run, _, (_, _, _, critic, _) = executor(tmp_path, [first, repaired], [FAILURE, [Observation('4')]])
     run.execute(INTENT)
     assert critic.check.call_args.kwargs['code'] == repaired.code
+
+
+def test_the_critic_reads_the_saved_skills_the_code_calls(tmp_path):
+    # Explore 35: the code for 大田区 only called the Skill saved from 世田谷区, and the Critic failed it three times for
+    # not showing how the distances were measured.
+    library = SkillLibrary(tmp_path / 'skills'); library.add(COUNT)
+    wrapper = ('def count_cafes_in_area(intent_target, key="amenity", value="cafe"):\n    """Count cafes."""\n'
+               '    return count_tag_in_area(key, value, intent_target["id_value"])')
+    run, _, (_, _, _, critic, _) = executor(tmp_path, [SkillCandidate(wrapper, 'wrapper')], [[Observation('3')]],
+                                            retrieved=[library.get('count_tag_in_area')])
+    run.execute(INTENT)
+    code = critic.check.call_args.kwargs['code']
+    assert 'def count_tag_in_area' in code and code.index('def count_tag_in_area') < code.index('def count_cafes_in_area')
