@@ -180,7 +180,11 @@ def _used(text: str, ingredients) -> tuple[str, ...]:
     lines = [line.strip() for line in text.strip().splitlines() if line.strip().startswith('材料:')]
     if len(lines) != 1:
         raise CurriculumRejected('探検の回は、材料: の行を1行書き、使った今回の材料を名前のまま並べる', text)
-    named = tuple(name.strip() for name in re.split('[、,，]', lines[0].removeprefix('材料:')) if name.strip())
+    # The description an ingredient is listed with, copied after its name (explore 31), is not its name.
+    line = lines[0].removeprefix('材料:')
+    while re.search(r'（[^（）]*）|\([^()]*\)', line):
+        line = re.sub(r'（[^（）]*）|\([^()]*\)', '', line)
+    named = tuple(name.strip() for name in re.split('[、,，]', line) if name.strip())
     if not named:
         raise CurriculumRejected('材料: の行に、使った今回の材料を1つ以上書く', text)
     undrawn = [name for name in named if name not in ingredients.names()]

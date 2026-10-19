@@ -217,6 +217,15 @@ def test_on_exploration_a_goal_that_names_no_drawn_ingredient_or_one_not_drawn_i
         agent.propose([], [], ingredients=drawn())
 
 
+def test_on_exploration_an_ingredient_written_with_its_description_is_read_by_its_name():
+    # Explore 31: the curriculum copied 件数（範囲の中にある数） and 区の人口（…（2020 年国勢調査、…）） from the list of
+    # ingredients, and was refused three times for naming ingredients not drawn.
+    agent, _ = curriculum('Goal: 足立区で、周りの推計人口が最も多い寺社はどこか\n理由: y\n予想: 西新井大師\n'
+                          '材料: amenity=place_of_worship（23 区で 1 件、うち面 0 件。A place）、足立区、'
+                          '周りの推計人口（周り（たとえば半径 1 km）に住む推計人口（WorldPop の 100 m 格子））')
+    assert agent.propose([], [], ingredients=drawn()).ingredients == ('amenity=place_of_worship', '足立区', '周りの推計人口')
+
+
 def test_when_nothing_is_drawn_the_curriculum_digs_and_no_ingredient_is_asked_for():
     agent, client = curriculum('Goal: x を求める\n理由: y\n予想: 3')
     assert agent.propose([], []).ingredients == ()
