@@ -60,7 +60,9 @@ def _without_comments(code: str) -> str:
 
 
 # The Earth's radius (mean and equatorial) and the metres in a degree of latitude, which code may know by heart.
-_CONSTANTS = frozenset({'6371000', '6378137', '111320', '111319', '111195', '111111'})
+# The EPSG codes of the UTM zones begin at 32601 (north) and 32701 (south): 32601 + floor((lon + 180) / 6) is the zone
+# of a point, and was sent back in explores 27 and 31 until the Goals ran out of time.
+_CONSTANTS = frozenset({'6371000', '6378137', '111320', '111319', '111195', '111111', '32600', '32601', '32700', '32701'})
 
 
 def unsourced_numbers(code: str, sources: str) -> list[str]:

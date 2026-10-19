@@ -62,3 +62,10 @@ def test_a_longitude_or_latitude_in_japan_written_from_memory_is_found():
 def test_other_decimals_are_not_coordinates():
     code = 'def f(results):\n    return {"ratio": round(x * 0.25, 2), "km": 12.5, "pct": 99.95, "lon": 160.25}\n'
     assert unsourced_numbers(code, '') == []
+
+
+def test_the_base_of_the_utm_epsg_codes_is_not_a_code():
+    # Explores 27 and 31: 'EPSG:' || (32601 + floor((lon + 180) / 6)) finds the UTM zone of a point (32654 in Tokyo),
+    # and was sent back until the Goals ran out of time.
+    code = 'def f(lon):\n    return "EPSG:" + str(32601 + int((lon + 180) // 6)), 32600 + 54, 32700, 32701\n'
+    assert unsourced_numbers(code, '') == []
