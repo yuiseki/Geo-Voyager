@@ -761,3 +761,16 @@ def test_generator_is_told_how_to_add_the_population_of_several_zones():
     prompt = client.generate.call_args.args[0]
     assert "aggregate('sum(estimated_population)')" in prompt
     assert 'ST_Union_Agg(geometry)' in prompt
+
+
+def test_code_that_reads_a_tag_with_its_own_column_from_tags_is_generated_again():
+    # Explore 33: the code read tags->>'power' and found no power=plant area; power is a column of osm2pgsql's tables.
+    read = ('from geo_voyager.control_primitives import connect_duckdb, read_table\n\n\ndef count_plants():\n    \"\"\"The power=plant areas.\"\"\"\n'
+            '    with connect_duckdb() as connection:\n'
+            '        polygons = read_table(connection, "yuiseki/osm-tokyo23-src-2026-08", "planet_osm_polygon")\n'
+            '        return {"count": polygons.filter(\"(tags->>\'power\') = \'plant\'\").count("*").fetchone()[0]}')
+    column = read.replace("(tags->>\'power\')", 'power')
+    client = Mock(); client.generate.side_effect = [_reply(read), _reply(column)]
+    candidate = SkillCandidateGenerator(client).generate(Intent('23 区の power=plant の面の件数を求める', ('yuiseki/osm-tokyo23-src-2026-08',)))
+    assert candidate.code == column and client.generate.call_count == 2
+    assert '"power" 列で読む' in client.generate.call_args_list[1].args[0]

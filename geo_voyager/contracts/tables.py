@@ -152,3 +152,19 @@ def table_contract(dataset_ids) -> str:
         texts.append('geometry は OGC:CRS84（read_table がそろえる）。2 つの表は ST_Within などで空間結合できる。'
                      + MEASURING)
     return '\n'.join(texts)
+
+
+# A tag read from the JSON of the tags that did not become columns: tags->>'power', tags->'power',
+# json_extract_string(tags, '$.power').
+_TAG_READ = re.compile(r"""\btags\s*->>?\s*'([^']+)'|json_extract(?:_string)?\s*\(\s*tags\s*,\s*'\$\.([^']+)'""")
+
+
+def tag_column_problems(code: str, dataset_ids) -> list[str]:
+    """The tags the code reads from tags although they have their own column, where tags never holds them: in
+    explore 33 the code read tags->>'power' six times and found no power=plant area of the 7 the column has."""
+    columns = {name for dataset_id in dataset_ids for table in _DATA['datasets'].get(dataset_id, {}).get('tables', [])
+               for name in [column for column, _ in table.get('schema', {}).get('columns', [])]
+               if any(column == 'tags' for column, _ in table['schema']['columns'])}
+    read = dict.fromkeys(key for match in _TAG_READ.finditer(code) for key in match.groups() if key)
+    return [f'{key} は表の列にあり、tags には入っていない（tags は列にならなかったタグだけ）。tags でなく "{key}" 列で読む'
+            for key in read if key in columns]

@@ -118,3 +118,18 @@ def test_a_column_named_as_a_keyword_of_sql_is_said_to_be_quoted():
     assert text.count('"natural"') == 1 and '二重引用符' in text
     assert '"amenity"' not in text
     assert '二重引用符' not in table_contract((LAND_PRICE,))
+
+
+def test_a_tag_read_from_tags_when_it_has_its_own_column_is_refused():
+    # Explore 33: asked how many power=plant areas the 23 wards have, the code read tags->>'power' six times and found
+    # none; osm2pgsql puts power in its own column, and the 7 areas have no power in tags.
+    from geo_voyager.contracts.tables import tag_column_problems
+    osm = ('yuiseki/osm-tokyo23-src-2026-08',)
+    for code in ("polygons.filter(\"(tags->>'power') = 'plant'\")",
+                 "connection.sql(\"SELECT count(*) FROM p WHERE json_extract_string(tags, '$.power') = 'plant'\")",
+                 "connection.sql(\"SELECT tags->'power' FROM p\")"):
+        found = tag_column_problems(code, osm)
+        assert found and '"power"' in found[0] and 'tags' in found[0], code
+    assert tag_column_problems("polygons.filter(\"tags->>'cuisine' = 'ramen'\")", osm) == []   # not a column
+    assert tag_column_problems("polygons.filter(\"power = 'plant'\")", osm) == []
+    assert tag_column_problems("polygons.filter(\"(tags->>'power') = 'plant'\")", ('yuiseki/ekidata-jp',)) == []

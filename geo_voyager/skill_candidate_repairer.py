@@ -3,6 +3,7 @@ from typing import Sequence
 from .default_fallback import introduced_fallbacks
 from .id_type_literals import id_type_comparisons
 from .contracts.code import axis_order_problems, catalog_path_problems, local_aggregation_violations, positional_input_picks
+from .contracts.tables import tag_column_problems
 from .indicator_codes import DATASET as INDICATOR_DATASET, unknown_indicator_text, unknown_indicators
 from .skill_candidate import entry_problems
 from .execution_attempt import ExecutionAttempt
@@ -93,6 +94,7 @@ class SkillCandidateRepairer:
             wrong = unknown_indicators(repaired.code) if INDICATOR_DATASET in intent.dataset_ids else []
             guesses += [unknown_indicator_text(wrong)] if wrong else []
             guesses += axis_order_problems(repaired.code) + catalog_path_problems(repaired.code)
+            guesses += tag_column_problems(repaired.code, intent.dataset_ids)
             # code written as a function stays a function the environment can call
             guesses += entry_problems(repaired.code) if not entry_problems(candidate.code) else []
             if not hidden and not guesses:
