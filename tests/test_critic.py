@@ -368,3 +368,15 @@ def test_the_critic_is_told_a_target_with_nothing_that_matches_may_be_missing_fr
     Critic(client).check(Intent('品川区と江戸川区の boat_rental を区ごとに返す', ('yuiseki/osm-tokyo23-src-2026-08',)), [observation])
     prompt = client.generate.call_args.args[0]
     assert '条件に合うものが無かった対象が出力に無いことを、それだけで失敗の理由にしない' in prompt
+
+
+def test_the_critic_is_told_that_flipping_the_coordinates_is_how_this_duckdb_measures():
+    # Explore 33: the code flipped the coordinates for ST_Distance_Sphere, as the Generator is told to, and the Critic
+    # failed it three times for flipping them. Replayed on those three verdicts, the rule turned one to a success.
+    client = Mock()
+    client.generate.return_value = '判定: 成功\n理由: ok'
+    observation = Observation('temporary')
+    observation.text = '{"count": 0}'
+    Critic(client).check(Intent('品川区の標準地のうち発電所から 500 m 以内の件数を求める', ('yuiseki/ksj-l01-land-price',)), [observation])
+    prompt = client.generate.call_args.args[0]
+    assert 'ST_FlipCoordinates で入れ替えてから渡すのは正しい測り方で、座標の反転を失敗の理由にしない' in prompt

@@ -43,6 +43,10 @@ CARRIED = ('コードが入力（results や前段の Observation）から引き
 NONE_MATCHED = ('Intent が複数の対象（区など）を調べ、条件（〜以内、〜を持つものだけ、など）で絞り込むとき、'
                 '条件に合うものが無かった対象が出力に無いことを、それだけで失敗の理由にしない。'
                 'コードがその対象も調べていれば、その対象は 0 件だったと読む。\n')
+# Explore 33: the code flipped the coordinates for ST_Distance_Sphere, as contracts.tables.MEASURING tells the
+# Generator to, and the Critic failed it three times for flipping them; replayed, one of the three turned to a success.
+AXIS_ORDER = ('この DuckDB の ST_Distance_Sphere と *_Spheroid は緯度、経度の順の点を読む。経度、緯度の geometry や '
+              'ST_Point(lon, lat) を ST_FlipCoordinates で入れ替えてから渡すのは正しい測り方で、座標の反転を失敗の理由にしない。\n')
 RESOURCES_HEADER = '\n\nコードが読んだサービスとデータの説明（コードが Intent の対象を正しく選んだかを照合するために読む）:\n'
 
 
@@ -125,7 +129,7 @@ class Critic:
             'Intent が出力のキー名を指定していても（例: cafe_count）、その値が別の意味の分かるキー（例: tag が amenity=cafe の count）で出力されていれば、'
             'キー名の違いは失敗の理由にしない。キー名ではなく、値と対象と条件が Intent の要求に合うかで判定する。'
             '実行環境の関数は、件数を count、条件を tag のような決まったキーで出力する。値そのものが無い、または別の値なら失敗。\n'
-            + READ_NAMES + CARRIED + NONE_MATCHED +
+            + READ_NAMES + CARRIED + NONE_MATCHED + AXIS_ORDER +
             '返答は次の2行だけにし、前置き・コードフェンスを付けないでください。\n'
             '判定: 成功\n理由: 理由の本文\n'
             '失敗の場合は1行目を「判定: 失敗」にしてください。理由も1行にしてください。\n\n'
