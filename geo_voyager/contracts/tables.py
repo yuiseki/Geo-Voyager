@@ -9,6 +9,8 @@ import json
 import re
 from pathlib import Path
 
+import duckdb
+
 from ..docker_sandbox import DEFAULT_PROFILE
 
 _DATA = json.loads((Path(__file__).parents[1] / 'dataset_references.json').read_text(encoding='utf-8'))
@@ -120,6 +122,12 @@ def _table_text(dataset_id: str, table: dict, shown_before: dict | None = None) 
     return '\n'.join(lines)
 
 
+# Words DuckDB does not read as a column's name unless it is quoted: natural = 'sand' is a syntax error, and four
+# candidates of a Goal failed on it (explore 27). OSM's natural is the only such column of the datasets.
+_KEYWORDS = frozenset(word for (word,) in duckdb.sql(
+    "SELECT keyword_name FROM duckdb_keywords() WHERE keyword_category IN ('reserved', 'type_function')").fetchall())
+
+
 def table_contract(dataset_ids) -> str:
     texts = []
     for dataset_id in dataset_ids:
@@ -135,6 +143,11 @@ def table_contract(dataset_ids) -> str:
                 texts.append(f'{dataset_id} の {table["name"]} はラスタで、表として読まない（1 画素は{table["grain"]}）。'
                              'sum_population_grid(connection, zones) が、zones（geometry 列を持つ relation）の区域ごとに画素を足す。'
                              + _RASTER_NOTES.get(dataset_id, ''))
+    keywords = sorted({name for dataset_id in dataset_ids for table in _DATA['datasets'].get(dataset_id, {}).get('tables', [])
+                       for name, _ in table.get('schema', {}).get('columns', []) if name.lower() in _KEYWORDS})
+    if keywords:
+        texts.append(f'{"、".join(keywords)} は SQL の予約語なので、SQL では '
+                     + '、'.join(f'"{name}"' for name in keywords) + ' と二重引用符で囲む。')
     if texts:
         texts.append('geometry は OGC:CRS84（read_table がそろえる）。2 つの表は ST_Within などで空間結合できる。'
                      + MEASURING)

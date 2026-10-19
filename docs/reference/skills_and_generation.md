@@ -11,7 +11,7 @@
 - `call_service(service_id, *, path="", params=None, body=None, content_type=None)`: 登録サービスに Gateway 経由で問い合わせます（[services.md](services.md)）。
 
 `sum_population_grid` は、先頭に dataset_id を渡す古い呼び方も受け付けます（`dataset_arguments.py`）。
-地域は Primitive ではなく列の条件で絞ります。名前のついた地域とその条件（東京23区は `pref_code = '13' AND name LIKE '%区'`）は `contracts/tables.py` の `NAMED_AREAS` だけに置き、表の契約としてプロンプトに出します。
+地域は Primitive ではなく列の条件で絞ります。名前のついた地域とその条件（東京23区は `pref_code = '13' AND name LIKE '%区'`）は `contracts/tables.py` の `NAMED_AREAS` だけに置き、表の契約としてプロンプトに出します。SQL の予約語と同じ名前の列（OSM の `natural`）は、二重引用符で囲むよう表の契約に書きます（DuckDB では `natural = 'sand'` が構文エラーになり、探索 27 回目の Goal で 4 回続けて失敗した）。
 DuckDB 接続を引数で渡すことで、Skill が接続の終了まで管理します。
 
 Skill と Skill Library は [下の節](#skill-library名前付き関数voyager-型) にあります。

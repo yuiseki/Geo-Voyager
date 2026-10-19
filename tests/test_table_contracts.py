@@ -110,3 +110,11 @@ def test_a_web_mercator_geometry_is_said_to_come_back_in_longitude_and_latitude(
     text = table_contract((OSM_TOKYO,))
     polygon = text[:text.index('"planet_osm_point"')]
     assert 'way は read_table が OGC:CRS84' in polygon and 'bbox は EPSG:3857 のメートルのまま' in polygon
+
+
+def test_a_column_named_as_a_keyword_of_sql_is_said_to_be_quoted():
+    # natural = 'sand' is a syntax error in DuckDB: four candidates failed on it in a Goal of explore 27.
+    text = table_contract((OSM_TOKYO,))
+    assert text.count('"natural"') == 1 and '二重引用符' in text
+    assert '"amenity"' not in text
+    assert '二重引用符' not in table_contract((LAND_PRICE,))
