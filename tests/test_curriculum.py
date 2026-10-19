@@ -238,3 +238,26 @@ def test_the_example_of_a_drawn_question_is_not_a_task_held_for_evaluation():
     agent.propose([], [], ingredients=drawn())
     prompt = client.generate.call_args.args[0]
     assert 'テニスコート' not in prompt
+
+
+def photo(areas=('墨田区', '台東区')):
+    from geo_voyager.ingredients import Ingredients
+    return Ingredients(('shop=photo', 'waterway=weir', 'landuse=vineyard'), areas, ('面積', '件数'), ('SP.POP.TOTL',))
+
+
+def test_on_exploration_a_goal_on_the_areas_of_a_kind_the_named_wards_have_none_of_is_refused():
+    # Explore 34: shown 墨田区 5 件（面 0）、台東区 3 件（面 0）, the curriculum asked the total area of shop=photo there;
+    # the answer 0 was right, and the Critic failed it until the time ran out.
+    agent, _ = curriculum('Goal: 墨田区と台東区で、OSMの面として記録された shop=photo の総面積はどれほどか\n理由: y\n予想: 約 500 m²\n'
+                          '材料: shop=photo、墨田区、台東区、面積')
+    with pytest.raises(CurriculumRejected, match='shop=photo の面は 墨田区 0 件、台東区 0 件'):
+        agent.propose([], [], ingredients=photo())
+
+
+def test_on_exploration_the_points_of_such_a_kind_or_the_areas_where_a_ward_has_some_may_be_asked():
+    agent, _ = curriculum('Goal: 墨田区と台東区で、shop=photo の件数が多いのはどちらか\n理由: y\n予想: 墨田区\n'
+                          '材料: shop=photo、墨田区、台東区、件数')
+    assert agent.propose([], [], ingredients=photo()).ingredients == ('shop=photo', '墨田区', '台東区', '件数')
+    agent, _ = curriculum('Goal: 墨田区と板橋区で、shop=photo の面の総面積はどれほどか\n理由: y\n予想: 約 500 m²\n'
+                          '材料: shop=photo、墨田区、板橋区、面積')
+    assert agent.propose([], [], ingredients=photo(('墨田区', '板橋区'))).ingredients == ('shop=photo', '墨田区', '板橋区', '面積')

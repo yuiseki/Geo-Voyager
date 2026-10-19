@@ -68,6 +68,22 @@ class Ingredients:
                 + '世界銀行の指標: ' + '、'.join(f'{code}（{INDICATORS[code]}）' for code in self.indicators) + '\n')
 
 
+    def without_areas(self, goal: str) -> list[str]:
+        """What a Goal asking the areas of a drawn kind would find none of: the kind's areas in each drawn ward the
+        Goal names, when none of them has one. Shown 墨田区 5 件（面 0）、台東区 3 件（面 0）, the curriculum asked the
+        total area of shop=photo there; the answer 0 was right, and the Critic failed it until the time ran out
+        (explore 34)."""
+        if '面積' not in goal and '面' not in goal.replace('市区町村面', ''):
+            return []
+        wards = [ward for ward in self.areas if ward in goal and ward != '東京23区']
+        found = []
+        for kind in (kind for kind in self.kinds if kind in goal):
+            counts = ([(ward, WARD_COUNTS.get((kind, ward), (0, 0))[1]) for ward in wards] if wards
+                      else [('23 区', AREA_COUNTS[kind])] if '東京23区' in self.areas else [])
+            if counts and not any(areas for _ward, areas in counts):
+                found.append(f'{kind} の面は ' + '、'.join(f'{ward} 0 件' for ward, _areas in counts))
+        return found
+
     def _in_wards(self, kind: str) -> str:
         counts = [(ward, WARD_COUNTS.get((kind, ward), (0, 0))) for ward in self.areas if ward != '東京23区']
         return '、'.join(f'{ward} {count} 件' + (f'（面 {areas}）' if count else '') for ward, (count, areas) in counts) + ('。' if counts else '')
