@@ -750,3 +750,14 @@ def test_contract_accepts_a_declared_dataset_read_through_the_passed_argument():
     intent = Intent('23区の各区の人口', ('yuiseki/jp-admin-2026-09',))
     for code in (READ_BY_ARGUMENT, READ_BY_ARGUMENT.replace('dataset_id="yuiseki/jp-admin-2026-09"', 'dataset_id=None')):
         assert not any('Dataset' in found for found, _ in contract_problems(intent, code)), code
+
+
+def test_generator_is_told_how_to_add_the_population_of_several_zones():
+    # Asked for the WorldPop of the 23 wards (explore 27), the code wrote ST_Union(way, way), which unions each row
+    # with itself, and fetchone() returned the first ward's population alone.
+    client = Mock()
+    client.generate.return_value = VALID_STATIONS
+    SkillCandidateGenerator(client).generate(Intent('23 区の推計人口の合計を求める', ('yuiseki/ekidata-jp',)))
+    prompt = client.generate.call_args.args[0]
+    assert "aggregate('sum(estimated_population)')" in prompt
+    assert 'ST_Union_Agg(geometry)' in prompt

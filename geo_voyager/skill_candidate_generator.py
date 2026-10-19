@@ -271,6 +271,10 @@ class SkillCandidateGenerator:
             '- sum_population_grid(connection, zones): 人口格子 Dataset（yuiseki/worldpop-jp-2026-01、WorldPop の2020年100m推計人口）の画素を、'
             'zones（geometry 列を持つ relation。例: read_table で読んだ境界）の区域ごとに、画素の中心が入るものだけ足す。\n'
             f'zones の geometry 以外の列と estimated_population（推計人口、小数）を返す。国勢調査の population とは別の値。一度に{MAX_ZONES:,}区域まで。\n'
+            # Asked for the WorldPop of the 23 wards (explore 27), the code wrote ST_Union(way, way), which unions each
+            # row with itself, and fetchone() returned the first ward's population alone.
+            "複数の区域を合わせた推計人口は、区域ごとの結果を aggregate('sum(estimated_population)') で足す。"
+            'ST_Union は2つの geometry を受けて行ごとに返す関数で、行をまとめない。行をまとめて1つの面にするのは ST_Union_Agg(geometry)。\n'
             'Intent が宣言した Dataset だけを読む。宣言していない Dataset を読まない。\n'
             + (f'Intent の Dataset の表:\n{table_contract(intent.dataset_ids)}\n' if intent.dataset_ids else '') +
             '返り値は DuckDB relation であり pandas DataFrame ではない。\n'

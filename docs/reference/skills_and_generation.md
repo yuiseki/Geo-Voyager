@@ -7,7 +7,7 @@
 - `connect_duckdb()`: sandbox 用の DuckDB 接続。既存の extension 設定・LOAD を維持します。
 - `dataset_url(dataset_id, table=None)`: 登録済み Dataset（とその表）を Gateway の URL に変換します。
 - `read_table(connection, dataset_id, table)`: Dataset の reference が挙げる表の全列を、reference の列名のまま relation で返します。経度緯度の geometry は OGC:CRS84 にそろえます（[ADR 0010](../ADR/0010-generic-table-primitives.md)）。
-- `sum_population_grid(connection, zones)`: geometry 列を持つ区域ごとに WorldPop 100m の画素を足し、`estimated_population` を返します（一度に 20,000 区域まで。格子のファイル 131 MB を最初に /tmp へ取り寄せて読み、いくつかの面に分かれた区域は面ごとに切り出す。全国の市区町村 1,741 は 45 秒、駅ごとの 1 km の円 8,766 は 25 秒）。
+- `sum_population_grid(connection, zones)`: geometry 列を持つ区域ごとに WorldPop 100m の画素を足し、`estimated_population` を返します（一度に 20,000 区域まで。格子のファイル 131 MB を最初に /tmp へ取り寄せて読み、いくつかの面に分かれた区域は面ごとに切り出す。全国の市区町村 1,741 は 45 秒、駅ごとの 1 km の円 8,766 は 25 秒）。複数の区域を合わせた値は、区域ごとの結果を `sum(estimated_population)` で足すよう Generator に伝えています（探索 27 回目で、行ごとの `ST_Union(way, way)` で 23 区を「まとめた」コードが、最初の 1 区の値だけを返した）。
 - `call_service(service_id, *, path="", params=None, body=None, content_type=None)`: 登録サービスに Gateway 経由で問い合わせます（[services.md](services.md)）。
 
 `sum_population_grid` は、先頭に dataset_id を渡す古い呼び方も受け付けます（`dataset_arguments.py`）。
