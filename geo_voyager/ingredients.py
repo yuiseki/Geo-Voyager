@@ -13,8 +13,8 @@ import random
 from .indicator_codes import INDICATORS
 
 
-def _rows() -> list[list[str]]:
-    lines = Path(__file__).with_name('osm_kinds.tsv').read_text(encoding='utf-8').splitlines()
+def _rows(name: str = 'osm_kinds.tsv') -> list[list[str]]:
+    lines = Path(__file__).with_name(name).read_text(encoding='utf-8').splitlines()
     return [line.split('\t') for line in lines if line and not line.startswith('#')][1:]
 
 
@@ -26,6 +26,9 @@ COUNTS = {tag: int(count) for tag, count, _areas, _description in _rows()}
 # How many of them are areas: shop=butcher has 211, but 5 areas; asked for the largest butcher's area in 豊島区, the
 # Goal found only points (explore 24).
 AREA_COUNTS = {tag: int(areas) for tag, _count, areas, _description in _rows()}
+# How many each ward has, and how many of them are areas, where it has any: landuse=institutional has 6 in all the 23
+# wards, none in 杉並区 or 足立区, and asked of those two, the Goal ran out of time (explore 29).
+WARD_COUNTS = {(tag, ward): (int(count), int(areas)) for tag, ward, count, areas in _rows('osm_kinds_by_ward.tsv')}
 # The 23 wards of Tokyo, where OpenStreetMap is read from a light frozen copy (yuiseki/osm-tokyo23-src-2026-08):
 # Japan's is 6.5 GB, and the Overpass of the whole country is slow for questions on every lot or court.
 AREAS = ('千代田区', '中央区', '港区', '新宿区', '文京区', '台東区', '墨田区', '江東区', '品川区', '目黒区', '大田区',
@@ -58,10 +61,16 @@ class Ingredients:
         return (*self.kinds, *self.areas, *self.measures, *self.indicators)
 
     def text(self) -> str:
-        return ('対象（OSM のタグ）: ' + '、'.join(f'{kind}（23 区で {COUNTS[kind]} 件、うち面 {AREA_COUNTS[kind]} 件。{KINDS[kind][:80]}）' for kind in self.kinds) + '\n'
+        return ('対象（OSM のタグ）: ' + '、'.join(f'{kind}（23 区で {COUNTS[kind]} 件、うち面 {AREA_COUNTS[kind]} 件。'
+                                                 f'{self._in_wards(kind)}{KINDS[kind][:80]}）' for kind in self.kinds) + '\n'
                 + '範囲: ' + '、'.join(self.areas) + '\n'
                 + '測る量: ' + '、'.join(f'{measure}（{MEASURES[measure]}）' for measure in self.measures) + '\n'
                 + '世界銀行の指標: ' + '、'.join(f'{code}（{INDICATORS[code]}）' for code in self.indicators) + '\n')
+
+
+    def _in_wards(self, kind: str) -> str:
+        counts = [(ward, WARD_COUNTS.get((kind, ward), (0, 0))) for ward in self.areas if ward != '東京23区']
+        return '、'.join(f'{ward} {count} 件' + (f'（面 {areas}）' if count else '') for ward, (count, areas) in counts) + ('。' if counts else '')
 
 
 def draw(rng: random.Random) -> Ingredients:
