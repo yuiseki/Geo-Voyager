@@ -206,7 +206,7 @@ def _given(intent: Intent) -> str:
 def _unsourced_note(found: list[str]) -> str:
     return (f'\n\n前回の応答は拒否された。Intent にも前の結果にも無いコードや ID や値をコードに書いた: {", ".join(found)}。'
             '市区町村コードなどを記憶で書かない（探索で書かれた区のコードは全て誤りだった）。'
-            '名前で行を選ぶか、名前からデータで引いた値を使う。')
+            '名前で行を選ぶか、名前からデータで引いた値を使う。緯度経度も記憶で書かず、results や前段の値から取り出す。')
 
 
 def contract_problems(intent: Intent, code: str, shown: tuple[str, ...] = ()) -> list[tuple[str, str]]:

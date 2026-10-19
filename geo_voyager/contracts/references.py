@@ -65,8 +65,14 @@ _CONSTANTS = frozenset({'6371000', '6378137', '111320', '111319', '111195', '111
 
 def unsourced_numbers(code: str, sources: str) -> list[str]:
     """Numbers of five digits or more in the code, outside its comments, that the sources (what the code was given)
-    do not have. A round number (a unit, Overpass's area offset 3600000000), an EPSG code and a constant of the Earth
-    are not codes."""
-    found = re.findall(r'(?<![\d.])(?<!EPSG:)\d{5,}(?![\d.])', _without_comments(code))
-    return [number for number in dict.fromkeys(found)
-            if number not in sources and len(number.rstrip('0')) > 2 and number not in _CONSTANTS]
+    do not have, and latitudes and longitudes in Japan. A round number (a unit, Overpass's area offset 3600000000), an
+    EPSG code and a constant of the Earth are not codes."""
+    code = _without_comments(code)
+    found = re.findall(r'(?<![\d.])(?<!EPSG:)\d{5,}(?![\d.])', code)
+    codes = [number for number in found if len(number.rstrip('0')) > 2 and number not in _CONSTANTS]
+    # A latitude or longitude in Japan to two decimals or more: explore 28 routed between points made up in the
+    # defaults of the function instead of the representative points it was given. None of the 377 pieces of code
+    # of explores 20 to 28 wrote one that its prompt had not given.
+    coordinates = [number for number in re.findall(r'(?<![\d.])\d{2,3}\.\d{2,}(?![\d.])', code)
+                   if 20 <= float(number) <= 46 or 122 <= float(number) <= 154]
+    return [number for number in dict.fromkeys(codes + coordinates) if number not in sources]

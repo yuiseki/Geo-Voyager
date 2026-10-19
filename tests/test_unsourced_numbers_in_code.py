@@ -48,3 +48,17 @@ def test_the_constants_of_the_earth_are_not_codes():
     # Exploration 16 (2026-10-18) was sent back for metres in a degree, 111320, which nobody need give.
     code = 'def f(a, lat):\n    return a * 111320 * 111320 + 6371000 + 6378137 + 111319\n'
     assert unsourced_numbers(code, '') == []
+
+
+def test_a_longitude_or_latitude_in_japan_written_from_memory_is_found():
+    # Explore 28: given the representative points of 台東区 and 江戸川区 (35.712607, 139.779984 and 35.706648,
+    # 139.868312), the code routed between points it made up in its defaults, and walked 55 minutes, not 107.
+    code = 'def f(results, taito_lat=35.715, taito_lon=139.796, edogawa_lat=35.665):\n    return route(taito_lat)\n'
+    given = '[{"name": "台東区", "rep_lon": 139.779984, "rep_lat": 35.712607}]'
+    assert unsourced_numbers(code, given) == ['35.715', '139.796', '35.665']
+    assert unsourced_numbers('def f(results):\n    return route(35.712607, 139.779984)\n', given) == []
+
+
+def test_other_decimals_are_not_coordinates():
+    code = 'def f(results):\n    return {"ratio": round(x * 0.25, 2), "km": 12.5, "pct": 99.95, "lon": 160.25}\n'
+    assert unsourced_numbers(code, '') == []
