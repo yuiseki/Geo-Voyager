@@ -33,12 +33,22 @@ _NOTES = {
         '推計人口を返す。Goal が WorldPop・推計を名指ししない人口は、yuiseki/jp-admin-2026-09 の国勢調査人口を使う。'),
 }
 
+# What a column's meaning in the reference leaves out. Told only that a ward is named with its city (浜松市中央区), the
+# Critic failed code that read 板橋区, 目黒区 or 墨田区 by name = '板橋区' (explores 18, 24, 26).
+_MEANINGS_ADDED = {('yuiseki/jp-admin-2026-09', 'municipalities', 'name'): '。東京23区の区は市名なし（板橋区）'}
+
+
+def _meanings(dataset_id: str, table: dict) -> dict:
+    meanings = {key['column']: key['meaning'] for key in table.get('join_keys', [])}
+    meanings.update({column['name']: column['meaning'] + _MEANINGS_ADDED.get((dataset_id, table['name'], column['name']), '')
+                     for column in table.get('columns', [])})
+    return meanings
+
 
 def planner_text(dataset_id: str) -> str:
     reference = _DATA['datasets'][dataset_id]
     table = next(table for table in reference['tables'] if table['name'] == _MAIN_TABLE[dataset_id])
-    meanings = {key['column']: key['meaning'] for key in table.get('join_keys', [])}
-    meanings.update({column['name']: column['meaning'] for column in table.get('columns', [])})
+    meanings = _meanings(dataset_id, table)
     text = f"{reference['description']} 1 行は{table['grain']}。"
     if table.get('no_key'):
         text += '持たないキー: ' + '、'.join(f"{key['name']}（{key['note']}）" for key in table['no_key']) + '。'
@@ -72,8 +82,7 @@ def critic_text(dataset_id: str, code: str) -> str:
               or [table for table in reference['tables'] if table['name'] == _MAIN_TABLE[dataset_id]])
     text = ''
     for table in tables:
-        meanings = {key['column']: key['meaning'] for key in table.get('join_keys', [])}
-        meanings.update({column['name']: column['meaning'] for column in table.get('columns', [])})
+        meanings = _meanings(dataset_id, table)
         notes = {key['column']: key['note'] for key in table.get('join_keys', []) if key.get('note')}
         notes.update({column['name']: column['note'] for column in table.get('columns', []) if column.get('note')})
         # As the Generator is told (contracts.tables): told only that way is in metres, the Critic failed code that

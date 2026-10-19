@@ -355,3 +355,16 @@ def test_the_final_check_cuts_every_step_within_the_budget():
     shown = client.generate.call_args.args[0].split('Observation:\n', 1)[1]
     assert '{"median_density": 85.6}' in shown and '400 行' in shown
     assert len(shown.encode('utf-8')) < OBSERVED_BUDGET + 1024
+
+
+def test_the_critic_is_told_a_target_with_nothing_that_matches_may_be_missing_from_the_output():
+    # Explore 25: of 品川区 and 江戸川区, only 江戸川区 had a boat rental, and the Critic failed the output for
+    # leaving 品川区 out. Replayed on the 73 failed verdicts of explores 16 to 26, the rule turned that one to a
+    # success and no output that was wrong.
+    client = Mock()
+    client.generate.return_value = '判定: 成功\n理由: ok'
+    observation = Observation('temporary')
+    observation.text = '[{"ward_name": "江戸川区", "osm_id": 1}]'
+    Critic(client).check(Intent('品川区と江戸川区の boat_rental を区ごとに返す', ('yuiseki/osm-tokyo23-src-2026-08',)), [observation])
+    prompt = client.generate.call_args.args[0]
+    assert '条件に合うものが無かった対象が出力に無いことを、それだけで失敗の理由にしない' in prompt

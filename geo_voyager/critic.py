@@ -37,6 +37,12 @@ READ_NAMES = ('Intent には、読む元のデータの列の名前（例: pop_2
               '読む元の列の名前が出力のキーに無いことを、失敗の理由にしない。\n')
 CARRIED = ('コードが入力（results や前段の Observation）から引き継いだ名前や ID は、前段で得た値である。'
            '今回読んだデータやサービスがその種類の ID を持たないことを、失敗の理由にしない。\n')
+# Explore 25: of 品川区 and 江戸川区, only 江戸川区 had a boat rental, and the Critic failed the output for leaving
+# 品川区 out. Replayed on the 73 failed verdicts of explores 16 to 26, this turned that one to a success and no output
+# that was wrong.
+NONE_MATCHED = ('Intent が複数の対象（区など）を調べ、条件（〜以内、〜を持つものだけ、など）で絞り込むとき、'
+                '条件に合うものが無かった対象が出力に無いことを、それだけで失敗の理由にしない。'
+                'コードがその対象も調べていれば、その対象は 0 件だったと読む。\n')
 RESOURCES_HEADER = '\n\nコードが読んだサービスとデータの説明（コードが Intent の対象を正しく選んだかを照合するために読む）:\n'
 
 
@@ -119,7 +125,7 @@ class Critic:
             'Intent が出力のキー名を指定していても（例: cafe_count）、その値が別の意味の分かるキー（例: tag が amenity=cafe の count）で出力されていれば、'
             'キー名の違いは失敗の理由にしない。キー名ではなく、値と対象と条件が Intent の要求に合うかで判定する。'
             '実行環境の関数は、件数を count、条件を tag のような決まったキーで出力する。値そのものが無い、または別の値なら失敗。\n'
-            + READ_NAMES + CARRIED +
+            + READ_NAMES + CARRIED + NONE_MATCHED +
             '返答は次の2行だけにし、前置き・コードフェンスを付けないでください。\n'
             '判定: 成功\n理由: 理由の本文\n'
             '失敗の場合は1行目を「判定: 失敗」にしてください。理由も1行にしてください。\n\n'

@@ -115,3 +115,11 @@ def test_the_critic_is_told_that_read_table_returns_a_web_mercator_geometry_in_l
     text = critic_text('yuiseki/osm-tokyo23-src-2026-08', code)
     assert 'way（read_table が OGC:CRS84 の経度、緯度に直して返す' in text
     assert 'EPSG:3857 (Web メルカトル) のメートル。面積も' not in text
+
+
+def test_the_critic_and_the_planner_are_told_a_tokyo_ward_has_no_city_in_its_name():
+    # Told only that a ward is named with its city (浜松市中央区), the Critic failed code that read 板橋区, 目黒区 or
+    # 墨田区 by name = '板橋区' (explores 18, 24, 26): the wards of Tokyo are not wards of a city.
+    code = "read_table(connection, 'yuiseki/jp-admin-2026-09', 'municipalities').filter(\"name = '板橋区'\")"
+    for text in (critic_text('yuiseki/jp-admin-2026-09', code), planner_text('yuiseki/jp-admin-2026-09')):
+        assert '浜松市中央区' in text and '東京23区の区は市名なし（板橋区）' in text
