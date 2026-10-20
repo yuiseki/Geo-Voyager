@@ -38,3 +38,15 @@ def test_the_generator_is_given_the_facts_its_intent_names():
     except Exception:
         pass
     assert "station_name = '東京'" in client.generate.call_args.args[0]
+
+
+def test_the_critic_is_given_the_facts_its_intent_or_observations_name():
+    # Explore 41: 双葉町 had no one in the 2020 census, and the Critic failed the answer 0 as unrealistic, in two Goals;
+    # one of them named the town only in the Observation.
+    from geo_voyager.critic import Critic
+    from geo_voyager.observation import Observation
+    client = Mock(); client.generate.return_value = '判定: 成功\n理由: x'
+    Critic(client).check(Intent('運行中駅を持つ市区町村のうち人口が最小のもの', ('yuiseki/jp-admin-2026-09',)), [Observation('{"name": "双葉町", "population": 0}')])
+    assert '双葉町' in client.generate.call_args.args[0] and '前提知識' in client.generate.call_args.args[0]
+    Critic(client).check(Intent('札幌市の人口', ('yuiseki/jp-admin-2026-09',)), [Observation('{"population": 1973395}')])
+    assert '前提知識' not in client.generate.call_args.args[0]

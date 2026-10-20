@@ -1,6 +1,8 @@
 import re
 import json
 
+from .background_facts import facts_section
+
 from .critique import Critique
 from .dataset_references import REFERENCED, critic_text
 from .datasets import load_dataset_graph
@@ -121,7 +123,9 @@ class Critic:
             'Observation が Intent の要求した調査結果を実際に答えているか判定してください。\n'
             '仮説が正しいか、結果が望ましいかは判定しない。\n'
             '入力の Intent と Observation だけで要求した出力が得られたか判定する。外部知識で答えを推測・追加しない。Intent にない期待件数を仮定しない。\n'
-            + PLACE_FACTS +
+            + PLACE_FACTS
+            # explore 41: told nothing, the Critic failed 双葉町's census population 0 as unrealistic
+            + facts_section(intent.text + '\n' + observation_text) +
             'データを取得したという報告だけでは、要求された調査結果を答えたことにはなりません。\n'
             '回答の値が 0 や空のとき、または値同士が矛盾するとき（例: 距離が数メートルなのに所要時間が99分）は、その値が正しいと分かる根拠が Observation に'
             'あるときだけ成功にする。数値が書かれているだけでは成功にしない。根拠が無ければ、取得方法の誤りを疑って失敗とする。\n'
