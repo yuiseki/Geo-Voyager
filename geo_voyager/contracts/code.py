@@ -209,36 +209,105 @@ def relation_in_sql_problems(code: str) -> list[str]:
 
 
 _GEOMETRY_COLUMNS = ('geometry', 'way', 'geom')
+# Spatial functions whose value is not a geometry: a number, a truth value or a text.
+_SCALAR_FUNCTIONS = re.compile(r'ST_(?:X|Y|Z|M|XMin|XMax|YMin|YMax|Area|Area_Spheroid|Length|Length_Spheroid|Perimeter|'
+                               r'Perimeter_Spheroid|Distance|Distance_Sphere|Distance_Spheroid|DWithin|NPoints|NumPoints|'
+                               r'NumGeometries|Dimension|GeometryType|IsValid|IsEmpty|IsClosed|IsSimple|SRID|As\w*|'
+                               r'Contains|Within|Intersects|Covers|CoveredBy|Crosses|Touches|Overlaps|Equals|Disjoint|'
+                               r'Hilbert|QuadKey)\s*\(', re.IGNORECASE)
 
 
-def _projected(node: ast.AST) -> list[str] | None:
-    """The columns of x.project("a, b, geometry").fetchone(), or None when the call reads no such row."""
+def _is_geometry(column: str) -> bool:
+    """Whether a column of a SELECT list or project() is a geometry: way, w.geometry, ST_Union_Agg(way) AS shape."""
+    column = column.strip()
+    alias = re.search(r'\s+AS\s+"?(\w+)"?$', column, re.IGNORECASE)
+    expression = column[:alias.start()].strip() if alias else column
+    if (alias.group(1) if alias else expression.split('.')[-1]).strip('"').lower() in _GEOMETRY_COLUMNS:
+        return True
+    if re.fullmatch(r'(?:\w+\.)?"?(?:way|geometry|geom)"?', expression, re.IGNORECASE):
+        return True
+    return bool(re.match(r'ST_\w+\s*\(', expression, re.IGNORECASE)) and not _SCALAR_FUNCTIONS.match(expression)
+
+
+def _split_top_level(text: str) -> list[str]:
+    parts, depth, begin = [], 0, 0
+    for index, char in enumerate(text):
+        depth += (char == '(') - (char == ')')
+        if char == ',' and depth == 0:
+            parts.append(text[begin:index])
+            begin = index + 1
+    return parts + [text[begin:]]
+
+
+def _selected(sql: str) -> list[str] | None:
+    """The columns of a query's first SELECT list, read up to its FROM outside any parentheses."""
+    found = re.search(r'\bSELECT\b', sql, re.IGNORECASE)
+    if not found:
+        return None
+    depth = 0
+    for index in range(found.end(), len(sql)):
+        depth += (sql[index] == '(') - (sql[index] == ')')
+        if depth == 0 and re.match(r'\bFROM\b', sql[index:], re.IGNORECASE) and not re.match(r'\w', sql[index - 1]):
+            return _split_top_level(sql[found.end():index])
+    return _split_top_level(sql[found.end():])
+
+
+def _string_text(node: ast.AST, strings: dict[str, str]) -> str | None:
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    if isinstance(node, ast.JoinedStr):
+        return ''.join(value.value if isinstance(value, ast.Constant) else '{}' for value in node.values)
+    if isinstance(node, ast.Name):
+        return strings.get(node.id)
+    return None
+
+
+def _projected(node: ast.AST, strings: dict[str, str] | None = None) -> list[str] | None:
+    """Whether each column of x.project("a, b, geometry").fetchone() or connection.sql(query).fetchone() is a
+    geometry, or None when the call reads no such row."""
     if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == 'fetchone'):
         return None
     for call in ast.walk(node):
-        if (isinstance(call, ast.Call) and isinstance(call.func, ast.Attribute) and call.func.attr == 'project'
-                and call.args and isinstance(call.args[0], ast.Constant) and isinstance(call.args[0].value, str)):
-            return [column.strip().split()[-1].strip('"') for column in call.args[0].value.split(',')]
+        if not (isinstance(call, ast.Call) and isinstance(call.func, ast.Attribute) and call.args):
+            continue
+        if call.func.attr == 'project' and isinstance(call.args[0], ast.Constant) and isinstance(call.args[0].value, str):
+            return [_is_geometry(column) for column in _split_top_level(call.args[0].value)]
+        if call.func.attr in ('sql', 'query', 'execute'):
+            sql = _string_text(call.args[0], strings or {})
+            columns = _selected(sql) if sql is not None else None
+            if columns is not None:
+                return [_is_geometry(column) for column in columns]
     return None
 
 
 def _geometries_read_out(tree: ast.AST) -> set[str]:
-    """The names a row's geometry column is unpacked into: _, _, shape = rel.project("a, b, geometry").fetchone()."""
+    """The names a row's geometry column is read into: _, _, shape = rel.project("a, b, geometry").fetchone(), or
+    shape = row[0] of row = connection.sql("SELECT ST_Union_Agg(way) ...").fetchone()."""
+    assigns = [node for node in ast.walk(tree) if isinstance(node, ast.Assign) and len(node.targets) == 1]
+    strings = {node.targets[0].id: text for node in assigns if isinstance(node.targets[0], ast.Name)
+               for text in [_string_text(node.value, {})] if text is not None}
     rows = {}
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Assign) and len(node.targets) == 1:
-            columns = _projected(node.value)
-            if columns is not None and isinstance(node.targets[0], ast.Name):
-                rows[node.targets[0].id] = columns
+    for node in assigns:
+        columns = _projected(node.value, strings)
+        if columns is not None and isinstance(node.targets[0], ast.Name):
+            rows[node.targets[0].id] = columns
+
+    def columns_of(value: ast.AST) -> list[bool] | None:
+        return rows.get(value.id) if isinstance(value, ast.Name) else _projected(value, strings)
+
     names = set()
-    for node in ast.walk(tree):
-        if not (isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Tuple)):
-            continue
-        columns = rows.get(node.value.id) if isinstance(node.value, ast.Name) else _projected(node.value)
-        if columns is None or len(columns) != len(node.targets[0].elts):
-            continue
-        names.update(target.id for target, column in zip(node.targets[0].elts, columns)
-                     if isinstance(target, ast.Name) and column.lower() in _GEOMETRY_COLUMNS)
+    for node in assigns:
+        target, value = node.targets[0], node.value
+        if isinstance(target, ast.Tuple):
+            columns = columns_of(value)
+            if columns is not None and len(columns) == len(target.elts):
+                names.update(element.id for element, geometry in zip(target.elts, columns)
+                             if isinstance(element, ast.Name) and geometry)
+        elif (isinstance(target, ast.Name) and isinstance(value, ast.Subscript) and isinstance(value.slice, ast.Constant)
+              and isinstance(value.slice.value, int)):
+            columns = columns_of(value.value)
+            if columns is not None and -len(columns) <= value.slice.value < len(columns) and columns[value.slice.value]:
+                names.add(target.id)
     return names
 
 

@@ -100,3 +100,24 @@ def test_a_geometry_read_out_of_a_row_and_put_into_the_sql_is_refused():
     row = ('row = units.project("code5, population, geometry").fetchone()\ncode5, population, geometry = row\n'
            'connection.sql(f"SELECT ST_Area(\'{geometry}\')")')
     assert len(relation_in_sql_problems(row)) == 1
+
+
+def test_a_geometry_a_query_selects_and_fetchone_reads_out_is_refused():
+    # Explore 42: the union of two wards, selected as ST_Union_Agg(way) AS union_geom and read with fetchone(), was put
+    # into the next query with an f-string, a syntax error in the last two steps.
+    from geo_voyager.contracts.code import relation_in_sql_problems
+    code = ('union_query = f"""\nSELECT ST_Union_Agg(way) AS union_geom\nFROM polygons\nWHERE name IN (\'{a}\', \'{b}\')\n"""\n'
+            'union_result = connection.sql(union_query).fetchone()\n'
+            'union_geom = union_result[0]\n'
+            'connection.sql(f"SELECT COUNT(*) FROM points WHERE ST_Within(way, {union_geom})")')
+    found = relation_in_sql_problems(code)
+    assert len(found) == 1 and 'union_geom' in found[0]
+    direct = ('shape = connection.sql("SELECT name, geometry FROM wards WHERE name = \'港区\'").fetchone()[1]\n'
+              'connection.sql(f"SELECT * FROM points WHERE ST_Within(way, {shape})")')
+    assert len(relation_in_sql_problems(direct)) == 1
+    # a number or a name read out of a row is a value an f-string may put into the SQL
+    values = ('q = "SELECT relation_id, ST_X(ST_Centroid(geometry)) AS x, COUNT(*) FROM wards GROUP BY 1, 2"\n'
+              'relation_id, x, n = connection.sql(q).fetchone()\n'
+              'total = connection.sql("SELECT SUM(ST_Area(way)) FROM polygons").fetchone()[0]\n'
+              'connection.sql(f"SELECT * FROM t WHERE id = {relation_id} AND x > {x} AND n < {n} AND a < {total}")')
+    assert relation_in_sql_problems(values) == []
