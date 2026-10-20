@@ -48,6 +48,9 @@ def test_api_paths_and_parameters_in_an_intent_are_found(text, expected):
     '渋谷区の area_id を relation_id から求めて amenity=cafe の件数を数える',       # the word area, not the clause
     '地区 (area) ごとに out of range の値を除いて集計する',
     'gs:Ward 型の区の一覧（名称と外部ID）を取得し、件数を数える',
+    '各施設から最も近い標準地の公示地価の最高値は約いくら/m² か',     # a unit, not a path (explore 42)
+    '人口密度（人/km²）が最も高い区と、その値（人/km2）',
+    '平均の速さ（km/h）と 1 日あたりの件数（件/day）',
     '',
 ])
 def test_what_to_find_is_not_an_api_detail(text):

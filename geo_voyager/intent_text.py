@@ -10,7 +10,11 @@ import re
 from .services import load_service_graph
 
 # A path: a slash that does not follow a letter or digit, then segments. 'text/plain' and '2026/10/09' are not paths.
-PATH = re.compile(r'(?<![A-Za-z0-9_])/[A-Za-z0-9_][A-Za-z0-9_.\-]*(?:/[A-Za-z0-9_.\-]+)*')
+# Nor is a unit after a slash: the measure 公示地価 is in 円/m², and a Goal on the highest of it, asked as 約いくら/m²,
+# was refused three times as naming the path /m (explore 42).
+UNITS = ('m', 'km', 'cm', 'mm', 'm2', 'km2', 'ha', 'h', 'min', 's', 'day', 'year')
+PATH = re.compile(r'(?<![A-Za-z0-9_])/(?!(?:' + '|'.join(UNITS) + r')(?![A-Za-z0-9_.\-/]))'
+                  r'[A-Za-z0-9_][A-Za-z0-9_.\-]*(?:/[A-Za-z0-9_.\-]+)*')
 # Names the registered services take as request parameters (Taginfo, Nominatim, Overpass, Valhalla, GeoSPARQL).
 # OSM tags such as amenity=cafe are data, not parameters, and are not in this list. Neither is 'key': Taginfo takes
 # a key parameter, but key="cuisine" is also simply how an OSM tag key is written, and a model that says so is not
