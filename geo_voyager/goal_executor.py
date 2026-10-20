@@ -113,6 +113,10 @@ class GoalExecutor:
 
         stop, error = 'max_steps', None
         critique = None
+        # When the time is up, one step that works on the Observations alone may still be taken, and the Planner is
+        # asked once more after a DONE the Critic failed: both wards' values were known, the step comparing them was
+        # not taken, and the Goal ended unanswered (explores 35 and 44). Such a step reads no data and takes minutes.
+        asked_again = closing_step_taken = False
         while True:
             # max_steps bounds the steps executed. After the last one the Planner is asked once more, and only DONE
             # is taken: a last step that printed the answer should not end the Goal as max_steps.
@@ -142,14 +146,19 @@ class GoalExecutor:
                     stop = 'done'
                     break
                 add(FinalCriticFailure(critique.reason, len(history)))
-                if last_call:
+                if last_call and (stop != 'time_limit' or asked_again):
                     break
+                if last_call:
+                    asked_again = True
+                    continue
                 if self._give_up(history.final_critic_failures(), max_final_critic_failures):
                     stop, error = 'final_critic_failed', critique.reason
                     break
                 continue
-            if last_call:
+            if last_call and (stop != 'time_limit' or closing_step_taken or not _on_observations_alone(decision)):
                 break
+            if last_call:
+                closing_step_taken = True
             earlier = history.entries_for(decision)
             succeeded = [entry for entry in earlier if entry.succeeded]
             if succeeded or len(earlier) >= max_attempts_per_intent:
@@ -198,3 +207,8 @@ class GoalExecutor:
         return Intent(goal, dataset_ids=tuple(dict.fromkeys(id for intent in intents for id in intent.dataset_ids)),
                       service_ids=tuple(dict.fromkeys(id for intent in intents for id in intent.service_ids)),
                       requires_context=True)
+
+
+def _on_observations_alone(intent: Intent) -> bool:
+    """Whether the Intent works only on earlier results: it names no Dataset or Service, and its inputs."""
+    return not intent.dataset_ids and not intent.service_ids and intent.requires_context and bool(intent.inputs)

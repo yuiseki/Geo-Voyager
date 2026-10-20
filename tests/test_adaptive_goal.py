@@ -160,6 +160,25 @@ def test_the_goal_stops_at_the_time_limit_and_the_planner_may_still_say_done():
     assert result.stop_reason == 'done' and executor.execute.call_count == 1
 
 
+def test_when_the_time_is_up_one_local_step_may_still_draw_the_answer_from_what_is_known():
+    # Explores 35 and 44: when the time was up, both wards' values were known, but the step comparing them was not
+    # taken, and the Critic failed the DONE. A step on the Observations alone reads no data and takes minutes.
+    critic = Mock(); critic.check.side_effect = [Critique(False, 'どちらが大きいかの結論が無い'), Critique(True, 'answered')]
+    compare = Intent('二つの合計を比べて大きい方を返す', requires_context=True, inputs=('totals',))
+    planner = Script(intent('a', result_name='totals'), DONE, compare, DONE)
+    result, executor, _ = run(planner, [ok('{"杉並区": 1, "江戸川区": 2}'), ok('{"winner": "江戸川区"}')], critic,
+                              time_limit=1800, clock=Clock(0, 0, 1900))
+    assert result.stop_reason == 'done' and executor.execute.call_count == 2
+    # only one such step, and only one on the Observations: a step that reads data is not taken
+    critic = Mock(); critic.check.return_value = Critique(False, 'no conclusion')
+    planner = Script(intent('a', result_name='totals'), DONE, intent('b'), DONE)
+    result, executor, _ = run(planner, [ok('1'), ok('2')], critic, time_limit=1800, clock=Clock(0, 0, 1900))
+    assert result.stop_reason == 'time_limit' and executor.execute.call_count == 1 and len(planner.seen) == 3
+    planner = Script(intent('a', result_name='totals'), compare, DONE, compare, DONE)
+    result, executor, _ = run(planner, [ok('1'), ok('2'), ok('3')], critic, time_limit=1800, clock=Clock(0, 0, 1900))
+    assert result.stop_reason == 'time_limit' and executor.execute.call_count == 2 and len(planner.seen) == 4
+
+
 def test_without_a_time_limit_the_clock_is_not_a_limit():
     planner = Script(intent('a'), intent('b'), DONE)
     result, _, _ = run(planner, [ok('1'), ok('2')], clock=Clock(0, 10 ** 9))
