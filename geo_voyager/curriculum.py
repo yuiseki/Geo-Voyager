@@ -109,10 +109,10 @@ class Curriculum:
         proposed = _parse(text, findings)
         if ingredients is not None:
             proposed = ProposedGoal(proposed.goal, proposed.reason, proposed.prediction, _used(text, ingredients))
-            missing = ingredients.without_areas(proposed.goal)
+            missing = ingredients.none_found(proposed.goal)
             if missing:
-                raise CurriculumRejected(f'{"。".join(missing)}で、面を問うと答えは調べる前から 0 になる。'
-                                         '点の件数を問うか、面のある区やタグの問いにする', text)
+                raise CurriculumRejected(f'{"。".join(missing)}。それを問うと、答えは調べる前から 0 か空に決まる。'
+                                         'そのタグがある区か、別のタグの問いにする', text)
         if self.embedding is not None:
             _refuse_a_repeat(proposed.goal, [attempt['goal'] for attempt in attempts], self.embedding, text)
         return proposed

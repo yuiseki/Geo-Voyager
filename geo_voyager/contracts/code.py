@@ -163,3 +163,45 @@ def catalog_path_problems(code: str) -> list[str]:
         return ['files の cog_path は原本の目録のパスで、実行環境からは開けない。画素は '
                 "rasterio.open('/vsicurl/' + dataset_url('yuiseki/worldpop-jp-2026-01')) で開く"]
     return []
+
+
+def _root_name(node: ast.AST) -> str | None:
+    """The name a chain of calls starts from: wards in wards.filter("x").project("y")."""
+    while isinstance(node, (ast.Call, ast.Attribute)):
+        node = node.func if isinstance(node, ast.Call) else node.value
+    return node.id if isinstance(node, ast.Name) else None
+
+
+def relation_in_sql_problems(code: str) -> list[str]:
+    """The DuckDB relations put into a query with an f-string: FROM {wards} puts the relation's printed table, boxes
+    and all, into the SQL, a syntax error (explores 13, 23, 32, 33, 36). The query reads a relation by its variable's
+    name."""
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return []
+    relations: set[str] = set()
+    assignments = [node for node in ast.walk(tree) if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call)]
+    changed = True
+    while changed:
+        changed = False
+        for node in assignments:
+            root = _root_name(node.value)
+            if isinstance(node.value.func, ast.Attribute) and node.value.func.attr.startswith(('fetch', 'df', 'pl', 'arrow')):
+                continue            # rows read out of a relation are values, not a relation
+            is_relation = ('read_table' in {getattr(call.func, 'id', None) for call in ast.walk(node.value) if isinstance(call, ast.Call)}
+                           or root in relations or (root == 'connection' and _calls_sql(node.value)))
+            for target in node.targets:
+                if is_relation and isinstance(target, ast.Name) and target.id not in relations:
+                    relations.add(target.id)
+                    changed = True
+    put = dict.fromkeys(value.value.id for joined in ast.walk(tree) if isinstance(joined, ast.JoinedStr)
+                        for value in joined.values
+                        if isinstance(value, ast.FormattedValue) and isinstance(value.value, ast.Name) and value.value.id in relations)
+    return [f'{name} は DuckDB の relation で、f-string で SQL に埋めると表を印字した文字列になり、構文エラーになる。'
+            f'SQL には変数名をそのまま書く（FROM {name}）' for name in put]
+
+
+def _calls_sql(node: ast.Call) -> bool:
+    return any(isinstance(call, ast.Call) and isinstance(call.func, ast.Attribute) and call.func.attr in ('sql', 'query')
+               for call in ast.walk(node))

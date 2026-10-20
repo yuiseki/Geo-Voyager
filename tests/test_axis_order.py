@@ -54,3 +54,17 @@ def test_the_generator_refuses_code_with_a_sphere_function_on_unflipped_coordina
             '        return countries.project("ADM0_A3, ST_Area_Spheroid(geometry) / 1e6 AS area_km2").fetchall()\n')
     problems = contract_problems(Intent('国の面積', dataset_ids=('yuiseki/natural-earth',)), code)
     assert any('ST_Area_Spheroid' in problem for problem, _ in problems)
+
+
+def test_a_relation_put_into_the_sql_with_an_f_string_is_refused():
+    # Explore 36 (and 13, 23, 32, 33): FROM {wards} put the relation's printed table into the SQL, a syntax error.
+    from geo_voyager.contracts.code import relation_in_sql_problems
+    code = ('wards = read_table(connection, "yuiseki/jp-admin-2026-09", "municipalities").filter("name = \'北区\'")\n'
+            'helipads = wards.filter("x")\n'
+            'connection.sql(f"SELECT * FROM {helipads} h JOIN wards w ON ST_Within(h.way, w.geometry) WHERE h.aeroway = \'{value}\'")')
+    found = relation_in_sql_problems(code)
+    assert len(found) == 1 and 'helipads' in found[0] and 'FROM helipads' in found[0]
+    assert relation_in_sql_problems(code.replace('{helipads}', 'helipads')) == []
+    assert relation_in_sql_problems('n = 3\nconnection.sql(f"SELECT {n}")') == []
+    rows = 'rows = connection.sql("SELECT 1").fetchall()\nprint(f"{rows}")'
+    assert relation_in_sql_problems(rows) == []

@@ -261,3 +261,15 @@ def test_on_exploration_the_points_of_such_a_kind_or_the_areas_where_a_ward_has_
     agent, _ = curriculum('Goal: 墨田区と板橋区で、shop=photo の面の総面積はどれほどか\n理由: y\n予想: 約 500 m²\n'
                           '材料: shop=photo、墨田区、板橋区、面積')
     assert agent.propose([], [], ingredients=photo(('墨田区', '板橋区'))).ingredients == ('shop=photo', '墨田区', '板橋区', '面積')
+
+
+def test_on_exploration_a_goal_on_a_kind_the_named_wards_have_none_of_is_refused():
+    # Explore 36: shown 港区 0 件、中央区 0 件, the curriculum asked the sum of the distances of
+    # man_made=communications_tower there to their stations, and predicted 0 km.
+    from geo_voyager.ingredients import Ingredients
+    towers = Ingredients(('man_made=communications_tower', 'waterway=weir', 'landuse=vineyard'), ('港区', '中央区'),
+                         ('駅までの直線距離', '件数'), ('SP.POP.TOTL',))
+    agent, _ = curriculum('Goal: 港区と中央区で、man_made=communications_tower の各地点から最寄りの運行中の駅までの直線距離の合計は何kmか\n'
+                          '理由: y\n予想: 0 km\n材料: man_made=communications_tower、港区、中央区、駅までの直線距離')
+    with pytest.raises(CurriculumRejected, match='man_made=communications_tower は 港区 0 件、中央区 0 件'):
+        agent.propose([], [], ingredients=towers)

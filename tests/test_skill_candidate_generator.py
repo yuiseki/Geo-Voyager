@@ -774,3 +774,16 @@ def test_code_that_reads_a_tag_with_its_own_column_from_tags_is_generated_again(
     candidate = SkillCandidateGenerator(client).generate(Intent('23 区の power=plant の面の件数を求める', ('yuiseki/osm-tokyo23-src-2026-08',)))
     assert candidate.code == column and client.generate.call_count == 2
     assert '"power" 列で読む' in client.generate.call_args_list[1].args[0]
+
+
+def test_code_that_puts_a_relation_into_the_sql_with_an_f_string_is_generated_again():
+    # Explores 13, 23, 32, 33, 36: FROM {polygons} put the relation's printed table into the SQL.
+    put = ('from geo_voyager.control_primitives import connect_duckdb, read_table\n\n\ndef largest_area():\n    \"\"\"The largest area.\"\"\"\n'
+           '    with connect_duckdb() as connection:\n'
+           '        polygons = read_table(connection, "yuiseki/osm-tokyo23-src-2026-08", "planet_osm_polygon")\n'
+           '        return {"n": connection.sql(f"SELECT count(*) FROM {polygons}").fetchone()[0]}')
+    named = put.replace('{polygons}', 'polygons')
+    client = Mock(); client.generate.side_effect = [_reply(put), _reply(named)]
+    candidate = SkillCandidateGenerator(client).generate(Intent('23 区の面の件数を求める', ('yuiseki/osm-tokyo23-src-2026-08',)))
+    assert candidate.code == named and client.generate.call_count == 2
+    assert 'FROM polygons' in client.generate.call_args_list[1].args[0]
