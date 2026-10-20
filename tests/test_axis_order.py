@@ -86,3 +86,17 @@ def test_a_key_the_target_does_not_have_is_refused():
     # a guess that falls back when wrong runs: a default, or a key asked after first (saved skills of explores 4, 6, 10)
     assert target_key_problems('key = intent_target.get("key", "railway")') == []
     assert target_key_problems('if "relation_id" in intent_target:\n    r = intent_target["relation_id"]') == []
+
+
+def test_a_geometry_read_out_of_a_row_and_put_into_the_sql_is_refused():
+    # Explores 36 and 41: a geometry read with fetchone() is WKB bytes; put into the SQL with an f-string it was a
+    # syntax error, three steps in explore 41.
+    from geo_voyager.contracts.code import relation_in_sql_problems
+    code = ('town = read_table(connection, "yuiseki/jp-admin-2026-09", "municipalities").filter("name = \'双葉町\'")\n'
+            'rep_lon, rep_lat, town_geometry = town.project("rep_lon, rep_lat, geometry").fetchone()\n'
+            'connection.sql(f"SELECT * FROM stations s WHERE ST_Within(s.geometry, {town_geometry}) AND {rep_lon} > 0")')
+    found = relation_in_sql_problems(code)
+    assert len(found) == 1 and 'town_geometry' in found[0] and 'JOIN' in found[0]
+    row = ('row = units.project("code5, population, geometry").fetchone()\ncode5, population, geometry = row\n'
+           'connection.sql(f"SELECT ST_Area(\'{geometry}\')")')
+    assert len(relation_in_sql_problems(row)) == 1

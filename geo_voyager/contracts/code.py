@@ -198,8 +198,48 @@ def relation_in_sql_problems(code: str) -> list[str]:
     put = dict.fromkeys(value.value.id for joined in ast.walk(tree) if isinstance(joined, ast.JoinedStr)
                         for value in joined.values
                         if isinstance(value, ast.FormattedValue) and isinstance(value.value, ast.Name) and value.value.id in relations)
-    return [f'{name} は DuckDB の relation で、f-string で SQL に埋めると表を印字した文字列になり、構文エラーになる。'
-            f'SQL には変数名をそのまま書く（FROM {name}）' for name in put]
+    shapes = _geometries_read_out(tree)
+    put_shapes = dict.fromkeys(value.value.id for joined in ast.walk(tree) if isinstance(joined, ast.JoinedStr)
+                               for value in joined.values
+                               if isinstance(value, ast.FormattedValue) and isinstance(value.value, ast.Name) and value.value.id in shapes)
+    return ([f'{name} は DuckDB の relation で、f-string で SQL に埋めると表を印字した文字列になり、構文エラーになる。'
+             f'SQL には変数名をそのまま書く（FROM {name}）' for name in put]
+            + [f'{name} は fetchone() で取り出した geometry（WKB のバイト列）で、f-string で SQL に埋めると構文エラーになる。'
+               'geometry は Python に取り出さず、その表を SQL の中で JOIN するか副問い合わせで読む' for name in put_shapes])
+
+
+_GEOMETRY_COLUMNS = ('geometry', 'way', 'geom')
+
+
+def _projected(node: ast.AST) -> list[str] | None:
+    """The columns of x.project("a, b, geometry").fetchone(), or None when the call reads no such row."""
+    if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == 'fetchone'):
+        return None
+    for call in ast.walk(node):
+        if (isinstance(call, ast.Call) and isinstance(call.func, ast.Attribute) and call.func.attr == 'project'
+                and call.args and isinstance(call.args[0], ast.Constant) and isinstance(call.args[0].value, str)):
+            return [column.strip().split()[-1].strip('"') for column in call.args[0].value.split(',')]
+    return None
+
+
+def _geometries_read_out(tree: ast.AST) -> set[str]:
+    """The names a row's geometry column is unpacked into: _, _, shape = rel.project("a, b, geometry").fetchone()."""
+    rows = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign) and len(node.targets) == 1:
+            columns = _projected(node.value)
+            if columns is not None and isinstance(node.targets[0], ast.Name):
+                rows[node.targets[0].id] = columns
+    names = set()
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Tuple)):
+            continue
+        columns = rows.get(node.value.id) if isinstance(node.value, ast.Name) else _projected(node.value)
+        if columns is None or len(columns) != len(node.targets[0].elts):
+            continue
+        names.update(target.id for target, column in zip(node.targets[0].elts, columns)
+                     if isinstance(target, ast.Name) and column.lower() in _GEOMETRY_COLUMNS)
+    return names
 
 
 def _calls_sql(node: ast.Call) -> bool:
