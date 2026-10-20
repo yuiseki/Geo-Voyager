@@ -171,6 +171,12 @@ def tag_column_problems(code: str, dataset_ids) -> list[str]:
 
 
 _KIND = re.compile(r'[a-z_:]+=[a-z_:;-]+')
+# A kind as an Intent may also write it, as a condition on the tags: tags->>'office'='government', office = 'government'.
+_KIND_AS_CONDITION = re.compile(r"'?([a-z_:]+)'?\s*=\s*'([a-z_:;-]+)'")
+
+
+def _kinds_named(text: str) -> list[str]:
+    return _KIND.findall(text) + [f'{key}={value}' for key, value in _KIND_AS_CONDITION.findall(text)]
 
 
 def point_only_problems(code: str, intent_text: str) -> list[str]:
@@ -179,6 +185,19 @@ def point_only_problems(code: str, intent_text: str) -> list[str]:
     from ..ingredients import AREA_COUNTS, COUNTS
     if 'planet_osm_point' not in code or 'planet_osm_polygon' in code:
         return []
-    kinds = dict.fromkeys(kind for kind in _KIND.findall(intent_text) if AREA_COUNTS.get(kind))
+    kinds = dict.fromkeys(kind for kind in _kinds_named(intent_text) if AREA_COUNTS.get(kind))
     return [f'{kind} は 23 区の {COUNTS[kind]} 件のうち {AREA_COUNTS[kind]} 件が面で、planet_osm_point だけでは面の分が抜ける。'
             'planet_osm_polygon も読み、面は ST_PointOnSurface の点にして点と合わせる' for kind in kinds]
+
+
+def polygon_only_problems(code: str, intent_text: str) -> list[str]:
+    """The kinds the Intent names that are mostly points in the 23 wards, read from the areas alone: office=government
+    of 杉並区 and 江戸川区 lost 273 of the 331 (explore 44). An Intent on the areas or ways of a kind asks for them; a
+    ward's 境界面 is not one."""
+    from ..ingredients import AREA_COUNTS, COUNTS
+    asked = intent_text.replace('境界面', '').replace('市区町村面', '')
+    if 'planet_osm_polygon' not in code or 'planet_osm_point' in code or re.search(r'面|(?<![A-Za-z])way(?![A-Za-z])|ウェイ', asked):
+        return []
+    kinds = dict.fromkeys(kind for kind in _kinds_named(intent_text) if COUNTS.get(kind, 0) > AREA_COUNTS.get(kind, 0))
+    return [f'{kind} は 23 区の {COUNTS[kind]} 件のうち {COUNTS[kind] - AREA_COUNTS[kind]} 件が点で、planet_osm_polygon だけでは'
+            '点の分が抜ける。planet_osm_point も読み、面は ST_PointOnSurface の点にして点と合わせる' for kind in kinds]

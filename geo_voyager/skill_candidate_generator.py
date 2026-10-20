@@ -8,7 +8,7 @@ from .control_primitives.population_grid import MAX_ZONES
 from .indicator_codes import DATASET as INDICATOR_DATASET, unknown_indicator_text, unknown_indicators
 from .background_facts import facts_section
 from .contracts.references import unsourced_numbers
-from .contracts.tables import point_only_problems, table_contract, tag_column_problems
+from .contracts.tables import point_only_problems, polygon_only_problems, table_contract, tag_column_problems
 from .skill_candidate import entry_problems, main_function_name, rewritten_skills, service_calls, skill_shape_problems, unpassed_runtime_reads, called_service_ids, intent_element_type, overpass_element_mismatch, read_datasets, calls_any, DATASET_READERS_NOTE
 from .place_names import place_words_in
 from .skill_function import SkillFunction
@@ -236,6 +236,7 @@ def contract_problems(intent: Intent, code: str, shown: tuple[str, ...] = ()) ->
         shape = shape + ([unknown_indicator_text(wrong)] if wrong else [])
     shape = shape + axis_order_problems(code) + catalog_path_problems(code) + tag_column_problems(code, intent.dataset_ids)
     shape = shape + relation_in_sql_problems(code) + target_key_problems(code) + point_only_problems(code, intent.text)
+    shape = shape + polygon_only_problems(code, intent.text)
     shape = shape + overpass_element_mismatch(intent.text, code)
     if shape:
         problems.append(('skill shape: ' + '; '.join(shape), _shape_note(shape)))

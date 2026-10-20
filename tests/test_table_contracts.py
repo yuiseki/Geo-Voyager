@@ -145,3 +145,21 @@ def test_code_reading_only_the_points_of_a_kind_that_has_areas_is_refused():
     both = code + '\npolygons = read_table(connection, "yuiseki/osm-tokyo23-src-2026-08", "planet_osm_polygon")'
     assert point_only_problems(both, '港区と新宿区内の amenity=photo_booth の OSM 地物') == []
     assert point_only_problems(code, '港区の写真機の件数') == []                            # no kind named
+
+
+def test_a_kind_mostly_points_read_from_the_areas_alone_is_refused():
+    # Explore 44: office=government of 杉並区 and 江戸川区 read from planet_osm_polygon alone; 273 of the 331 in the 23
+    # wards are points, and the sums came out the other way round (杉並区 has 10, 江戸川区 5).
+    from geo_voyager.contracts.tables import polygon_only_problems
+    code = ('offices = read_table(connection, "yuiseki/osm-tokyo23-src-2026-08", "planet_osm_polygon")'
+            '.filter("office = \'government\'")')
+    intent = "杉並区と江戸川区の tags->>'office'='government' の要素ごとに、半径 1 km の推計人口を合計する"
+    found = polygon_only_problems(code, intent)
+    assert len(found) == 1 and 'office=government' in found[0] and 'planet_osm_point' in found[0]
+    both = code + '\npoints = read_table(connection, "yuiseki/osm-tokyo23-src-2026-08", "planet_osm_point")'
+    assert polygon_only_problems(both, intent) == []
+    # the areas are what an Intent on the area of a kind asks for
+    assert polygon_only_problems(code, '杉並区の office=government の面積の合計を求める') == []
+    assert polygon_only_problems(code, '杉並区の office=government の面の件数を数える') == []
+    assert polygon_only_problems(code, '台東区の office=government を持つ way の個数を数える') == []
+    assert len(polygon_only_problems(code, '杉並区の境界面と office=government を空間結合する')) == 1

@@ -818,3 +818,17 @@ def test_code_that_reads_only_the_points_of_a_kind_with_areas_is_generated_again
     candidate = SkillCandidateGenerator(client).generate(Intent('23 区の amenity=photo_booth を数える', ('yuiseki/osm-tokyo23-src-2026-08',)))
     assert candidate.code == both and client.generate.call_count == 2
     assert 'ST_PointOnSurface' in client.generate.call_args_list[1].args[0]
+
+
+def test_code_that_reads_only_the_areas_of_a_kind_mostly_points_is_generated_again():
+    # Explore 44: office=government read from planet_osm_polygon alone; 273 of the 331 are points.
+    areas = ('from geo_voyager.control_primitives import connect_duckdb, read_table\n\n\ndef offices():\n    \"\"\"The offices.\"\"\"\n'
+             '    with connect_duckdb() as connection:\n'
+             '        polygons = read_table(connection, "yuiseki/osm-tokyo23-src-2026-08", "planet_osm_polygon")\n'
+             '        return {"n": connection.sql("SELECT count(*) FROM polygons WHERE office = \'government\'").fetchone()[0]}')
+    both = areas.replace('        return', '        points = read_table(connection, "yuiseki/osm-tokyo23-src-2026-08", "planet_osm_point")\n'
+                         '        return').replace("FROM polygons WHERE", "FROM (SELECT office FROM points UNION ALL SELECT office FROM polygons) WHERE")
+    client = Mock(); client.generate.side_effect = [_reply(areas), _reply(both)]
+    candidate = SkillCandidateGenerator(client).generate(Intent('杉並区の office=government を数える', ('yuiseki/osm-tokyo23-src-2026-08',)))
+    assert candidate.code == both and client.generate.call_count == 2
+    assert '点の分が抜ける' in client.generate.call_args_list[1].args[0]
