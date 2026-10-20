@@ -306,9 +306,9 @@ def test_a_repair_that_answers_for_the_first_row_of_an_input_is_asked_again():
 
 
 def test_a_repair_that_turns_a_function_back_into_a_script_is_asked_again():
-    original = 'def count(intent_target):\n    """Count."""\n    return intent_target["x"]'
+    original = 'def count(intent_target):\n    """Count."""\n    return intent_target["x"]["n"]'
     script = 'print(1)'
-    fixed = 'def count(intent_target):\n    """Count."""\n    return intent_target["y"]'
+    fixed = 'def count(intent_target):\n    """Count."""\n    return int(intent_target["id_value"])'
     llm = Mock(); llm.generate.side_effect = [code_reply(script), code_reply(fixed)]
     failure = ExecutionFailure('failed', '', "Traceback\nKeyError: 'x'", 73)
     result = SkillCandidateRepairer(llm).repair(Intent('数える', service_ids=('overpass',)), SkillCandidate(original, 'c'), failure)

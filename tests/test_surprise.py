@@ -55,3 +55,9 @@ def test_a_name_the_answer_writes_shorter_at_its_end_is_no_surprise():
     assert surprise('横浜市港北区', '{"name": "港北区", "population": 358530}') == 0
     assert surprise('東京都千代田区', '{"pref": "東京都", "name": "中央区"}') == 1
     assert surprise('世田谷区', '{"name": "区"}') == 1
+
+
+def test_a_station_predicted_with_eki_is_the_station_the_data_names_without_it():
+    # Explore 37: the prediction 新宿駅 was counted the whole surprise for 新宿, as ekidata-jp and OSM name the station.
+    assert surprise('新宿駅', '{"stations": [{"station_g_cd": 1130208, "station_name": "新宿", "line_count": 13}]}') == 0
+    assert surprise('新宿駅', '{"station_name": "渋谷"}') == 1

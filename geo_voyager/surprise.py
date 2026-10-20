@@ -8,7 +8,7 @@ It is measured without a model, so that no model's judgement reaches the curricu
   may hold several numbers and which one the prediction meant is not known, so the nearest is taken: the surprise is
   never more than it was.
 - A name: 0 when the answer has it, or has a name of three letters or more that ends it (横浜市営地下鉄ブルーライン
-  written ブルーライン), 1 when it does not.
+  written ブルーライン), 1 when it does not. A station predicted with 駅 (新宿駅) is the one the data names without it.
 """
 import json
 import math
@@ -29,7 +29,10 @@ def surprise(prediction: str, answer: str) -> float | None:
     found = _NUMBER.search(prediction)
     if found is None:
         name = prediction.removeprefix('約').strip(_QUOTES)
-        return (0.0 if name in answer or any(name.endswith(text) for text in _names(answer)) else 1.0) if name else None
+        # Stations are named without 駅 (新宿) in ekidata-jp and OSM; the prediction often writes it (explore 37).
+        names = {name, name.removesuffix('駅')} - {''}
+        return (0.0 if any(name in answer or any(name.endswith(text) for text in _names(answer)) for name in names)
+                else 1.0) if name else None
     predicted = _value(found.group())
     numbers = _numbers(answer)
     if not numbers:

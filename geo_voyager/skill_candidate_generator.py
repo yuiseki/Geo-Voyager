@@ -3,7 +3,7 @@ import json
 from .id_type_literals import id_type_comparisons
 from .intent import Intent
 from .contracts.code import (axis_order_problems, catalog_path_problems, local_aggregation_violations, positional_input_picks,
-                             relation_in_sql_problems)
+                             relation_in_sql_problems, target_key_problems)
 from .control_primitives.population_grid import MAX_ZONES
 from .indicator_codes import DATASET as INDICATOR_DATASET, unknown_indicator_text, unknown_indicators
 from .background_facts import facts_section
@@ -235,7 +235,7 @@ def contract_problems(intent: Intent, code: str, shown: tuple[str, ...] = ()) ->
         wrong = unknown_indicators(code)
         shape = shape + ([unknown_indicator_text(wrong)] if wrong else [])
     shape = shape + axis_order_problems(code) + catalog_path_problems(code) + tag_column_problems(code, intent.dataset_ids)
-    shape = shape + relation_in_sql_problems(code)
+    shape = shape + relation_in_sql_problems(code) + target_key_problems(code)
     shape = shape + overpass_element_mismatch(intent.text, code)
     if shape:
         problems.append(('skill shape: ' + '; '.join(shape), _shape_note(shape)))

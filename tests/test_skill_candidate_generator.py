@@ -787,3 +787,20 @@ def test_code_that_puts_a_relation_into_the_sql_with_an_f_string_is_generated_ag
     candidate = SkillCandidateGenerator(client).generate(Intent('23 区の面の件数を求める', ('yuiseki/osm-tokyo23-src-2026-08',)))
     assert candidate.code == named and client.generate.call_count == 2
     assert 'FROM polygons' in client.generate.call_args_list[1].args[0]
+
+
+def test_code_that_reads_a_key_the_target_does_not_have_is_generated_again():
+    # Explores 35, 37: intent_target["relation_id"] was a KeyError; the target has name, id_type and id_value.
+    from geo_voyager.target_ref import TargetRef
+    guessed = ('import json\nfrom geo_voyager.control_primitives import call_service\n\n\ndef watches(intent_target):\n'
+               '    \"\"\"The watch shops of the ward.\"\"\"\n'
+               '    area_id = int(intent_target["relation_id"]) + 3600000000\n'
+               '    query = f\'[out:json];nwr["shop"="watches"](area:{area_id});out center;\'\n'
+               '    return json.loads(call_service("overpass", path="/api/interpreter", body=query, content_type="text/plain"))["elements"]')
+    given = guessed.replace('intent_target["relation_id"]', 'intent_target["id_value"]')
+    client = Mock(); client.generate.side_effect = [_reply(guessed), _reply(given)]
+    intent = Intent('大田区の shop=watches を一覧で返す', service_ids=('overpass',),
+                    target=TargetRef('大田区', 'relation_id', '1758947'))
+    candidate = SkillCandidateGenerator(client).generate(intent)
+    assert candidate.code == given and client.generate.call_count == 2
+    assert 'intent_target に "relation_id" は無い' in client.generate.call_args_list[1].args[0]

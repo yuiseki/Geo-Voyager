@@ -205,3 +205,46 @@ def relation_in_sql_problems(code: str) -> list[str]:
 def _calls_sql(node: ast.Call) -> bool:
     return any(isinstance(call, ast.Call) and isinstance(call.func, ast.Attribute) and call.func.attr in ('sql', 'query')
                for call in ast.walk(node))
+
+
+_TARGET_KEYS = ('name', 'id_type', 'id_value')
+
+
+def target_key_problems(code: str) -> list[str]:
+    """The keys read from intent_target that it does not have: it has name, id_type and id_value, and the code read
+    intent_target["relation_id"], a KeyError that took two steps (explores 35, 37)."""
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return []
+    assigned = [node for node in ast.walk(tree) if isinstance(node, ast.Assign)]
+    targets = {'intent_target'}
+    changed = True
+    while changed:
+        changed = False
+        for node in assigned:
+            if isinstance(node.value, ast.Name) and node.value.id in targets:
+                for name in node.targets:
+                    if isinstance(name, ast.Name) and name.id not in targets:
+                        targets.add(name.id)
+                        changed = True
+    # a name bound to anything else may hold another dict
+    targets -= {name.id for node in assigned if not (isinstance(node.value, ast.Name) and node.value.id in targets)
+                for name in node.targets if isinstance(name, ast.Name)}
+    # a key asked after first ("relation_id" in intent_target) is a guess that is not taken when wrong
+    asked = {node.left.value for node in ast.walk(tree) if isinstance(node, ast.Compare) and isinstance(node.left, ast.Constant)
+             and any(isinstance(op, (ast.In, ast.NotIn)) for op in node.ops)}
+    read = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name) and node.value.id in targets:
+            key = node.slice
+        elif (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == 'get'
+              and isinstance(node.func.value, ast.Name) and node.func.value.id in targets and len(node.args) == 1):
+            key = node.args[0]          # with a default, a guess that falls back
+        else:
+            continue
+        if isinstance(key, ast.Constant) and isinstance(key.value, str) and key.value not in _TARGET_KEYS + tuple(asked):
+            read.append((node.lineno, node.col_offset, key.value))
+    return [f'intent_target に "{key}" は無い。intent_target が持つのは name、id_type、id_value だけ。'
+            f'対象の ID は intent_target["id_value"]（その種類が intent_target["id_type"]）'
+            for key in dict.fromkeys(key for _line, _column, key in sorted(read))]

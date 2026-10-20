@@ -68,3 +68,21 @@ def test_a_relation_put_into_the_sql_with_an_f_string_is_refused():
     assert relation_in_sql_problems('n = 3\nconnection.sql(f"SELECT {n}")') == []
     rows = 'rows = connection.sql("SELECT 1").fetchall()\nprint(f"{rows}")'
     assert relation_in_sql_problems(rows) == []
+
+
+def test_a_key_the_target_does_not_have_is_refused():
+    # Explore 35 and 37: the code read intent_target["relation_id"]; the target has name, id_type and id_value, and the
+    # KeyError took two steps each time.
+    from geo_voyager.contracts.code import target_key_problems
+    code = ('def f(intent_target):\n'
+            '    relation = intent_target\n'
+            '    area_id = int(relation["relation_id"]) + 3600000000\n'
+            '    return intent_target.get("osm_id"), intent_target["name"]\n')
+    found = target_key_problems(code)
+    assert len(found) == 2 and 'relation_id' in found[0] and 'osm_id' in found[1] and 'id_value' in found[0]
+    assert target_key_problems('x = int(intent_target["id_value"]) + 1\ny = intent_target.get("id_type")') == []
+    # a name bound again to something else is no longer the target
+    assert target_key_problems('intent_target = json.loads(s)\nintent_target["relation_id"]') == []
+    # a guess that falls back when wrong runs: a default, or a key asked after first (saved skills of explores 4, 6, 10)
+    assert target_key_problems('key = intent_target.get("key", "railway")') == []
+    assert target_key_problems('if "relation_id" in intent_target:\n    r = intent_target["relation_id"]') == []

@@ -83,6 +83,13 @@ def test_the_centre_of_a_ward_is_the_representative_point_of_jp_admin_not_an_ove
     assert 'Overpass で求めない' in prompt and 'area 要素は out center を付けても center を返さない' in prompt
 
 
+def test_the_frozen_osm_says_the_counts_of_a_goal_are_its_own_and_overpass_is_older():
+    # explore 37, Goal 5: asked of the 26 fire stations of 品川区 and 葛飾区 (counted in the frozen copy), the Planner
+    # read Overpass, found 24, picked the northernmost and then measured them again until the time ran out.
+    text = planner_text('yuiseki/osm-tokyo23-src-2026-08')
+    assert 'Goal が書く 23 区の件数はこの表で数えたもの' in text and '2025-09-14' in text
+
+
 def test_the_planner_is_told_a_columns_note_on_how_to_use_it_as_the_generator_is():
     # jp-admin's geometry note (take touching pairs with ST_Intersects) reached the Generator's table text only; the
     # Planner, which decides what a step measures, was not told.

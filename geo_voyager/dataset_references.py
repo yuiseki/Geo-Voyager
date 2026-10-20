@@ -25,7 +25,11 @@ _MAIN_TABLE = {
 }
 _NOTES = {
     'yuiseki/osm-tokyo23-src-2026-08': ('read_table は way を OGC:CRS84 の経度、緯度に直して返す（元の EPSG:3857 のメートルのままにはしない）。'
-                                        '23 区の中で閉じる OSM の問いは、Overpass よりこの表のほうが軽い。'),
+                                        '23 区の中で閉じる OSM の問いは、Overpass よりこの表のほうが軽い。'
+                                        # explore 37: told 26 fire stations, the Planner read 24 from Overpass and
+                                        # measured them again until the time ran out.
+                                        'Goal が書く 23 区の件数はこの表で数えたもの。Overpass のデータは 2025-09-14 で止まっていて、'
+                                        '件数が合わないことがある。'),
     'yuiseki/jp-admin-2026-09': ('東京23区の23区は1回で読める。区や市区町村の中心点は、この Dataset の代表点 rep_lon と rep_lat を使う。'
                                  'Goal が OSM を名指ししないとき、中心点を Overpass で求めない。'),
     'yuiseki/worldpop-jp-2026-01': (
