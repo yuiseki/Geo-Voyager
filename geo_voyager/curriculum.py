@@ -30,6 +30,9 @@ SURPRISING_SHOWN = 5
 SURPRISING_CHARS = 1500
 SIMILAR_COSINE = 0.95
 
+# A code of a prefecture or a municipality written as digits: 都道府県コード13, 市区町村コードの先頭2桁が22.
+_PLACE_CODE = re.compile(r'(?:都道府県|市区町村|自治体|団体)コード[^。、]{0,8}?\d')
+
 
 @dataclass(frozen=True)
 class ProposedGoal:
@@ -107,6 +110,10 @@ class Curriculum:
                           'that builds on what is known, and predict its answer. Reply with the three lines Goal:, 理由: '
                           'and 予想: only.')
         proposed = _parse(text, findings)
+        if _PLACE_CODE.search(proposed.goal):
+            # explore 40: 「市区町村コードの先頭2桁が22（神奈川県）」, where 22 is 静岡県
+            raise CurriculumRejected('Goal に都道府県や市区町村のコードの数字を書いた。コードは記憶で書くと外れる。'
+                                     '地域は名前で書く（神奈川県、横浜市）。コードは調べるときにデータから求める', text)
         if ingredients is not None:
             proposed = ProposedGoal(proposed.goal, proposed.reason, proposed.prediction, _used(text, ingredients))
             missing = ingredients.none_found(proposed.goal)

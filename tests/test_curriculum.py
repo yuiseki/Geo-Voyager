@@ -273,3 +273,17 @@ def test_on_exploration_a_goal_on_a_kind_the_named_wards_have_none_of_is_refused
                           '理由: y\n予想: 0 km\n材料: man_made=communications_tower、港区、中央区、駅までの直線距離')
     with pytest.raises(CurriculumRejected, match='man_made=communications_tower は 港区 0 件、中央区 0 件'):
         agent.propose([], [], ingredients=towers)
+
+
+def test_a_goal_that_writes_the_code_of_a_place_is_refused():
+    # Explore 40: 「市区町村コードの先頭2桁が22（神奈川県）」: 22 is 静岡県, which has no city of a million, and the Goal ran
+    # out of time on an answer that was empty before it was explored. Codes are found in the data, by the place's name.
+    agent, _ = curriculum('Goal: 2020年国勢調査人口が100万人以上で、市区町村コードの先頭2桁が22（神奈川県）の市区町村の中で、人口が最も大きいもの\n'
+                          '理由: y\n予想: 横浜市')
+    with pytest.raises(CurriculumRejected, match='名前で書く'):
+        agent.propose([], [])
+    agent, _ = curriculum('Goal: 都道府県コード13の駅データ.jpで、路線が最も多い駅\n理由: y\n予想: 新宿')
+    with pytest.raises(CurriculumRejected):
+        agent.propose([], [])
+    agent, _ = curriculum('Goal: 神奈川県で人口が最も大きい市区町村\n理由: y\n予想: 横浜市')
+    assert agent.propose([], []).goal.startswith('神奈川県')
