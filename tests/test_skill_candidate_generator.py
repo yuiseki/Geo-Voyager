@@ -804,3 +804,17 @@ def test_code_that_reads_a_key_the_target_does_not_have_is_generated_again():
     candidate = SkillCandidateGenerator(client).generate(intent)
     assert candidate.code == given and client.generate.call_count == 2
     assert 'intent_target に "relation_id" は無い' in client.generate.call_args_list[1].args[0]
+
+
+def test_code_that_reads_only_the_points_of_a_kind_with_areas_is_generated_again():
+    # Explores 37, 39: the areas of shop=watches and amenity=photo_booth were left out.
+    points = ('from geo_voyager.control_primitives import connect_duckdb, read_table\n\n\ndef booths():\n    \"\"\"The photo booths.\"\"\"\n'
+              '    with connect_duckdb() as connection:\n'
+              '        points = read_table(connection, "yuiseki/osm-tokyo23-src-2026-08", "planet_osm_point")\n'
+              '        return {"n": connection.sql("SELECT count(*) FROM points WHERE amenity = \'photo_booth\'").fetchone()[0]}')
+    both = points.replace('        return', '        polygons = read_table(connection, "yuiseki/osm-tokyo23-src-2026-08", "planet_osm_polygon")\n'
+                          '        return').replace("FROM points WHERE", "FROM (SELECT amenity FROM points UNION ALL SELECT amenity FROM polygons) WHERE")
+    client = Mock(); client.generate.side_effect = [_reply(points), _reply(both)]
+    candidate = SkillCandidateGenerator(client).generate(Intent('23 区の amenity=photo_booth を数える', ('yuiseki/osm-tokyo23-src-2026-08',)))
+    assert candidate.code == both and client.generate.call_count == 2
+    assert 'ST_PointOnSurface' in client.generate.call_args_list[1].args[0]

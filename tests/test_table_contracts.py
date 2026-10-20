@@ -133,3 +133,15 @@ def test_a_tag_read_from_tags_when_it_has_its_own_column_is_refused():
     assert tag_column_problems("polygons.filter(\"tags->>'cuisine' = 'ramen'\")", osm) == []   # not a column
     assert tag_column_problems("polygons.filter(\"power = 'plant'\")", osm) == []
     assert tag_column_problems("polygons.filter(\"(tags->>'power') = 'plant'\")", ('yuiseki/ekidata-jp',)) == []
+
+
+def test_code_reading_only_the_points_of_a_kind_that_has_areas_is_refused():
+    # Explores 37 and 39: shop=watches of 大田区 (3 of 4 are areas) and amenity=photo_booth of 港区 and 新宿区 (3 of 10)
+    # were read from planet_osm_point alone; the photo booths' average price came out 6.2 million yen, not 14.8.
+    from geo_voyager.contracts.tables import point_only_problems
+    code = 'points = read_table(connection, "yuiseki/osm-tokyo23-src-2026-08", "planet_osm_point").filter("amenity = \'photo_booth\'")'
+    found = point_only_problems(code, '港区と新宿区内の amenity=photo_booth の OSM 地物について平均を求める')
+    assert len(found) == 1 and 'amenity=photo_booth' in found[0] and 'planet_osm_polygon' in found[0]
+    both = code + '\npolygons = read_table(connection, "yuiseki/osm-tokyo23-src-2026-08", "planet_osm_polygon")'
+    assert point_only_problems(both, '港区と新宿区内の amenity=photo_booth の OSM 地物') == []
+    assert point_only_problems(code, '港区の写真機の件数') == []                            # no kind named

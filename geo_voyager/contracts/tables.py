@@ -168,3 +168,17 @@ def tag_column_problems(code: str, dataset_ids) -> list[str]:
     read = dict.fromkeys(key for match in _TAG_READ.finditer(code) for key in match.groups() if key)
     return [f'{key} は表の列にあり、tags には入っていない（tags は列にならなかったタグだけ）。tags でなく "{key}" 列で読む'
             for key in read if key in columns]
+
+
+_KIND = re.compile(r'[a-z_:]+=[a-z_:;-]+')
+
+
+def point_only_problems(code: str, intent_text: str) -> list[str]:
+    """The kinds the Intent names that have areas in the 23 wards, read from the points alone: shop=watches of 大田区
+    (3 of 4 areas) and amenity=photo_booth of 港区 and 新宿区 (3 of 10) lost their areas (explores 37, 39)."""
+    from ..ingredients import AREA_COUNTS, COUNTS
+    if 'planet_osm_point' not in code or 'planet_osm_polygon' in code:
+        return []
+    kinds = dict.fromkeys(kind for kind in _KIND.findall(intent_text) if AREA_COUNTS.get(kind))
+    return [f'{kind} は 23 区の {COUNTS[kind]} 件のうち {AREA_COUNTS[kind]} 件が面で、planet_osm_point だけでは面の分が抜ける。'
+            'planet_osm_polygon も読み、面は ST_PointOnSurface の点にして点と合わせる' for kind in kinds]
